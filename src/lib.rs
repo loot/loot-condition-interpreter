@@ -2,14 +2,15 @@
 extern crate nom;
 extern crate regex;
 
-use regex::Regex;
-
 use nom::{IError, IResult};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::str;
 
+mod function;
+use function::Function;
+
 #[derive(Debug)]
-enum Error {
+pub enum Error {
     ParsingIncomplete,
     ParsingError,
     InvalidPath(PathBuf),
@@ -25,57 +26,12 @@ impl From<IError> for Error {
     }
 }
 
-#[derive(Debug)]
-enum ComparisonOperator {
-    Equal,
-    NotEqual,
-    LessThan,
-    GreaterThan,
-    LessThanOrEqual,
-    GreaterThanOrEqual,
-}
-
-#[derive(Debug)]
-enum Function {
-    FilePath(PathBuf),
-    FileRegex(Regex),
-    ActivePath(PathBuf),
-    ActiveRegex(Regex),
-    Many(Regex),
-    ManyActive(Regex),
-    Checksum(PathBuf, u32),
-    Version(PathBuf, String, ComparisonOperator),
-}
-
-impl Function {
-    fn eval(&self) -> Result<bool, Error> {
-        // TODO: Handle all variants.
-        // TODO: Paths may not lead outside game directory.
-        match *self {
-            Function::FilePath(ref f) => Ok(f.exists()),
-            _ => Ok(false),
-        }
-    }
-
-    fn parse(input: &str) -> IResult<&str, Function> {
-        // TODO: Handle all variants.
-        // TODO: Paths may not contain :*?"<>|
-        do_parse!(
-            input,
-            tag!("file(\"")
-                >> path: is_not!("\"")
-                >> tag!("\")")
-                >> (Function::FilePath(PathBuf::from(path)))
-        )
-    }
-}
-
 // Compound conditions joined by 'or'
 #[derive(Debug)]
-struct Expression(Vec<CompoundCondition>);
+pub struct Expression(Vec<CompoundCondition>);
 
 impl Expression {
-    fn eval(&self) -> Result<bool, Error> {
+    pub fn eval(&self) -> Result<bool, Error> {
         for compound_condition in &self.0 {
             if compound_condition.eval()? {
                 return Ok(true);
@@ -84,7 +40,7 @@ impl Expression {
         Ok(false)
     }
 
-    fn parse(input: &str) -> IResult<&str, Expression> {
+    pub fn parse(input: &str) -> IResult<&str, Expression> {
         do_parse!(
             input,
             compound_conditions:
@@ -266,46 +222,6 @@ mod tests {
                 v
             ),
         }
-    }
-
-    #[test]
-    fn function_parse_should_parse_a_file_function() {
-        let result = Function::parse("file(\"Cargo.toml\")").to_result().unwrap();
-
-        match result {
-            Function::FilePath(f) => assert_eq!(PathBuf::from("Cargo.toml"), f),
-            _ => panic!("Expected a file function"),
-        }
-    }
-
-    #[test]
-    fn function_file_path_eval_should_return_true_if_the_file_exists_relative_to_the_data_path() {
-        let function = Function::FilePath(PathBuf::from("Cargo.toml"));
-
-        assert!(function.eval().unwrap());
-
-        unimplemented!("not yet any way to actually specify the data path");
-    }
-
-    #[test]
-    fn function_file_path_eval_should_return_true_if_given_a_plugin_that_is_ghosted() {
-        let function = Function::FilePath(PathBuf::from("test.esp"));
-
-        assert!(function.eval().unwrap());
-
-        unimplemented!("need to add tempdir and create a test.esp.ghost");
-    }
-
-    #[test]
-    fn function_file_path_eval_should_error_if_the_path_is_outside_game_directory() {
-        unimplemented!("to do");
-    }
-
-    #[test]
-    fn function_file_path_eval_should_return_false_if_the_file_does_not_exist() {
-        let function = Function::FilePath(PathBuf::from("missing"));
-
-        assert!(!function.eval().unwrap());
     }
 
     #[test]
