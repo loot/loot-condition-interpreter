@@ -4,9 +4,9 @@ extern crate regex;
 
 use regex::Regex;
 
-use std::str;
-use std::path::PathBuf;
 use nom::{IError, IResult};
+use std::path::{Path, PathBuf};
+use std::str;
 
 #[derive(Debug)]
 enum Error {
@@ -25,6 +25,7 @@ impl From<IError> for Error {
     }
 }
 
+#[derive(Debug)]
 enum ComparisonOperator {
     Equal,
     NotEqual,
@@ -34,6 +35,7 @@ enum ComparisonOperator {
     GreaterThanOrEqual,
 }
 
+#[derive(Debug)]
 enum Function {
     FilePath(PathBuf),
     FileRegex(Regex),
@@ -60,13 +62,16 @@ impl Function {
         // TODO: Paths may not contain :*?"<>|
         do_parse!(
             input,
-            tag!("file(\"") >> path: is_not!("\"") >> tag!("\")")
+            tag!("file(\"")
+                >> path: is_not!("\"")
+                >> tag!("\")")
                 >> (Function::FilePath(PathBuf::from(path)))
         )
     }
 }
 
 // Compound conditions joined by 'or'
+#[derive(Debug)]
 struct Expression(Vec<CompoundCondition>);
 
 impl Expression {
@@ -80,11 +85,17 @@ impl Expression {
     }
 
     fn parse(input: &str) -> IResult<&str, Expression> {
-        IResult::Done(input, Expression(vec![]))
+        do_parse!(
+            input,
+            compound_conditions:
+                separated_list_complete!(ws!(tag!("or")), CompoundCondition::parse)
+                >> (Expression(compound_conditions))
+        )
     }
 }
 
 // Conditions joined by 'and'
+#[derive(Debug)]
 struct CompoundCondition(Vec<Condition>);
 
 impl CompoundCondition {
@@ -98,13 +109,18 @@ impl CompoundCondition {
     }
 
     fn parse(input: &str) -> IResult<&str, CompoundCondition> {
-        IResult::Done(input, CompoundCondition(vec![]))
+        do_parse!(
+            input,
+            conditions: separated_list_complete!(ws!(tag!("and")), Condition::parse)
+                >> (CompoundCondition(conditions))
+        )
     }
 }
 
+#[derive(Debug)]
 enum Condition {
     Function(Function),
-    NotFunction(Function),
+    InvertedFunction(Function),
     Expression(Expression),
 }
 
@@ -112,20 +128,145 @@ impl Condition {
     fn eval(&self) -> Result<bool, Error> {
         match *self {
             Condition::Function(ref f) => f.eval(),
-            Condition::NotFunction(ref f) => f.eval().map(|r| !r),
+            Condition::InvertedFunction(ref f) => f.eval().map(|r| !r),
             Condition::Expression(ref e) => e.eval(),
         }
     }
 
     fn parse(input: &str) -> IResult<&str, Condition> {
-        let (input1, function) = try_parse!(input, Function::parse);
-        IResult::Done(input1, Condition::Function(function))
+        do_parse!(
+            input,
+            condition:
+                alt!(
+                    call!(Function::parse) => {
+                        |f| Condition::Function(f)
+                    } |
+                    preceded!(ws!(tag!("not")), call!(Function::parse)) => {
+                        |f| Condition::InvertedFunction(f)
+                    } |
+                    delimited!(tag!("("), call!(Expression::parse), tag!(")")) => {
+                        |e| Condition::Expression(e)
+                    }
+            ) >> (condition)
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn expression_parse_should_handle_a_single_compound_condition() {
+        let result = Expression::parse("file(\"Cargo.toml\")")
+            .to_result()
+            .unwrap();
+
+        match result.0.as_slice() {
+            [CompoundCondition(_)] => {}
+            _ => panic!("Expected an expression with one compound condition"),
+        }
+    }
+
+    #[test]
+    fn expression_parse_should_handle_multiple_compound_conditions() {
+        let result = Expression::parse("file(\"Cargo.toml\") or file(\"Cargo.toml\")")
+            .to_result()
+            .unwrap();
+
+        match result.0.as_slice() {
+            [CompoundCondition(_), CompoundCondition(_)] => {}
+            v => panic!(
+                "Expected an expression with two compound conditions, got {:?}",
+                v
+            ),
+        }
+    }
+
+    #[test]
+    fn compound_condition_parse_should_handle_a_single_condition() {
+        let result = CompoundCondition::parse("file(\"Cargo.toml\")")
+            .to_result()
+            .unwrap();
+
+        match result.0.as_slice() {
+            [Condition::Function(Function::FilePath(f))] => {
+                assert_eq!(&PathBuf::from("Cargo.toml"), f)
+            }
+            v => panic!(
+                "Expected an expression with two compound conditions, got {:?}",
+                v
+            ),
+        }
+    }
+
+    #[test]
+    fn compound_condition_parse_should_handle_multiple_conditions() {
+        let result = CompoundCondition::parse("file(\"Cargo.toml\") and file(\"README.md\")")
+            .to_result()
+            .unwrap();
+
+        match result.0.as_slice() {
+            [Condition::Function(Function::FilePath(f1)), Condition::Function(Function::FilePath(f2))] =>
+            {
+                assert_eq!(&PathBuf::from("Cargo.toml"), f1);
+                assert_eq!(&PathBuf::from("README.md"), f2);
+            }
+            v => panic!(
+                "Expected an expression with two compound conditions, got {:?}",
+                v
+            ),
+        }
+    }
+
+    #[test]
+    fn condition_parse_should_handle_a_function() {
+        let result = Condition::parse("file(\"Cargo.toml\")")
+            .to_result()
+            .unwrap();
+
+        match result {
+            Condition::Function(Function::FilePath(f)) => {
+                assert_eq!(PathBuf::from("Cargo.toml"), f)
+            }
+            v => panic!(
+                "Expected an expression with two compound conditions, got {:?}",
+                v
+            ),
+        }
+    }
+
+    #[test]
+    fn condition_parse_should_handle_a_inverted_function() {
+        let result = Condition::parse("not file(\"Cargo.toml\")")
+            .to_result()
+            .unwrap();
+
+        match result {
+            Condition::InvertedFunction(Function::FilePath(f)) => {
+                assert_eq!(PathBuf::from("Cargo.toml"), f)
+            }
+            v => panic!(
+                "Expected an expression with two compound conditions, got {:?}",
+                v
+            ),
+        }
+    }
+
+    #[test]
+    fn condition_parse_should_handle_an_expression_in_parentheses() {
+        let result = Condition::parse("(not file(\"Cargo.toml\"))")
+            .to_result()
+            .unwrap();
+
+        match result {
+            Condition::Expression(_) => {}
+            v => panic!(
+                "Expected an expression with two compound conditions, got {:?}",
+                v
+            ),
+        }
+    }
 
     #[test]
     fn function_parse_should_parse_a_file_function() {
@@ -180,22 +321,21 @@ mod tests {
 
     #[test]
     fn condition_eval_should_return_expression_eval_for_an_expression_condition() {
-        let condition = Condition::Expression(Expression(vec![
-            CompoundCondition(vec![
-                Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml"))),
-            ]),
-        ]));
+        let condition = Condition::Expression(Expression(vec![CompoundCondition(vec![
+            Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml"))),
+        ])]));
 
         assert!(condition.eval().unwrap());
     }
 
     #[test]
     fn condition_eval_should_return_inverse_of_function_eval_for_a_not_function_condition() {
-        let condition = Condition::NotFunction(Function::FilePath(PathBuf::from("Cargo.toml")));
+        let condition =
+            Condition::InvertedFunction(Function::FilePath(PathBuf::from("Cargo.toml")));
 
         assert!(!condition.eval().unwrap());
 
-        let condition = Condition::NotFunction(Function::FilePath(PathBuf::from("missing")));
+        let condition = Condition::InvertedFunction(Function::FilePath(PathBuf::from("missing")));
 
         assert!(condition.eval().unwrap());
     }
@@ -223,12 +363,12 @@ mod tests {
     #[test]
     fn expression_eval_should_be_true_if_any_compound_condition_is_true() {
         let expression = Expression(vec![
-            CompoundCondition(vec![
-                Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml"))),
-            ]),
-            CompoundCondition(vec![
-                Condition::Function(Function::FilePath(PathBuf::from("missing"))),
-            ]),
+            CompoundCondition(vec![Condition::Function(Function::FilePath(
+                PathBuf::from("Cargo.toml"),
+            ))]),
+            CompoundCondition(vec![Condition::Function(Function::FilePath(
+                PathBuf::from("missing"),
+            ))]),
         ]);
         assert!(expression.eval().unwrap());
     }
@@ -236,12 +376,12 @@ mod tests {
     #[test]
     fn expression_eval_should_be_false_if_all_compound_conditions_are_false() {
         let expression = Expression(vec![
-            CompoundCondition(vec![
-                Condition::Function(Function::FilePath(PathBuf::from("missing"))),
-            ]),
-            CompoundCondition(vec![
-                Condition::Function(Function::FilePath(PathBuf::from("missing"))),
-            ]),
+            CompoundCondition(vec![Condition::Function(Function::FilePath(
+                PathBuf::from("missing"),
+            ))]),
+            CompoundCondition(vec![Condition::Function(Function::FilePath(
+                PathBuf::from("missing"),
+            ))]),
         ]);
         assert!(!expression.eval().unwrap());
     }
