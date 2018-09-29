@@ -1,9 +1,8 @@
-
 use std::path::{Path, PathBuf};
 use std::str;
 
+use nom::{Context, Err, ErrorKind, IResult};
 use regex::Regex;
-use nom::IResult;
 
 use super::Error;
 
@@ -32,6 +31,12 @@ pub enum Function {
 const INVALID_PATH_CHARS: &str = "\":*?<>|\\"; // \ is treated as invalid to distinguish regex strings.
 const INVALID_REGEX_PATH_CHARS: &str = "\"<>";
 
+fn parse_regex(input: &str) -> IResult<&str, Regex> {
+    Regex::new(input)
+        .map(|r| ("", r))
+        .map_err(|e| Err::Failure(Context::Code(input, ErrorKind::Custom(1))))
+}
+
 impl Function {
     pub fn eval(&self) -> Result<bool, Error> {
         // TODO: Handle all variants.
@@ -44,15 +49,27 @@ impl Function {
 
     pub fn parse(input: &str) -> IResult<&str, Function> {
         // TODO: Handle all variants.
-        // TODO: Paths may not contain :*?"<>|
         do_parse!(
             input,
-            function: alt!(
+            function:
+                alt!(
                 delimited!(tag!("file(\""), is_not!(INVALID_PATH_CHARS), tag!("\")")) => {
                     |path| Function::FilePath(PathBuf::from(path))
                 } |
+                delimited!(tag!("file(\""), flat_map!(is_not!(INVALID_REGEX_PATH_CHARS), parse_regex), tag!("\"")) => {
+                    |r| Function::FileRegex(r)
+                } |
                 delimited!(tag!("active(\""), is_not!(INVALID_PATH_CHARS), tag!("\")")) => {
                     |path| Function::ActivePath(PathBuf::from(path))
+                } |
+                delimited!(tag!("active(\""), flat_map!(is_not!(INVALID_REGEX_PATH_CHARS), parse_regex), tag!("\"")) => {
+                    |r| Function::ActiveRegex(r)
+                } |
+                delimited!(tag!("many(\""), flat_map!(is_not!(INVALID_REGEX_PATH_CHARS), parse_regex), tag!("\"")) => {
+                    |r| Function::Many(r)
+                } |
+                delimited!(tag!("many_active(\""), flat_map!(is_not!(INVALID_REGEX_PATH_CHARS), parse_regex), tag!("\"")) => {
+                    |r| Function::ManyActive(r)
                 }
             ) >> (function)
         )
@@ -74,12 +91,60 @@ mod tests {
     }
 
     #[test]
-    fn function_parse_should_parse_an_active_function() {
+    fn function_parse_should_parse_a_file_regex_function() {
+        let result = Function::parse("file(\"Cargo.*\")").unwrap().1;
+
+        match result {
+            Function::FileRegex(r) => {
+                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str())
+            }
+            _ => panic!("Expected a file regex function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_parse_an_active_path_function() {
         let result = Function::parse("active(\"Cargo.toml\")").unwrap().1;
 
         match result {
             Function::ActivePath(f) => assert_eq!(PathBuf::from("Cargo.toml"), f),
             _ => panic!("Expected an active path function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_parse_an_active_regex_function() {
+        let result = Function::parse("active(\"Cargo.*\")").unwrap().1;
+
+        match result {
+            Function::ActiveRegex(r) => {
+                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str())
+            }
+            _ => panic!("Expected an active regex function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_many_function() {
+        let result = Function::parse("many(\"Cargo.*\")").unwrap().1;
+
+        match result {
+            Function::Many(r) => {
+                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str())
+            }
+            _ => panic!("Expected a many function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_many_active_function() {
+        let result = Function::parse("many_active(\"Cargo.*\")").unwrap().1;
+
+        match result {
+            Function::ManyActive(r) => {
+                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str())
+            }
+            _ => panic!("Expected a many active function"),
         }
     }
 
