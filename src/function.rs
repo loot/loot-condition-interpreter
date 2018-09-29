@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::str;
 
 use regex::Regex;
-use nom::{IError, IResult};
+use nom::IResult;
 
 use super::Error;
 
@@ -65,7 +65,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_file_path_function() {
-        let result = Function::parse("file(\"Cargo.toml\")").to_result().unwrap();
+        let result = Function::parse("file(\"Cargo.toml\")").unwrap().1;
 
         match result {
             Function::FilePath(f) => assert_eq!(PathBuf::from("Cargo.toml"), f),
@@ -75,7 +75,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_an_active_function() {
-        let result = Function::parse("active(\"Cargo.toml\")").to_result().unwrap();
+        let result = Function::parse("active(\"Cargo.toml\")").unwrap().1;
 
         match result {
             Function::ActivePath(f) => assert_eq!(PathBuf::from("Cargo.toml"), f),
