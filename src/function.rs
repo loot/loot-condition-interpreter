@@ -261,6 +261,16 @@ mod tests {
     }
 
     #[test]
+    fn function_file_path_eval_should_be_true_if_given_LOOT() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn function_file_path_eval_should_not_check_for_ghosted_non_plugin_file() {
+        unimplemented!();
+    }
+
+    #[test]
     fn function_file_path_eval_should_error_if_the_path_is_outside_game_directory() {
         unimplemented!("to do");
     }
@@ -271,4 +281,28 @@ mod tests {
 
         assert!(!function.eval().unwrap());
     }
+
+    #[test]
+    fn function_file_regex_eval_should_error_if_the_path_is_outside_game_directory() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn function_file_regex_eval_should_be_false_if_no_directory_entries_match() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn function_file_regex_eval_should_be_false_if_the_parent_path_part_is_not_a_directory() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn function_file_regex_eval_should_be_true_if_a_directory_entry_matches() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn function_active_path_eval_should_be_false_if
+
 }
