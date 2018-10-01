@@ -47,7 +47,7 @@ fn parse_version_args(input: &str) -> IResult<&str, (PathBuf, &str, ComparisonOp
             >> tag!("\"")
             >> ws!(tag!(","))
             >> operator: call!(ComparisonOperator::parse)
-            >> ((PathBuf::from(path), version, operator))
+            >> (PathBuf::from(path), version, operator)
     )
 }
 
@@ -65,7 +65,7 @@ fn parse_checksum_args(input: &str) -> IResult<&str, (PathBuf, u32)> {
             >> tag!("\"")
             >> ws!(tag!(","))
             >> crc: flat_map!(call!(hex_digit), parse_crc)
-            >> ((PathBuf::from(path), crc))
+            >> (PathBuf::from(path), crc)
     )
 }
 
@@ -161,9 +161,7 @@ mod tests {
         let result = Function::parse("many(\"Cargo.*\")").unwrap().1;
 
         match result {
-            Function::Many(r) => {
-                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str())
-            },
+            Function::Many(r) => assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str()),
             _ => panic!("Expected a many function"),
         }
     }

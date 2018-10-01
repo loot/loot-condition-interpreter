@@ -2,9 +2,14 @@
 extern crate nom;
 extern crate regex;
 
-use nom::{Err, IResult};
+#[cfg(test)]
+extern crate tempfile;
+
+use std::io;
 use std::path::PathBuf;
 use std::str;
+
+use nom::{Err, IResult};
 
 mod function;
 use function::Function;
@@ -15,6 +20,7 @@ pub enum Error {
     ParsingError,
     InvalidPath(PathBuf),
     InvalidRegex(String),
+    IoError(io::Error),
 }
 
 impl<I> From<Err<I>> for Error {
@@ -26,14 +32,45 @@ impl<I> From<Err<I>> for Error {
     }
 }
 
+impl From<io::Error> for Error {
+    fn from(error: io::Error) -> Self {
+        Error::IoError(error)
+    }
+}
+
+pub enum GameType {
+    tes4,
+    tes5,
+    tes5se,
+    tes5vr,
+    fo3,
+    fonv,
+    fo4,
+    fo4vr,
+}
+
+impl GameType {
+    fn supports_light_plugins(&self) -> bool {
+        match self {
+            GameType::tes5se | GameType::tes5vr | GameType::fo4 | GameType::fo4vr => true,
+            _ => false,
+        }
+    }
+}
+
+pub struct State {
+    game_type: GameType,
+    data_path: PathBuf,
+}
+
 // Compound conditions joined by 'or'
 #[derive(Debug)]
 pub struct Expression(Vec<CompoundCondition>);
 
 impl Expression {
-    pub fn eval(&self) -> Result<bool, Error> {
+    pub fn eval(&self, state: &State) -> Result<bool, Error> {
         for compound_condition in &self.0 {
-            if compound_condition.eval()? {
+            if compound_condition.eval(state)? {
                 return Ok(true);
             }
         }
@@ -55,9 +92,9 @@ impl Expression {
 struct CompoundCondition(Vec<Condition>);
 
 impl CompoundCondition {
-    fn eval(&self) -> Result<bool, Error> {
+    fn eval(&self, state: &State) -> Result<bool, Error> {
         for condition in &self.0 {
-            if !condition.eval()? {
+            if !condition.eval(state)? {
                 return Ok(false);
             }
         }
@@ -81,11 +118,11 @@ enum Condition {
 }
 
 impl Condition {
-    fn eval(&self) -> Result<bool, Error> {
+    fn eval(&self, state: &State) -> Result<bool, Error> {
         match *self {
-            Condition::Function(ref f) => f.eval(),
-            Condition::InvertedFunction(ref f) => f.eval().map(|r| !r),
-            Condition::Expression(ref e) => e.eval(),
+            Condition::Function(ref f) => f.eval(state),
+            Condition::InvertedFunction(ref f) => f.eval(state).map(|r| !r),
+            Condition::Expression(ref e) => e.eval(state),
         }
     }
 
@@ -111,6 +148,20 @@ impl Condition {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::fs::create_dir;
+
+    fn state<T: Into<PathBuf>>(data_path: T) -> State {
+        let data_path = data_path.into();
+        if !data_path.exists() {
+            create_dir(&data_path).unwrap();
+        }
+
+        State {
+            game_type: GameType::tes4,
+            data_path: data_path,
+        }
+    }
 
     #[test]
     fn expression_parse_should_handle_a_single_compound_condition() {
@@ -216,58 +267,70 @@ mod tests {
 
     #[test]
     fn condition_eval_should_return_function_eval_for_a_function_condition() {
+        let state = state(".");
+
         let condition = Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml")));
 
-        assert!(condition.eval().unwrap());
+        assert!(condition.eval(&state).unwrap());
 
         let condition = Condition::Function(Function::FilePath(PathBuf::from("missing")));
 
-        assert!(!condition.eval().unwrap());
+        assert!(!condition.eval(&state).unwrap());
     }
 
     #[test]
     fn condition_eval_should_return_expression_eval_for_an_expression_condition() {
+        let state = state(".");
+
         let condition = Condition::Expression(Expression(vec![CompoundCondition(vec![
             Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml"))),
         ])]));
 
-        assert!(condition.eval().unwrap());
+        assert!(condition.eval(&state).unwrap());
     }
 
     #[test]
     fn condition_eval_should_return_inverse_of_function_eval_for_a_not_function_condition() {
+        let state = state(".");
+
         let condition =
             Condition::InvertedFunction(Function::FilePath(PathBuf::from("Cargo.toml")));
 
-        assert!(!condition.eval().unwrap());
+        assert!(!condition.eval(&state).unwrap());
 
         let condition = Condition::InvertedFunction(Function::FilePath(PathBuf::from("missing")));
 
-        assert!(condition.eval().unwrap());
+        assert!(condition.eval(&state).unwrap());
     }
 
     #[test]
     fn compound_condition_eval_should_be_true_if_all_conditions_are_true() {
+        let state = state(".");
+
         let compound_condition = CompoundCondition(vec![
             Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml"))),
             Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml"))),
         ]);
 
-        assert!(compound_condition.eval().unwrap());
+        assert!(compound_condition.eval(&state).unwrap());
     }
 
     #[test]
     fn compound_condition_eval_should_be_false_if_any_condition_is_false() {
+        let state = state(".");
+
         let compound_condition = CompoundCondition(vec![
             Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml"))),
             Condition::Function(Function::FilePath(PathBuf::from("missing"))),
         ]);
 
-        assert!(!compound_condition.eval().unwrap());
+        assert!(!compound_condition.eval(&state).unwrap());
     }
 
     #[test]
     fn expression_eval_should_be_true_if_any_compound_condition_is_true() {
+        let state = state(".");
+
         let expression = Expression(vec![
             CompoundCondition(vec![Condition::Function(Function::FilePath(
                 PathBuf::from("Cargo.toml"),
@@ -276,11 +339,13 @@ mod tests {
                 PathBuf::from("missing"),
             ))]),
         ]);
-        assert!(expression.eval().unwrap());
+        assert!(expression.eval(&state).unwrap());
     }
 
     #[test]
     fn expression_eval_should_be_false_if_all_compound_conditions_are_false() {
+        let state = state(".");
+
         let expression = Expression(vec![
             CompoundCondition(vec![Condition::Function(Function::FilePath(
                 PathBuf::from("missing"),
@@ -289,6 +354,6 @@ mod tests {
                 PathBuf::from("missing"),
             ))]),
         ]);
-        assert!(!expression.eval().unwrap());
+        assert!(!expression.eval(&state).unwrap());
     }
 }

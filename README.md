@@ -19,3 +19,6 @@ Goals:
 
 Currently only condition parsing is complete. Evaluation is partially done, the
 rest hasn't yet been started.
+
+The tests need the [testing-plugins](https://github.com/WrinklyNinja/testing-plugins)
+directory to be present in the repo root.
