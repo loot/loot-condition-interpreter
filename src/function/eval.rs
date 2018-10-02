@@ -69,6 +69,26 @@ fn evaluate_file_regex(state: &State, parent_path: &Path, regex: &Regex) -> Resu
     Ok(false)
 }
 
+fn evaluate_many(state: &State, parent_path: &Path, regex: &Regex) -> Result<bool, Error> {
+    let dir_iterator = match read_dir(state.data_path.join(parent_path)) {
+        Ok(i) => i,
+        Err(_) => return Ok(false),
+    };
+
+    let mut found_one = false;
+    for entry in dir_iterator {
+        if is_match(regex, &entry?.file_name()) {
+            if found_one {
+                return Ok(true);
+            } else {
+                found_one = true;
+            }
+        }
+    }
+
+    Ok(false)
+}
+
 impl Function {
     pub fn eval(&self, state: &State) -> Result<bool, Error> {
         // TODO: Handle all variants.
@@ -76,6 +96,7 @@ impl Function {
         match *self {
             Function::FilePath(ref f) => evaluate_file_path(state, f),
             Function::FileRegex(ref p, ref r) => evaluate_file_regex(state, p, r),
+            Function::Many(ref p, ref r) => evaluate_many(state, p, r),
             _ => Ok(false),
         }
     }
@@ -179,6 +200,38 @@ mod tests {
     #[test]
     fn function_file_regex_eval_should_be_true_if_a_directory_entry_matches() {
         let function = Function::FileRegex(PathBuf::from("testing-plugins/Oblivion/Data"), Regex::new("Blank\\.esp").unwrap());
+        let state = state(".");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_many_eval_should_be_false_if_no_directory_entries_match() {
+        let function = Function::Many(PathBuf::from("."), Regex::new("missing").unwrap());
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_many_eval_should_be_false_if_the_parent_path_part_is_not_a_directory() {
+        let function = Function::Many(PathBuf::from("missing"), Regex::new("Cargo.*").unwrap());
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_many_eval_should_be_false_if_one_directory_entry_matches() {
+        let function = Function::Many(PathBuf::from("testing-plugins/Oblivion/Data"), Regex::new("Blank\\.esp").unwrap());
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_many_eval_should_be_true_if_more_than_one_directory_entry_matches() {
+        let function = Function::Many(PathBuf::from("testing-plugins/Oblivion/Data"), Regex::new("Blank.*").unwrap());
         let state = state(".");
 
         assert!(function.eval(&state).unwrap());
