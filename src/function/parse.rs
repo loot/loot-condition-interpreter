@@ -28,6 +28,7 @@ const INVALID_REGEX_PATH_CHARS: &str = "\"<>";
 
 const PARSE_REGEX_ERROR: ErrorKind = ErrorKind::Custom(1);
 const PARSE_CRC_ERROR: ErrorKind = ErrorKind::Custom(2);
+const PARSE_PATH_ERROR: ErrorKind = ErrorKind::Custom(3);
 
 fn parse_regex(input: &str) -> IResult<&str, Regex> {
     Regex::new(input)
@@ -69,6 +70,26 @@ fn parse_checksum_args(input: &str) -> IResult<&str, (PathBuf, u32)> {
     )
 }
 
+/// Parse a string that is a path where the last component is a regex string
+/// that may contain characters that are invalid in paths but valid in regex.
+fn parse_regex_path(input: &str) -> IResult<&str, (PathBuf, Regex)> {
+    let (remaining_input, string) = try_parse!(input, is_not!(INVALID_REGEX_PATH_CHARS));
+
+    if string.ends_with('/') {
+        return Err(Err::Failure(Context::Code(input, PARSE_PATH_ERROR)));
+    }
+
+    let (parent_path_slice, regex_slice) = string
+        .rfind('/')
+        .map(|i| (&string[..i], &string[i + 1..]))
+        .unwrap_or_else(|| (".", string));
+
+    let parent_path = PathBuf::from(parent_path_slice);
+    let regex = parse_regex(regex_slice)?.1;
+
+    Ok((remaining_input, (parent_path, regex)))
+}
+
 impl Function {
     pub fn parse(input: &str) -> IResult<&str, Function> {
         do_parse!(
@@ -78,8 +99,8 @@ impl Function {
                 delimited!(tag!("file(\""), is_not!(INVALID_PATH_CHARS), tag!("\")")) => {
                     |path| Function::FilePath(PathBuf::from(path))
                 } |
-                delimited!(tag!("file(\""), flat_map!(is_not!(INVALID_REGEX_PATH_CHARS), parse_regex), tag!("\"")) => {
-                    |r| Function::FileRegex(r)
+                delimited!(tag!("file(\""), call!(parse_regex_path), tag!("\"")) => {
+                    |(p, r)| Function::FileRegex(p, r)
                 } |
                 delimited!(tag!("active(\""), is_not!(INVALID_PATH_CHARS), tag!("\")")) => {
                     |path| Function::ActivePath(PathBuf::from(path))
@@ -87,8 +108,8 @@ impl Function {
                 delimited!(tag!("active(\""), flat_map!(is_not!(INVALID_REGEX_PATH_CHARS), parse_regex), tag!("\"")) => {
                     |r| Function::ActiveRegex(r)
                 } |
-                delimited!(tag!("many(\""), flat_map!(is_not!(INVALID_REGEX_PATH_CHARS), parse_regex), tag!("\"")) => {
-                    |r| Function::Many(r)
+                delimited!(tag!("many(\""), call!(parse_regex_path), tag!("\"")) => {
+                    |(p, r)| Function::Many(p, r)
                 } |
                 delimited!(tag!("many_active(\""), flat_map!(is_not!(INVALID_REGEX_PATH_CHARS), parse_regex), tag!("\"")) => {
                     |r| Function::ManyActive(r)
@@ -123,15 +144,34 @@ mod tests {
     }
 
     #[test]
-    fn function_parse_should_parse_a_file_regex_function() {
+    fn function_parse_should_parse_a_file_regex_function_with_no_parent_path() {
         let result = Function::parse("file(\"Cargo.*\")").unwrap().1;
 
         match result {
-            Function::FileRegex(r) => {
-                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str())
-            }
+            Function::FileRegex(p, r) => {
+                assert_eq!(PathBuf::from("."), p);
+                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str());
+            },
             _ => panic!("Expected a file regex function"),
         }
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_file_regex_function_with_a_parent_path() {
+        let result = Function::parse("file(\"subdir/Cargo.*\")").unwrap().1;
+
+        match result {
+            Function::FileRegex(p, r) => {
+                assert_eq!(PathBuf::from("subdir"), p);
+                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str());
+            },
+            _ => panic!("Expected a file regex function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_error_if_given_a_file_regex_function_ending_in_a_forward_slash() {
+        assert!(Function::parse("file(\"sub\\dir/\")").is_err());
     }
 
     #[test]
@@ -157,13 +197,34 @@ mod tests {
     }
 
     #[test]
-    fn function_parse_should_parse_a_many_function() {
+    fn function_parse_should_parse_a_many_function_with_no_parent_path() {
         let result = Function::parse("many(\"Cargo.*\")").unwrap().1;
 
         match result {
-            Function::Many(r) => assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str()),
+            Function::Many(p, r) => {
+                assert_eq!(PathBuf::from("."), p);
+                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str());
+            },
             _ => panic!("Expected a many function"),
         }
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_many_function_with_a_parent_path() {
+        let result = Function::parse("many(\"subdir/Cargo.*\")").unwrap().1;
+
+        match result {
+            Function::Many(p, r) => {
+                assert_eq!(PathBuf::from("subdir"), p);
+                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str());
+            },
+            _ => panic!("Expected a many function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_error_if_given_a_many_function_ending_in_a_forward_slash() {
+        assert!(Function::parse("many(\"subdir/\")").is_err());
     }
 
     #[test]

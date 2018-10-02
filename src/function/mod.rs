@@ -18,10 +18,10 @@ pub enum ComparisonOperator {
 #[derive(Debug)]
 pub enum Function {
     FilePath(PathBuf),
-    FileRegex(Regex),
+    FileRegex(PathBuf, Regex),
     ActivePath(PathBuf),
     ActiveRegex(Regex),
-    Many(Regex),
+    Many(PathBuf, Regex),
     ManyActive(Regex),
     Checksum(PathBuf, u32),
     Version(PathBuf, String, ComparisonOperator),
