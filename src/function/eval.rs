@@ -32,28 +32,9 @@ fn equals(path: &Path, test: &str) -> bool {
     path.to_str().map(|s| s == test).unwrap_or(false)
 }
 
-fn is_in_game_path(path: &Path) -> bool {
-    let mut previous_component = Component::CurDir;
-    for component in path.components() {
-        match (component, previous_component) {
-            (Component::Prefix(_), _) => return false,
-            (Component::RootDir, _) => return false,
-            (Component::ParentDir, Component::ParentDir) => return false,
-            (Component::CurDir, _) => continue,
-            _ => previous_component = component,
-        }
-    }
-
-    true
-}
-
 fn evaluate_file_path(state: &State, file_path: &Path) -> Result<bool, Error> {
     if equals(file_path, "LOOT") {
         return Ok(true);
-    }
-
-    if !is_in_game_path(file_path) {
-        return Err(Error::InvalidPath(file_path.to_path_buf()));
     }
 
     let path = state.data_path.join(file_path);
@@ -149,38 +130,11 @@ mod tests {
     }
 
     #[test]
-    fn function_file_path_eval_should_not_error_if_the_path_is_in_the_game_directory() {
-        let tmp_dir = tempdir().unwrap();
-        let data_path = tmp_dir.path().join("Data");
-        let state = state(data_path);
-
-        let function = Function::FilePath(PathBuf::from("../Cargo.toml"));
-
-        assert!(function.eval(&state).is_ok());
-    }
-
-    #[test]
-    fn function_file_path_eval_should_error_if_the_path_is_outside_game_directory() {
-        let tmp_dir = tempdir().unwrap();
-        let data_path = tmp_dir.path().join("Data");
-        let state = state(data_path);
-
-        let function = Function::FilePath(PathBuf::from("../../Cargo.toml"));
-
-        assert!(function.eval(&state).is_err());
-    }
-
-    #[test]
     fn function_file_path_eval_should_return_false_if_the_file_does_not_exist() {
         let function = Function::FilePath(PathBuf::from("missing"));
         let state = state(".");
 
         assert!(!function.eval(&state).unwrap());
-    }
-
-    #[test]
-    fn function_file_regex_eval_should_error_if_the_path_is_outside_game_directory() {
-        unimplemented!();
     }
 
     #[test]
