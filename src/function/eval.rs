@@ -1,5 +1,8 @@
 use std::ffi::OsStr;
-use std::path::{Component, Path, PathBuf};
+use std::fs::read_dir;
+use std::path::{Path, PathBuf};
+
+use regex::Regex;
 
 use super::Function;
 use Error;
@@ -47,12 +50,32 @@ fn evaluate_file_path(state: &State, file_path: &Path) -> Result<bool, Error> {
     }
 }
 
+fn is_match(regex: &Regex, file_name: &OsStr) -> bool {
+    file_name.to_str().map(|s| regex.is_match(s)).unwrap_or(false)
+}
+
+fn evaluate_file_regex(state: &State, parent_path: &Path, regex: &Regex) -> Result<bool, Error> {
+    let dir_iterator = match read_dir(state.data_path.join(parent_path)) {
+        Ok(i) => i,
+        Err(_) => return Ok(false),
+    };
+
+    for entry in dir_iterator {
+        if is_match(regex, &entry?.file_name()) {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
 impl Function {
     pub fn eval(&self, state: &State) -> Result<bool, Error> {
         // TODO: Handle all variants.
         // TODO: Paths may not lead outside game directory.
         match *self {
             Function::FilePath(ref f) => evaluate_file_path(state, f),
+            Function::FileRegex(ref p, ref r) => evaluate_file_regex(state, p, r),
             _ => Ok(false),
         }
     }
@@ -139,16 +162,25 @@ mod tests {
 
     #[test]
     fn function_file_regex_eval_should_be_false_if_no_directory_entries_match() {
-        unimplemented!();
+        let function = Function::FileRegex(PathBuf::from("."), Regex::new("missing").unwrap());
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]
     fn function_file_regex_eval_should_be_false_if_the_parent_path_part_is_not_a_directory() {
-        unimplemented!();
+        let function = Function::FileRegex(PathBuf::from("missing"), Regex::new("Cargo.*").unwrap());
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]
     fn function_file_regex_eval_should_be_true_if_a_directory_entry_matches() {
-        unimplemented!();
+        let function = Function::FileRegex(PathBuf::from("testing-plugins/Oblivion/Data"), Regex::new("Blank\\.esp").unwrap());
+        let state = state(".");
+
+        assert!(function.eval(&state).unwrap());
     }
 }
