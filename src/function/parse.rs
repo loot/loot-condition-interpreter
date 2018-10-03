@@ -2,7 +2,7 @@ use std::path::{Component, Path, PathBuf};
 use std::str;
 
 use nom::{hex_digit, Context, Err, ErrorKind, IResult};
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 
 use super::{ComparisonOperator, Function};
 
@@ -46,7 +46,9 @@ fn is_in_game_path(path: &Path) -> bool {
 }
 
 fn parse_regex(input: &str) -> IResult<&str, Regex> {
-    Regex::new(input)
+    RegexBuilder::new(input)
+        .case_insensitive(true)
+        .build()
         .map(|r| ("", r))
         .map_err(|_| Err::Failure(Context::Code(input, PARSE_REGEX_ERROR)))
 }
@@ -179,6 +181,13 @@ mod tests {
     use super::*;
 
     use std::path::Path;
+
+    #[test]
+    fn parse_regex_should_produce_case_insensitive_regex() {
+        let (_, regex) = parse_regex("cargo.*").unwrap();
+
+        assert!(regex.is_match("Cargo.toml"));
+    }
 
     #[test]
     fn function_parse_should_parse_a_file_path_function() {
