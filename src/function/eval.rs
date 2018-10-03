@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 use crc::{crc32, Hasher32};
 use regex::Regex;
 
-use super::Function;
+use super::{ComparisonOperator, Function};
+use version::Version;
 use Error;
 use State;
 
@@ -148,9 +149,50 @@ fn evaluate_checksum(state: &State, file_path: &Path, crc: u32) -> Result<bool, 
     Ok(calculated_crc == crc)
 }
 
+fn lowercase_filename(path: &Path) -> Option<String> {
+    path.file_name()
+        .and_then(OsStr::to_str)
+        .map(str::to_lowercase)
+}
+
+fn get_version(state: &State, file_path: &Path) -> Result<Version, Error> {
+    if let Some(key) = lowercase_filename(file_path) {
+        if let Some(version) = state.plugin_versions.get(&key) {
+            return Ok(Version::from(version.as_str()));
+        }
+    }
+
+    Version::read_file_version(file_path)
+}
+
+fn evaluate_version(
+    state: &State,
+    file_path: &Path,
+    given_version: &str,
+    comparator: ComparisonOperator,
+) -> Result<bool, Error> {
+    let file_path = resolve_path(state, file_path);
+    if !file_path.exists() {
+        return Ok(comparator == ComparisonOperator::NotEqual
+            || comparator == ComparisonOperator::LessThan
+            || comparator == ComparisonOperator::LessThanOrEqual);
+    }
+
+    let given_version = Version::from(given_version);
+    let actual_version = get_version(state, &file_path)?;
+
+    match comparator {
+        ComparisonOperator::Equal => Ok(actual_version == given_version),
+        ComparisonOperator::NotEqual => Ok(actual_version != given_version),
+        ComparisonOperator::LessThan => Ok(actual_version < given_version),
+        ComparisonOperator::GreaterThan => Ok(actual_version > given_version),
+        ComparisonOperator::LessThanOrEqual => Ok(actual_version <= given_version),
+        ComparisonOperator::GreaterThanOrEqual => Ok(actual_version >= given_version),
+    }
+}
+
 impl Function {
     pub fn eval(&self, state: &State) -> Result<bool, Error> {
-        // TODO: Handle all variants.
         match *self {
             Function::FilePath(ref f) => evaluate_file_path(state, f),
             Function::FileRegex(ref p, ref r) => evaluate_file_regex(state, p, r),
@@ -159,7 +201,7 @@ impl Function {
             Function::Many(ref p, ref r) => evaluate_many(state, p, r),
             Function::ManyActive(ref r) => evaluate_many_active(state, r),
             Function::Checksum(ref path, ref crc) => evaluate_checksum(state, path, *crc),
-            _ => Ok(false),
+            Function::Version(ref p, ref v, ref c) => evaluate_version(state, p, v, *c),
         }
     }
 }
@@ -181,17 +223,25 @@ mod tests {
     }
 
     fn state_with_active_plugins<T: Into<PathBuf>>(data_path: T, active_plugins: &[&str]) -> State {
-        state_with_loot_path_and_active_plugins(data_path, "", active_plugins)
+        state_with_data(data_path, "", active_plugins, &[])
     }
 
     fn state_with_loot_path<T: Into<PathBuf>>(data_path: T, loot_path: &str) -> State {
-        state_with_loot_path_and_active_plugins(data_path, loot_path, &[])
+        state_with_data(data_path, loot_path, &[], &[])
     }
 
-    fn state_with_loot_path_and_active_plugins<T: Into<PathBuf>>(
+    fn state_with_versions<T: Into<PathBuf>>(
+        data_path: T,
+        plugin_versions: &[(&str, &str)],
+    ) -> State {
+        state_with_data(data_path, "", &[], plugin_versions)
+    }
+
+    fn state_with_data<T: Into<PathBuf>>(
         data_path: T,
         loot_path: &str,
         active_plugins: &[&str],
+        plugin_versions: &[(&str, &str)],
     ) -> State {
         let data_path = data_path.into();
         if !data_path.exists() {
@@ -207,6 +257,10 @@ mod tests {
                 .map(|s| s.to_lowercase())
                 .collect(),
             crc_cache: RwLock::default(),
+            plugin_versions: plugin_versions
+                .iter()
+                .map(|(p, v)| (p.to_lowercase(), v.to_string()))
+                .collect(),
         }
     }
 
@@ -515,6 +569,237 @@ mod tests {
         ).unwrap();
 
         let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E2A6F);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_the_path_does_not_exist_and_comparator_is_ne() {
+        let function =
+            Function::Version("missing".into(), "1.0".into(), ComparisonOperator::NotEqual);
+        let state = state(".");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_the_path_does_not_exist_and_comparator_is_lt() {
+        let function =
+            Function::Version("missing".into(), "1.0".into(), ComparisonOperator::LessThan);
+        let state = state(".");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_the_path_does_not_exist_and_comparator_is_lteq() {
+        let function = Function::Version(
+            "missing".into(),
+            "1.0".into(),
+            ComparisonOperator::LessThanOrEqual,
+        );
+        let state = state(".");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_the_path_does_not_exist_and_comparator_is_eq() {
+        let function = Function::Version("missing".into(), "1.0".into(), ComparisonOperator::Equal);
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_the_path_does_not_exist_and_comparator_is_gt() {
+        let function = Function::Version(
+            "missing".into(),
+            "1.0".into(),
+            ComparisonOperator::GreaterThan,
+        );
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_the_path_does_not_exist_and_comparator_is_gteq() {
+        let function = Function::Version(
+            "missing".into(),
+            "1.0".into(),
+            ComparisonOperator::GreaterThanOrEqual,
+        );
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_versions_are_not_equal_and_comparator_is_eq() {
+        let function = Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::Equal);
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "1")]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_versions_are_equal_and_comparator_is_eq() {
+        let function = Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::Equal);
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_versions_are_equal_and_comparator_is_ne() {
+        let function =
+            Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::NotEqual);
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_versions_are_not_equal_and_comparator_is_ne() {
+        let function =
+            Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::NotEqual);
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "1")]);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_actual_version_is_eq_and_comparator_is_lt() {
+        let function =
+            Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::LessThan);
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_actual_version_is_gt_and_comparator_is_lt() {
+        let function =
+            Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::LessThan);
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_actual_version_is_lt_and_comparator_is_lt() {
+        let function =
+            Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::NotEqual);
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "1")]);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_actual_version_is_eq_and_comparator_is_gt() {
+        let function = Function::Version(
+            "Blank.esm".into(),
+            "5".into(),
+            ComparisonOperator::GreaterThan,
+        );
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_actual_version_is_lt_and_comparator_is_gt() {
+        let function = Function::Version(
+            "Blank.esm".into(),
+            "5".into(),
+            ComparisonOperator::GreaterThan,
+        );
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "4")]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_actual_version_is_gt_and_comparator_is_gt() {
+        let function = Function::Version(
+            "Blank.esm".into(),
+            "5".into(),
+            ComparisonOperator::GreaterThan,
+        );
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_actual_version_is_gt_and_comparator_is_lteq() {
+        let function = Function::Version(
+            "Blank.esm".into(),
+            "5".into(),
+            ComparisonOperator::LessThanOrEqual,
+        );
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_actual_version_is_eq_and_comparator_is_lteq() {
+        let function = Function::Version(
+            "Blank.esm".into(),
+            "5".into(),
+            ComparisonOperator::LessThanOrEqual,
+        );
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_actual_version_is_lt_and_comparator_is_lteq() {
+        let function = Function::Version(
+            "Blank.esm".into(),
+            "5".into(),
+            ComparisonOperator::LessThanOrEqual,
+        );
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "4")]);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_actual_version_is_lt_and_comparator_is_gteq() {
+        let function = Function::Version(
+            "Blank.esm".into(),
+            "5".into(),
+            ComparisonOperator::GreaterThanOrEqual,
+        );
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "4")]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_actual_version_is_eq_and_comparator_is_gteq() {
+        let function = Function::Version(
+            "Blank.esm".into(),
+            "5".into(),
+            ComparisonOperator::GreaterThanOrEqual,
+        );
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_actual_version_is_gt_and_comparator_is_gteq() {
+        let function = Function::Version(
+            "Blank.esm".into(),
+            "5".into(),
+            ComparisonOperator::GreaterThanOrEqual,
+        );
+        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
 
         assert!(function.eval(&state).unwrap());
     }

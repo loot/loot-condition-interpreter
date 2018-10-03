@@ -5,7 +5,7 @@ use regex::Regex;
 pub mod eval;
 pub mod parse;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ComparisonOperator {
     Equal,
     NotEqual,

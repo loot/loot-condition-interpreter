@@ -6,6 +6,9 @@ extern crate regex;
 #[cfg(test)]
 extern crate tempfile;
 
+mod function;
+mod version;
+
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::io;
@@ -15,7 +18,6 @@ use std::sync::RwLock;
 
 use nom::{Err, IResult};
 
-mod function;
 use function::Function;
 
 #[derive(Debug)]
@@ -80,6 +82,7 @@ pub struct State {
     loot_path: PathBuf,
     active_plugins: HashSet<String>, // Lowercased plugin filenames.
     crc_cache: RwLock<HashMap<String, u32>>, // Lowercased paths.
+    plugin_versions: HashMap<String, String>, // Lowercased plugin filenames and their versions as found in description fields.
 }
 
 // Compound conditions joined by 'or'
@@ -182,6 +185,7 @@ mod tests {
             loot_path: PathBuf::new(),
             active_plugins: HashSet::new(),
             crc_cache: RwLock::default(),
+            plugin_versions: HashMap::default(),
         }
     }
 
