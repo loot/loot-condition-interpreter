@@ -111,6 +111,7 @@ mod tests {
 
     use std::fs::{copy, create_dir};
 
+    use regex::RegexBuilder;
     use tempfile::tempdir;
 
     use GameType;
@@ -125,6 +126,13 @@ mod tests {
             game_type: GameType::tes4,
             data_path: data_path,
         }
+    }
+
+    fn regex(string: &str) -> Regex {
+        RegexBuilder::new(string)
+            .case_insensitive(true)
+            .build()
+            .unwrap()
     }
 
     #[test]
@@ -186,7 +194,7 @@ mod tests {
 
     #[test]
     fn function_file_regex_eval_should_be_false_if_no_directory_entries_match() {
-        let function = Function::FileRegex(PathBuf::from("."), Regex::new("missing").unwrap());
+        let function = Function::FileRegex(PathBuf::from("."), regex("missing"));
         let state = state(".");
 
         assert!(!function.eval(&state).unwrap());
@@ -194,8 +202,7 @@ mod tests {
 
     #[test]
     fn function_file_regex_eval_should_be_false_if_the_parent_path_part_is_not_a_directory() {
-        let function =
-            Function::FileRegex(PathBuf::from("missing"), Regex::new("Cargo.*").unwrap());
+        let function = Function::FileRegex(PathBuf::from("missing"), regex("Cargo.*"));
         let state = state(".");
 
         assert!(!function.eval(&state).unwrap());
@@ -205,7 +212,7 @@ mod tests {
     fn function_file_regex_eval_should_be_true_if_a_directory_entry_matches() {
         let function = Function::FileRegex(
             PathBuf::from("testing-plugins/Oblivion/Data"),
-            Regex::new("Blank\\.esp").unwrap(),
+            regex("Blank\\.esp"),
         );
         let state = state(".");
 
@@ -214,7 +221,7 @@ mod tests {
 
     #[test]
     fn function_many_eval_should_be_false_if_no_directory_entries_match() {
-        let function = Function::Many(PathBuf::from("."), Regex::new("missing").unwrap());
+        let function = Function::Many(PathBuf::from("."), regex("missing"));
         let state = state(".");
 
         assert!(!function.eval(&state).unwrap());
@@ -222,7 +229,7 @@ mod tests {
 
     #[test]
     fn function_many_eval_should_be_false_if_the_parent_path_part_is_not_a_directory() {
-        let function = Function::Many(PathBuf::from("missing"), Regex::new("Cargo.*").unwrap());
+        let function = Function::Many(PathBuf::from("missing"), regex("Cargo.*"));
         let state = state(".");
 
         assert!(!function.eval(&state).unwrap());
@@ -232,7 +239,7 @@ mod tests {
     fn function_many_eval_should_be_false_if_one_directory_entry_matches() {
         let function = Function::Many(
             PathBuf::from("testing-plugins/Oblivion/Data"),
-            Regex::new("Blank\\.esp").unwrap(),
+            regex("Blank\\.esp"),
         );
         let state = state(".");
 
@@ -243,7 +250,7 @@ mod tests {
     fn function_many_eval_should_be_true_if_more_than_one_directory_entry_matches() {
         let function = Function::Many(
             PathBuf::from("testing-plugins/Oblivion/Data"),
-            Regex::new("Blank.*").unwrap(),
+            regex("Blank.*"),
         );
         let state = state(".");
 
