@@ -5,6 +5,7 @@ extern crate regex;
 #[cfg(test)]
 extern crate tempfile;
 
+use std::collections::HashSet;
 use std::io;
 use std::path::PathBuf;
 use std::str;
@@ -61,6 +62,7 @@ impl GameType {
 pub struct State {
     game_type: GameType,
     data_path: PathBuf,
+    active_plugins: HashSet<String>, // Lowercased plugin filenames.
 }
 
 // Compound conditions joined by 'or'
@@ -160,6 +162,7 @@ mod tests {
         State {
             game_type: GameType::tes4,
             data_path: data_path,
+            active_plugins: HashSet::new(),
         }
     }
 

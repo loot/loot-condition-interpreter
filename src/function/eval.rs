@@ -92,6 +92,32 @@ fn evaluate_many(state: &State, parent_path: &Path, regex: &Regex) -> Result<boo
     Ok(false)
 }
 
+fn evaluate_active_path(state: &State, path: &Path) -> Result<bool, Error> {
+    Ok(path
+        .to_str()
+        .map(|s| state.active_plugins.contains(&s.to_lowercase()))
+        .unwrap_or(false))
+}
+
+fn evaluate_active_regex(state: &State, regex: &Regex) -> Result<bool, Error> {
+    Ok(state.active_plugins.iter().any(|p| regex.is_match(p)))
+}
+
+fn evaluate_many_active(state: &State, regex: &Regex) -> Result<bool, Error> {
+    let mut found_one = false;
+    for active_plugin in &state.active_plugins {
+        if regex.is_match(&active_plugin) {
+            if found_one {
+                return Ok(true);
+            } else {
+                found_one = true;
+            }
+        }
+    }
+
+    Ok(false)
+}
+
 impl Function {
     pub fn eval(&self, state: &State) -> Result<bool, Error> {
         // TODO: Handle all variants.
@@ -99,7 +125,10 @@ impl Function {
         match *self {
             Function::FilePath(ref f) => evaluate_file_path(state, f),
             Function::FileRegex(ref p, ref r) => evaluate_file_regex(state, p, r),
+            Function::ActivePath(ref p) => evaluate_active_path(state, p),
+            Function::ActiveRegex(ref r) => evaluate_active_regex(state, r),
             Function::Many(ref p, ref r) => evaluate_many(state, p, r),
+            Function::ManyActive(ref r) => evaluate_many_active(state, r),
             _ => Ok(false),
         }
     }
@@ -117,6 +146,10 @@ mod tests {
     use GameType;
 
     fn state<T: Into<PathBuf>>(data_path: T) -> State {
+        state_with_active_plugins(data_path, &[])
+    }
+
+    fn state_with_active_plugins<T: Into<PathBuf>>(data_path: T, active_plugins: &[&str]) -> State {
         let data_path = data_path.into();
         if !data_path.exists() {
             create_dir(&data_path).unwrap();
@@ -125,6 +158,10 @@ mod tests {
         State {
             game_type: GameType::tes4,
             data_path: data_path,
+            active_plugins: active_plugins
+                .into_iter()
+                .map(|s| s.to_lowercase())
+                .collect(),
         }
     }
 
@@ -220,6 +257,46 @@ mod tests {
     }
 
     #[test]
+    fn function_active_path_eval_should_be_true_if_the_path_is_an_active_plugin() {
+        let function = Function::ActivePath(PathBuf::from("Blank.esp"));
+        let state = state_with_active_plugins(".", &["Blank.esp"]);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_active_path_eval_should_be_case_insensitive() {
+        let function = Function::ActivePath(PathBuf::from("Blank.esp"));
+        let state = state_with_active_plugins(".", &["blank.esp"]);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_active_path_eval_should_be_false_if_the_path_is_not_an_active_plugin() {
+        let function = Function::ActivePath(PathBuf::from("inactive.esp"));
+        let state = state_with_active_plugins(".", &["Blank.esp"]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_active_regex_eval_should_be_true_if_the_regex_matches_an_active_plugin() {
+        let function = Function::ActiveRegex(regex("Blank\\.esp"));
+        let state = state_with_active_plugins(".", &["Blank.esp"]);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_active_regex_eval_should_be_false_if_the_regex_does_not_match_an_active_plugin() {
+        let function = Function::ActiveRegex(regex("inactive\\.esp"));
+        let state = state_with_active_plugins(".", &["Blank.esp"]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
     fn function_many_eval_should_be_false_if_no_directory_entries_match() {
         let function = Function::Many(PathBuf::from("."), regex("missing"));
         let state = state(".");
@@ -255,5 +332,29 @@ mod tests {
         let state = state(".");
 
         assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_many_active_eval_should_be_true_if_the_regex_matches_more_than_one_active_plugin() {
+        let function = Function::ManyActive(regex("Blank.*"));
+        let state = state_with_active_plugins(".", &["Blank.esp", "Blank.esm"]);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_many_active_eval_should_be_false_if_one_active_plugin_matches() {
+        let function = Function::ManyActive(regex("Blank\\.esp"));
+        let state = state_with_active_plugins(".", &["Blank.esp", "Blank.esm"]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_many_active_eval_should_be_false_if_the_regex_does_not_match_an_active_plugin() {
+        let function = Function::ManyActive(regex("inactive\\.esp"));
+        let state = state_with_active_plugins(".", &["Blank.esp", "Blank.esm"]);
+
+        assert!(!function.eval(&state).unwrap());
     }
 }
