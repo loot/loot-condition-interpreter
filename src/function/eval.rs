@@ -51,7 +51,10 @@ fn evaluate_file_path(state: &State, file_path: &Path) -> Result<bool, Error> {
 }
 
 fn is_match(regex: &Regex, file_name: &OsStr) -> bool {
-    file_name.to_str().map(|s| regex.is_match(s)).unwrap_or(false)
+    file_name
+        .to_str()
+        .map(|s| regex.is_match(s))
+        .unwrap_or(false)
 }
 
 fn evaluate_file_regex(state: &State, parent_path: &Path, regex: &Regex) -> Result<bool, Error> {
@@ -191,7 +194,8 @@ mod tests {
 
     #[test]
     fn function_file_regex_eval_should_be_false_if_the_parent_path_part_is_not_a_directory() {
-        let function = Function::FileRegex(PathBuf::from("missing"), Regex::new("Cargo.*").unwrap());
+        let function =
+            Function::FileRegex(PathBuf::from("missing"), Regex::new("Cargo.*").unwrap());
         let state = state(".");
 
         assert!(!function.eval(&state).unwrap());
@@ -199,7 +203,10 @@ mod tests {
 
     #[test]
     fn function_file_regex_eval_should_be_true_if_a_directory_entry_matches() {
-        let function = Function::FileRegex(PathBuf::from("testing-plugins/Oblivion/Data"), Regex::new("Blank\\.esp").unwrap());
+        let function = Function::FileRegex(
+            PathBuf::from("testing-plugins/Oblivion/Data"),
+            Regex::new("Blank\\.esp").unwrap(),
+        );
         let state = state(".");
 
         assert!(function.eval(&state).unwrap());
@@ -223,7 +230,10 @@ mod tests {
 
     #[test]
     fn function_many_eval_should_be_false_if_one_directory_entry_matches() {
-        let function = Function::Many(PathBuf::from("testing-plugins/Oblivion/Data"), Regex::new("Blank\\.esp").unwrap());
+        let function = Function::Many(
+            PathBuf::from("testing-plugins/Oblivion/Data"),
+            Regex::new("Blank\\.esp").unwrap(),
+        );
         let state = state(".");
 
         assert!(!function.eval(&state).unwrap());
@@ -231,7 +241,10 @@ mod tests {
 
     #[test]
     fn function_many_eval_should_be_true_if_more_than_one_directory_entry_matches() {
-        let function = Function::Many(PathBuf::from("testing-plugins/Oblivion/Data"), Regex::new("Blank.*").unwrap());
+        let function = Function::Many(
+            PathBuf::from("testing-plugins/Oblivion/Data"),
+            Regex::new("Blank.*").unwrap(),
+        );
         let state = state(".");
 
         assert!(function.eval(&state).unwrap());
