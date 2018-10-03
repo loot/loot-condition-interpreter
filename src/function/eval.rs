@@ -1,7 +1,10 @@
 use std::ffi::OsStr;
-use std::fs::read_dir;
+use std::fs::{read_dir, File};
+use std::hash::Hasher;
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
+use crc::{crc32, Hasher32};
 use regex::Regex;
 
 use super::Function;
@@ -35,19 +38,22 @@ fn equals(path: &Path, test: &str) -> bool {
     path.to_str().map(|s| s == test).unwrap_or(false)
 }
 
-fn evaluate_file_path(state: &State, file_path: &Path) -> Result<bool, Error> {
-    if equals(file_path, "LOOT") {
-        return Ok(true);
-    }
-
-    let path = state.data_path.join(file_path);
-    let exists = path.exists();
-
-    if !exists && has_plugin_file_extension(&path, state) {
-        Ok(add_extension(&path, "ghost").exists())
+fn resolve_path(state: &State, path: &Path) -> PathBuf {
+    if equals(path, "LOOT") {
+        state.loot_path.clone()
     } else {
-        Ok(exists)
+        let path = state.data_path.join(path);
+
+        if !path.exists() && has_plugin_file_extension(&path, state) {
+            add_extension(&path, "ghost")
+        } else {
+            path
+        }
     }
+}
+
+fn evaluate_file_path(state: &State, file_path: &Path) -> Result<bool, Error> {
+    Ok(resolve_path(state, file_path).exists())
 }
 
 fn is_match(regex: &Regex, file_name: &OsStr) -> bool {
@@ -118,10 +124,45 @@ fn evaluate_many_active(state: &State, regex: &Regex) -> Result<bool, Error> {
     Ok(false)
 }
 
+fn lowercase(path: &Path) -> Option<String> {
+    path.to_str().map(str::to_lowercase)
+}
+
+fn evaluate_checksum(state: &State, file_path: &Path, crc: u32) -> Result<bool, Error> {
+    if let Ok(reader) = state.crc_cache.read() {
+        if let Some(key) = lowercase(file_path) {
+            if let Some(cached_crc) = reader.get(&key) {
+                return Ok(*cached_crc == crc);
+            }
+        }
+    }
+
+    let path = resolve_path(state, file_path);
+
+    if !path.exists() {
+        return Ok(false);
+    }
+
+    let reader = BufReader::new(File::open(path)?);
+    let mut digest = crc32::Digest::new(crc32::IEEE);
+
+    for byte in reader.bytes() {
+        digest.write_u8(byte?);
+    }
+
+    let calculated_crc = digest.sum32();
+    if let Ok(mut writer) = state.crc_cache.write() {
+        if let Some(key) = lowercase(file_path) {
+            writer.insert(key, calculated_crc);
+        }
+    }
+
+    Ok(calculated_crc == crc)
+}
+
 impl Function {
     pub fn eval(&self, state: &State) -> Result<bool, Error> {
         // TODO: Handle all variants.
-        // TODO: Paths may not lead outside game directory.
         match *self {
             Function::FilePath(ref f) => evaluate_file_path(state, f),
             Function::FileRegex(ref p, ref r) => evaluate_file_regex(state, p, r),
@@ -129,6 +170,7 @@ impl Function {
             Function::ActiveRegex(ref r) => evaluate_active_regex(state, r),
             Function::Many(ref p, ref r) => evaluate_many(state, p, r),
             Function::ManyActive(ref r) => evaluate_many_active(state, r),
+            Function::Checksum(ref path, ref crc) => evaluate_checksum(state, path, *crc),
             _ => Ok(false),
         }
     }
@@ -139,6 +181,7 @@ mod tests {
     use super::*;
 
     use std::fs::{copy, create_dir};
+    use std::sync::RwLock;
 
     use regex::RegexBuilder;
     use tempfile::tempdir;
@@ -150,6 +193,18 @@ mod tests {
     }
 
     fn state_with_active_plugins<T: Into<PathBuf>>(data_path: T, active_plugins: &[&str]) -> State {
+        state_with_loot_path_and_active_plugins(data_path, "", active_plugins)
+    }
+
+    fn state_with_loot_path<T: Into<PathBuf>>(data_path: T, loot_path: &str) -> State {
+        state_with_loot_path_and_active_plugins(data_path, loot_path, &[])
+    }
+
+    fn state_with_loot_path_and_active_plugins<T: Into<PathBuf>>(
+        data_path: T,
+        loot_path: &str,
+        active_plugins: &[&str],
+    ) -> State {
         let data_path = data_path.into();
         if !data_path.exists() {
             create_dir(&data_path).unwrap();
@@ -158,10 +213,12 @@ mod tests {
         State {
             game_type: GameType::tes4,
             data_path: data_path,
+            loot_path: loot_path.into(),
             active_plugins: active_plugins
                 .into_iter()
                 .map(|s| s.to_lowercase())
                 .collect(),
+            crc_cache: RwLock::default(),
         }
     }
 
@@ -198,11 +255,20 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn function_file_path_eval_should_be_true_if_given_LOOT() {
+    fn function_file_path_eval_should_be_true_if_given_LOOT_and_loot_path_exists() {
         let function = Function::FilePath(PathBuf::from("LOOT"));
-        let state = state(".");
+        let state = state_with_loot_path(".", "Cargo.toml");
 
         assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn function_file_path_eval_should_be_false_if_given_LOOT_and_loot_path_does_not_exist() {
+        let function = Function::FilePath(PathBuf::from("LOOT"));
+        let state = state_with_loot_path(".", "missing");
+
+        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]
@@ -356,5 +422,112 @@ mod tests {
         let state = state_with_active_plugins(".", &["Blank.esp", "Blank.esm"]);
 
         assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_checksum_eval_should_be_false_if_the_file_does_not_exist() {
+        let function = Function::Checksum(PathBuf::from("missing"), 0x374E2A6F);
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_checksum_eval_should_be_false_if_the_file_checksum_does_not_equal_the_given_checksum(
+) {
+        let function = Function::Checksum(
+            PathBuf::from("testing-plugins/Oblivion/Data/Blank.esm"),
+            0xDEADBEEF,
+        );
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_checksum_eval_should_be_true_if_the_file_checksum_equals_the_given_checksum() {
+        let function = Function::Checksum(
+            PathBuf::from("testing-plugins/Oblivion/Data/Blank.esm"),
+            0x374E2A6F,
+        );
+        let state = state(".");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_checksum_eval_should_support_checking_the_crc_of_a_ghosted_plugin() {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        copy(
+            Path::new("testing-plugins/Oblivion/Data/Blank.esm"),
+            &state.data_path.join("Blank.esm.ghost"),
+        ).unwrap();
+
+        let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E2A6F);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_checksum_eval_should_not_check_for_ghosted_non_plugin_file() {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        copy(
+            Path::new("testing-plugins/Oblivion/Data/Blank.bsa"),
+            &state.data_path.join("Blank.bsa.ghost"),
+        ).unwrap();
+
+        let function = Function::Checksum(PathBuf::from("Blank.bsa"), 0x22AB79D9);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn function_checksum_eval_should_be_true_if_given_LOOT_crc_matches() {
+        let function = Function::Checksum(PathBuf::from("LOOT"), 0x374E2A6F);
+        let state = state_with_loot_path(".", "testing-plugins/Oblivion/Data/Blank.esm");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn function_checksum_eval_should_be_false_if_given_LOOT_crc_does_not_match() {
+        let function = Function::Checksum(PathBuf::from("LOOT"), 0xDEADBEEF);
+        let state = state_with_loot_path(".", "testing-plugins/Oblivion/Data/Blank.esm");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_checksum_eval_should_cache_and_use_cached_crcs() {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        copy(
+            Path::new("testing-plugins/Oblivion/Data/Blank.esm"),
+            &state.data_path.join("Blank.esm"),
+        ).unwrap();
+
+        let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E2A6F);
+
+        assert!(function.eval(&state).unwrap());
+
+        // Change the CRC of the file to test that the cached value is used.
+        copy(
+            Path::new("testing-plugins/Oblivion/Data/Blank.bsa"),
+            &state.data_path.join("Blank.esm"),
+        ).unwrap();
+
+        let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E2A6F);
+
+        assert!(function.eval(&state).unwrap());
     }
 }

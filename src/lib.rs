@@ -1,3 +1,4 @@
+extern crate crc;
 #[macro_use]
 extern crate nom;
 extern crate regex;
@@ -5,10 +6,11 @@ extern crate regex;
 #[cfg(test)]
 extern crate tempfile;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::PathBuf;
 use std::str;
+use std::sync::RwLock;
 
 use nom::{Err, IResult};
 
@@ -62,7 +64,9 @@ impl GameType {
 pub struct State {
     game_type: GameType,
     data_path: PathBuf,
+    loot_path: PathBuf,
     active_plugins: HashSet<String>, // Lowercased plugin filenames.
+    crc_cache: RwLock<HashMap<String, u32>>, // Lowercased paths.
 }
 
 // Compound conditions joined by 'or'
@@ -162,7 +166,9 @@ mod tests {
         State {
             game_type: GameType::tes4,
             data_path: data_path,
+            loot_path: PathBuf::new(),
             active_plugins: HashSet::new(),
+            crc_cache: RwLock::default(),
         }
     }
 
