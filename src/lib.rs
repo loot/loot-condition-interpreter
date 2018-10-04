@@ -7,8 +7,9 @@ extern crate regex;
 extern crate tempfile;
 
 use std::collections::{HashMap, HashSet};
+use std::ffi::OsStr;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str;
 use std::sync::RwLock;
 
@@ -56,6 +57,18 @@ impl GameType {
     fn supports_light_plugins(&self) -> bool {
         match self {
             GameType::Tes5se | GameType::Tes5vr | GameType::Fo4 | GameType::Fo4vr => true,
+            _ => false,
+        }
+    }
+
+    fn is_plugin_filename(&self, path: &Path) -> bool {
+        match path.extension().and_then(OsStr::to_str) {
+            Some("esp") | Some("esm") => true,
+            Some("esl") if self.supports_light_plugins() => true,
+            Some("ghost") => path
+                .file_stem()
+                .map(|s| self.is_plugin_filename(Path::new(s)))
+                .unwrap_or(false),
             _ => false,
         }
     }
@@ -170,6 +183,148 @@ mod tests {
             active_plugins: HashSet::new(),
             crc_cache: RwLock::default(),
         }
+    }
+
+    #[test]
+    fn game_type_supports_light_plugins_should_be_true_for_tes5se_tes5vr_fo4_and_fo4vr() {
+        assert!(GameType::Tes5se.supports_light_plugins());
+        assert!(GameType::Tes5vr.supports_light_plugins());
+        assert!(GameType::Fo4.supports_light_plugins());
+        assert!(GameType::Fo4vr.supports_light_plugins());
+    }
+
+    #[test]
+    fn game_type_supports_light_master_should_be_false_for_tes4_tes5_fo3_and_fonv() {
+        assert!(!GameType::Tes4.supports_light_plugins());
+        assert!(!GameType::Tes5.supports_light_plugins());
+        assert!(!GameType::Fo3.supports_light_plugins());
+        assert!(!GameType::Fonv.supports_light_plugins());
+    }
+
+    #[test]
+    fn game_type_is_plugin_filename_should_be_true_for_esp_for_all_game_types() {
+        let filename = Path::new("Blank.esp");
+
+        assert!(GameType::Tes4.is_plugin_filename(filename));
+        assert!(GameType::Tes5.is_plugin_filename(filename));
+        assert!(GameType::Tes5se.is_plugin_filename(filename));
+        assert!(GameType::Tes5vr.is_plugin_filename(filename));
+        assert!(GameType::Fo3.is_plugin_filename(filename));
+        assert!(GameType::Fonv.is_plugin_filename(filename));
+        assert!(GameType::Fo4.is_plugin_filename(filename));
+        assert!(GameType::Fo4vr.is_plugin_filename(filename));
+    }
+
+    #[test]
+    fn game_type_is_plugin_filename_should_be_true_for_esm_for_all_game_types() {
+        let filename = Path::new("Blank.esm");
+
+        assert!(GameType::Tes4.is_plugin_filename(filename));
+        assert!(GameType::Tes5.is_plugin_filename(filename));
+        assert!(GameType::Tes5se.is_plugin_filename(filename));
+        assert!(GameType::Tes5vr.is_plugin_filename(filename));
+        assert!(GameType::Fo3.is_plugin_filename(filename));
+        assert!(GameType::Fonv.is_plugin_filename(filename));
+        assert!(GameType::Fo4.is_plugin_filename(filename));
+        assert!(GameType::Fo4vr.is_plugin_filename(filename));
+    }
+
+    #[test]
+    fn game_type_is_plugin_filename_should_be_true_for_esl_for_tes5se_tes5vr_fo4_and_fo4vr() {
+        let filename = Path::new("Blank.esl");
+
+        assert!(GameType::Tes5se.is_plugin_filename(filename));
+        assert!(GameType::Tes5vr.is_plugin_filename(filename));
+        assert!(GameType::Fo4.is_plugin_filename(filename));
+        assert!(GameType::Fo4vr.is_plugin_filename(filename));
+    }
+
+    #[test]
+    fn game_type_is_plugin_filename_should_be_false_for_esl_for_tes4_tes5_fo3_and_fonv() {
+        let filename = Path::new("Blank.esl");
+
+        assert!(!GameType::Tes4.is_plugin_filename(filename));
+        assert!(!GameType::Tes5.is_plugin_filename(filename));
+        assert!(!GameType::Fo3.is_plugin_filename(filename));
+        assert!(!GameType::Fonv.is_plugin_filename(filename));
+    }
+
+    #[test]
+    fn game_type_is_plugin_filename_should_be_true_for_esp_dot_ghost_for_all_game_types() {
+        let filename = Path::new("Blank.esp.ghost");
+
+        assert!(GameType::Tes4.is_plugin_filename(filename));
+        assert!(GameType::Tes5.is_plugin_filename(filename));
+        assert!(GameType::Tes5se.is_plugin_filename(filename));
+        assert!(GameType::Tes5vr.is_plugin_filename(filename));
+        assert!(GameType::Fo3.is_plugin_filename(filename));
+        assert!(GameType::Fonv.is_plugin_filename(filename));
+        assert!(GameType::Fo4.is_plugin_filename(filename));
+        assert!(GameType::Fo4vr.is_plugin_filename(filename));
+    }
+
+    #[test]
+    fn game_type_is_plugin_filename_should_be_true_for_esm_dot_ghost_for_all_game_types() {
+        let filename = Path::new("Blank.esm.ghost");
+
+        assert!(GameType::Tes4.is_plugin_filename(filename));
+        assert!(GameType::Tes5.is_plugin_filename(filename));
+        assert!(GameType::Tes5se.is_plugin_filename(filename));
+        assert!(GameType::Tes5vr.is_plugin_filename(filename));
+        assert!(GameType::Fo3.is_plugin_filename(filename));
+        assert!(GameType::Fonv.is_plugin_filename(filename));
+        assert!(GameType::Fo4.is_plugin_filename(filename));
+        assert!(GameType::Fo4vr.is_plugin_filename(filename));
+    }
+
+    #[test]
+    fn game_type_is_plugin_filename_should_be_true_for_esl_dot_ghost_for_tes5se_tes5vr_fo4_and_fo4vr(
+) {
+        let filename = Path::new("Blank.esl.ghost");
+
+        assert!(GameType::Tes5se.is_plugin_filename(filename));
+        assert!(GameType::Tes5vr.is_plugin_filename(filename));
+        assert!(GameType::Fo4.is_plugin_filename(filename));
+        assert!(GameType::Fo4vr.is_plugin_filename(filename));
+    }
+
+    #[test]
+    fn game_type_is_plugin_filename_should_be_false_for_esl_dot_ghost_for_tes4_tes5_fo3_and_fonv() {
+        let filename = Path::new("Blank.esl.ghost");
+
+        assert!(!GameType::Tes4.is_plugin_filename(filename));
+        assert!(!GameType::Tes5.is_plugin_filename(filename));
+        assert!(!GameType::Fo3.is_plugin_filename(filename));
+        assert!(!GameType::Fonv.is_plugin_filename(filename));
+    }
+
+    #[test]
+    fn game_type_is_plugin_filename_should_be_false_for_non_esp_esm_esl_for_all_game_types() {
+        let filename = Path::new("Blank.txt");
+
+        assert!(!GameType::Tes4.is_plugin_filename(filename));
+        assert!(!GameType::Tes5.is_plugin_filename(filename));
+        assert!(!GameType::Tes5se.is_plugin_filename(filename));
+        assert!(!GameType::Tes5vr.is_plugin_filename(filename));
+        assert!(!GameType::Fo3.is_plugin_filename(filename));
+        assert!(!GameType::Fonv.is_plugin_filename(filename));
+        assert!(!GameType::Fo4.is_plugin_filename(filename));
+        assert!(!GameType::Fo4vr.is_plugin_filename(filename));
+    }
+
+    #[test]
+    fn game_type_is_plugin_filename_should_be_false_for_non_esp_esm_esl_dot_ghost_for_all_game_types(
+) {
+        let filename = Path::new("Blank.txt.ghost");
+
+        assert!(!GameType::Tes4.is_plugin_filename(filename));
+        assert!(!GameType::Tes5.is_plugin_filename(filename));
+        assert!(!GameType::Tes5se.is_plugin_filename(filename));
+        assert!(!GameType::Tes5vr.is_plugin_filename(filename));
+        assert!(!GameType::Fo3.is_plugin_filename(filename));
+        assert!(!GameType::Fonv.is_plugin_filename(filename));
+        assert!(!GameType::Fo4.is_plugin_filename(filename));
+        assert!(!GameType::Fo4vr.is_plugin_filename(filename));
     }
 
     #[test]

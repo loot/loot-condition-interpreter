@@ -11,18 +11,6 @@ use super::Function;
 use Error;
 use State;
 
-fn has_plugin_file_extension(path: &Path, state: &State) -> bool {
-    match path.extension().and_then(OsStr::to_str) {
-        Some("esp") | Some("esm") => true,
-        Some("esl") if state.game_type.supports_light_plugins() => true,
-        Some("ghost") => path
-            .file_stem()
-            .map(|s| has_plugin_file_extension(Path::new(s), state))
-            .unwrap_or(false),
-        _ => false,
-    }
-}
-
 fn add_extension(path: &Path, extension: &str) -> PathBuf {
     match path.extension() {
         Some(e) => {
@@ -44,7 +32,7 @@ fn resolve_path(state: &State, path: &Path) -> PathBuf {
     } else {
         let path = state.data_path.join(path);
 
-        if !path.exists() && has_plugin_file_extension(&path, state) {
+        if !path.exists() && state.game_type.is_plugin_filename(&path) {
             add_extension(&path, "ghost")
         } else {
             path
