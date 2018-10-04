@@ -3,38 +3,273 @@ use std::path::Path;
 
 use Error;
 
+#[derive(Debug, PartialEq, PartialOrd)]
+enum Identifier {
+    Numeric(u32),
+    NonNumeric(String),
+}
+
+impl<'a> From<&'a str> for Identifier {
+    fn from(string: &'a str) -> Self {
+        u32::from_str_radix(string, 10)
+            .map(Identifier::Numeric)
+            .unwrap_or_else(|_| Identifier::NonNumeric(string.into()))
+    }
+}
+
 #[derive(Debug)]
 pub struct Version {
-    string: String,
+    release_numbers: Vec<Identifier>,
+    pre_release_ids: Vec<Identifier>,
 }
 
 impl Version {
     pub fn read_file_version(file_path: &Path) -> Result<Self, Error> {
         // TODO: Actually read the file's File Version field.
-        Ok(Version {
-            string: format!("{}", file_path.display()),
-        })
+        Ok(Version::from(format!("{}", file_path.display()).as_str()))
     }
 }
 
 impl<'a> From<&'a str> for Version {
     fn from(string: &'a str) -> Self {
+        let trimmed = trim_metadata(string);
+
+        let (release, pre_release) = match trimmed.find('-') {
+            Some(i) if i + 1 < trimmed.len() => (&trimmed[..i], &trimmed[i + 1..]),
+            Some(_) | None => (trimmed, ""),
+        };
+
         Version {
-            string: string.to_string(),
+            release_numbers: release.split('.').map(Identifier::from).collect(),
+            pre_release_ids: pre_release.split('.').map(Identifier::from).collect(),
         }
+    }
+}
+
+fn trim_metadata(version: &str) -> &str {
+    if version.is_empty() {
+        "0"
+    } else if let Some(i) = version.find('+') {
+        &version[..i]
+    } else {
+        version
     }
 }
 
 impl PartialOrd for Version {
     fn partial_cmp(&self, other: &Version) -> Option<Ordering> {
         // TODO: Compare with same behaviour as pseudosem.
-        self.string.partial_cmp(&other.string)
+        match self.release_numbers.partial_cmp(&other.release_numbers) {
+            Some(Ordering::Equal) | None => {
+                self.pre_release_ids.partial_cmp(&other.pre_release_ids)
+            }
+            r => r,
+        }
     }
 }
 
 impl PartialEq for Version {
     fn eq(&self, other: &Version) -> bool {
         // TODO: Compare with same behaviour as pseudosem.
-        self.string == other.string
+        self.release_numbers == other.release_numbers
+            && self.pre_release_ids == other.pre_release_ids
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    mod empty {
+        use super::super::*;
+
+        #[test]
+        fn version_eq_an_empty_string_should_equal_an_empty_string() {
+            assert_eq!(Version::from(""), Version::from(""));
+        }
+
+        #[test]
+        fn version_eq_an_empty_string_should_equal_a_version_of_zero() {
+            assert_eq!(Version::from(""), Version::from("0"));
+            assert_eq!(Version::from("0"), Version::from(""));
+        }
+
+        #[test]
+        fn version_eq_an_empty_string_should_not_equal_a_non_zero_version() {
+            assert_ne!(Version::from(""), Version::from("5"));
+            assert_ne!(Version::from("5"), Version::from(""));
+        }
+
+        #[test]
+        fn version_partial_cmp_an_empty_string_should_be_less_than_a_non_zero_version() {
+            assert!(Version::from("") < Version::from("1"));
+            assert!(Version::from("1") > Version::from(""));
+        }
+    }
+
+    mod numeric {
+        use super::super::*;
+
+        #[test]
+        fn version_eq_a_non_empty_string_should_equal_itself() {
+            assert_eq!(Version::from("5"), Version::from("5"));
+        }
+
+        #[test]
+        fn version_eq_single_digit_versions_should_compare_digits() {
+            assert_eq!(Version::from("5"), Version::from("5"));
+
+            assert_ne!(Version::from("4"), Version::from("5"));
+            assert_ne!(Version::from("5"), Version::from("4"));
+        }
+
+        #[test]
+        fn version_partial_cmp_single_digit_versions_should_compare_digits() {
+            assert!(Version::from("4") < Version::from("5"));
+            assert!(Version::from("5") > Version::from("4"));
+        }
+
+        #[test]
+        fn version_eq_numeric_versions_should_compare_numbers() {
+            assert_ne!(Version::from("5"), Version::from("10"));
+            assert_ne!(Version::from("10"), Version::from("5"));
+        }
+
+        #[test]
+        fn version_partial_cmp_numeric_versions_should_compare_numbers() {
+            assert!(Version::from("5") < Version::from("10"));
+            assert!(Version::from("10") > Version::from("5"));
+        }
+    }
+
+    mod semver {
+        use super::super::*;
+
+        #[test]
+        fn version_eq_should_compare_patch_numbers() {
+            assert_eq!(Version::from("0.0.5"), Version::from("0.0.5"));
+
+            assert_ne!(Version::from("0.0.5"), Version::from("0.0.10"));
+            assert_ne!(Version::from("0.0.10"), Version::from("0.0.5"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_compare_patch_numbers() {
+            assert!(Version::from("0.0.5") < Version::from("0.0.10"));
+            assert!(Version::from("0.0.10") > Version::from("0.0.5"));
+        }
+
+        #[test]
+        fn version_eq_should_compare_minor_numbers() {
+            assert_eq!(Version::from("0.5.0"), Version::from("0.5.0"));
+
+            assert_ne!(Version::from("0.5.0"), Version::from("0.10.0"));
+            assert_ne!(Version::from("0.10.0"), Version::from("0.5.0"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_compare_minor_numbers() {
+            assert!(Version::from("0.5.0") < Version::from("0.10.0"));
+            assert!(Version::from("0.10.0") > Version::from("0.5.0"));
+        }
+
+        #[test]
+        fn version_partial_cmp_minor_numbers_should_take_precedence_over_patch_numbers() {
+            assert!(Version::from("0.5.10") < Version::from("0.10.5"));
+            assert!(Version::from("0.10.5") > Version::from("0.5.10"));
+        }
+
+        #[test]
+        fn version_eq_should_compare_major_numbers() {
+            assert_eq!(Version::from("5.0.0"), Version::from("5.0.0"));
+
+            assert_ne!(Version::from("5.0.0"), Version::from("10.0.0"));
+            assert_ne!(Version::from("10.0.0"), Version::from("5.0.0"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_compare_major_numbers() {
+            assert!(Version::from("5.0.0") < Version::from("10.0.0"));
+            assert!(Version::from("10.0.0") > Version::from("5.0.0"));
+        }
+
+        #[test]
+        fn version_partial_cmp_major_numbers_should_take_precedence_over_minor_numbers() {
+            assert!(Version::from("5.10.0") < Version::from("10.5.0"));
+            assert!(Version::from("10.5.0") > Version::from("5.10.0"));
+        }
+
+        #[test]
+        fn version_partial_cmp_major_numbers_should_take_precedence_over_patch_numbers() {
+            assert!(Version::from("5.0.10") < Version::from("10.0.5"));
+            assert!(Version::from("10.0.5") > Version::from("5.0.10"));
+        }
+
+        #[test]
+        fn version_eq_should_compare_pre_release_identifiers() {
+            assert_eq!(
+                Version::from("0.0.5-5.alpha"),
+                Version::from("0.0.5-5.alpha")
+            );
+
+            assert_ne!(
+                Version::from("0.0.5-5.alpha"),
+                Version::from("0.0.5-10.beta")
+            );
+            assert_ne!(
+                Version::from("0.0.5-10.beta"),
+                Version::from("0.0.5-5.alpha")
+            );
+        }
+
+        #[test]
+        fn version_partial_cmp_should_compare_numeric_pre_release_ids_numerically() {
+            assert!(Version::from("0.0.5-5") < Version::from("0.0.5-10"));
+            assert!(Version::from("0.0.5-10") > Version::from("0.0.5-5"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_compare_non_numeric_pre_release_ids_lexically() {
+            assert!(Version::from("0.0.5-a") < Version::from("0.0.5-b"));
+            assert!(Version::from("0.0.5-b") > Version::from("0.0.5-a"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_treat_numeric_pre_release_ids_as_less_than_than_non_numeric_ids(
+) {
+            assert!(Version::from("0.0.5-9") < Version::from("0.0.5-a"));
+            assert!(Version::from("0.0.5-a") > Version::from("0.0.5-9"));
+        }
+
+        #[test]
+        fn version_partial_cmp_earlier_pre_release_ids_should_take_precedence_over_later_ids() {
+            assert!(Version::from("0.0.5-5.10") < Version::from("0.0.5-10.5"));
+            assert!(Version::from("0.0.5-10.5") > Version::from("0.0.5-5.10"));
+        }
+
+        #[test]
+        fn version_partial_cmp_a_version_with_more_pre_release_ids_is_greater_than_a_version_with_less(
+) {
+            assert!(Version::from("0.0.5-5") < Version::from("0.0.5-5.0"));
+            assert!(Version::from("0.0.5-5.0") > Version::from("0.0.5-5"));
+        }
+
+        #[test]
+        fn version_partial_cmp_release_numbers_should_take_precedence_over_pre_release_ids() {
+            assert!(Version::from("0.0.5-10") < Version::from("0.0.10-5"));
+            assert!(Version::from("0.0.10-5") > Version::from("0.0.5-10"));
+        }
+
+        #[test]
+        fn version_eq_should_ignore_metadata() {
+            assert_eq!(Version::from("0.0.1+alpha"), Version::from("0.0.1+beta"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_ignore_metadata() {
+            assert!(!(Version::from("0.0.1+alpha") < Version::from("0.0.1+1")));
+            assert!(!(Version::from("0.0.1+1") > Version::from("0.0.1+alpha")));
+
+            assert!(!(Version::from("0.0.1+2") < Version::from("0.0.1+1")));
+            assert!(!(Version::from("0.0.1+1") > Version::from("0.0.1+2")));
+        }
     }
 }
