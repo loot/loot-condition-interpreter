@@ -42,20 +42,20 @@ impl From<io::Error> for Error {
 }
 
 pub enum GameType {
-    tes4,
-    tes5,
-    tes5se,
-    tes5vr,
-    fo3,
-    fonv,
-    fo4,
-    fo4vr,
+    Tes4,
+    Tes5,
+    Tes5se,
+    Tes5vr,
+    Fo3,
+    Fonv,
+    Fo4,
+    Fo4vr,
 }
 
 impl GameType {
     fn supports_light_plugins(&self) -> bool {
         match self {
-            GameType::tes5se | GameType::tes5vr | GameType::fo4 | GameType::fo4vr => true,
+            GameType::Tes5se | GameType::Tes5vr | GameType::Fo4 | GameType::Fo4vr => true,
             _ => false,
         }
     }
@@ -164,7 +164,7 @@ mod tests {
         }
 
         State {
-            game_type: GameType::tes4,
+            game_type: GameType::Tes4,
             data_path: data_path,
             loot_path: PathBuf::new(),
             active_plugins: HashSet::new(),
