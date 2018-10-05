@@ -30,18 +30,29 @@ impl Version {
     }
 }
 
+fn is_separator(c: char) -> bool {
+    c == '-' || c == ' ' || c == ':' || c == '_'
+}
+
+fn is_pre_release_separator(c: char) -> bool {
+    c == '.' || is_separator(c)
+}
+
 impl<'a> From<&'a str> for Version {
     fn from(string: &'a str) -> Self {
         let trimmed = trim_metadata(string);
 
-        let (release, pre_release) = match trimmed.find('-') {
+        let (release, pre_release) = match trimmed.find(is_separator) {
             Some(i) if i + 1 < trimmed.len() => (&trimmed[..i], &trimmed[i + 1..]),
             Some(_) | None => (trimmed, ""),
         };
 
         Version {
             release_numbers: release.split('.').map(Identifier::from).collect(),
-            pre_release_ids: pre_release.split('.').map(Identifier::from).collect(),
+            pre_release_ids: pre_release
+                .split(is_pre_release_separator)
+                .map(Identifier::from)
+                .collect(),
         }
     }
 }
@@ -386,6 +397,137 @@ mod tests {
         fn version_partial_cmp_should_compare_pre_release_ids_case_insensitively() {
             assert!(Version::from("1.0.0-alpha") < Version::from("1.0.0-Beta"));
             assert!(Version::from("1.0.0-Beta") > Version::from("1.0.0-alpha"));
+        }
+
+        #[test]
+        fn version_from_should_treat_space_as_separator_between_release_and_pre_release_ids() {
+            let version = Version::from("1.0.0 alpha");
+            assert_eq!(
+                version.release_numbers,
+                vec![
+                    Identifier::Numeric(1),
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(0)
+                ]
+            );
+            assert_eq!(
+                version.pre_release_ids,
+                vec![Identifier::NonNumeric("alpha".into())]
+            );
+        }
+
+        #[test]
+        fn version_from_should_treat_colon_as_separator_between_release_and_pre_release_ids() {
+            let version = Version::from("1.0.0:alpha");
+            assert_eq!(
+                version.release_numbers,
+                vec![
+                    Identifier::Numeric(1),
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(0)
+                ]
+            );
+            assert_eq!(
+                version.pre_release_ids,
+                vec![Identifier::NonNumeric("alpha".into())]
+            );
+        }
+
+        #[test]
+        fn version_from_should_treat_underscore_as_separator_between_release_and_pre_release_ids() {
+            let version = Version::from("1.0.0_alpha");
+            assert_eq!(
+                version.release_numbers,
+                vec![
+                    Identifier::Numeric(1),
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(0)
+                ]
+            );
+            assert_eq!(
+                version.pre_release_ids,
+                vec![Identifier::NonNumeric("alpha".into())]
+            );
+        }
+
+        #[test]
+        fn version_from_should_treat_space_as_separator_between_pre_release_ids() {
+            let version = Version::from("1.0.0-alpha 1");
+            assert_eq!(
+                version.release_numbers,
+                vec![
+                    Identifier::Numeric(1),
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(0)
+                ]
+            );
+            assert_eq!(
+                version.pre_release_ids,
+                vec![
+                    Identifier::NonNumeric("alpha".into()),
+                    Identifier::Numeric(1)
+                ]
+            );
+        }
+
+        #[test]
+        fn version_from_should_treat_colon_as_separator_between_pre_release_ids() {
+            let version = Version::from("1.0.0-alpha:1");
+            assert_eq!(
+                version.release_numbers,
+                vec![
+                    Identifier::Numeric(1),
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(0)
+                ]
+            );
+            assert_eq!(
+                version.pre_release_ids,
+                vec![
+                    Identifier::NonNumeric("alpha".into()),
+                    Identifier::Numeric(1)
+                ]
+            );
+        }
+
+        #[test]
+        fn version_from_should_treat_underscore_as_separator_between_pre_release_ids() {
+            let version = Version::from("1.0.0-alpha_1");
+            assert_eq!(
+                version.release_numbers,
+                vec![
+                    Identifier::Numeric(1),
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(0)
+                ]
+            );
+            assert_eq!(
+                version.pre_release_ids,
+                vec![
+                    Identifier::NonNumeric("alpha".into()),
+                    Identifier::Numeric(1)
+                ]
+            );
+        }
+
+        #[test]
+        fn version_from_should_treat_dash_as_separator_between_pre_release_ids() {
+            let version = Version::from("1.0.0-alpha-1");
+            assert_eq!(
+                version.release_numbers,
+                vec![
+                    Identifier::Numeric(1),
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(0)
+                ]
+            );
+            assert_eq!(
+                version.pre_release_ids,
+                vec![
+                    Identifier::NonNumeric("alpha".into()),
+                    Identifier::Numeric(1)
+                ]
+            );
         }
     }
 }
