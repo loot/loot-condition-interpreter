@@ -275,10 +275,10 @@ mod tests {
         #[test]
         fn version_partial_cmp_should_ignore_metadata() {
             assert!(!(Version::from("0.0.1+alpha") < Version::from("0.0.1+1")));
-            assert!(!(Version::from("0.0.1+1") > Version::from("0.0.1+alpha")));
+            assert!(!(Version::from("0.0.1+1") < Version::from("0.0.1+alpha")));
 
             assert!(!(Version::from("0.0.1+2") < Version::from("0.0.1+1")));
-            assert!(!(Version::from("0.0.1+1") > Version::from("0.0.1+2")));
+            assert!(!(Version::from("0.0.1+1") < Version::from("0.0.1+2")));
         }
     }
 
@@ -294,7 +294,7 @@ mod tests {
         #[test]
         fn version_partial_cmp_should_ignore_leading_zeroes_in_major_version_numbers() {
             assert!(!(Version::from("05.0.0") < Version::from("5.0.0")));
-            assert!(!(Version::from("5.0.0") > Version::from("05.0.0")));
+            assert!(!(Version::from("5.0.0") < Version::from("05.0.0")));
         }
 
         #[test]
@@ -306,7 +306,7 @@ mod tests {
         #[test]
         fn version_partial_cmp_should_ignore_leading_zeroes_in_minor_version_numbers() {
             assert!(!(Version::from("0.05.0") < Version::from("0.5.0")));
-            assert!(!(Version::from("0.5.0") > Version::from("0.05.0")));
+            assert!(!(Version::from("0.5.0") < Version::from("0.05.0")));
         }
 
         #[test]
@@ -318,7 +318,7 @@ mod tests {
         #[test]
         fn version_partial_cmp_should_ignore_leading_zeroes_in_patch_version_numbers() {
             assert!(!(Version::from("0.0.05") < Version::from("0.0.5")));
-            assert!(!(Version::from("0.0.5") > Version::from("0.0.05")));
+            assert!(!(Version::from("0.0.5") < Version::from("0.0.05")));
         }
 
         #[test]
@@ -330,7 +330,7 @@ mod tests {
         #[test]
         fn version_partial_cmp_should_ignore_leading_zeroes_in_numeric_pre_release_ids() {
             assert!(!(Version::from("0.0.5-05") < Version::from("0.0.5-5")));
-            assert!(!(Version::from("0.0.5-5") > Version::from("0.0.5-05")));
+            assert!(!(Version::from("0.0.5-5") < Version::from("0.0.5-05")));
         }
 
         #[test]
