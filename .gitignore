@@ -3,3 +3,4 @@
 **/*.rs.bk
 Cargo.lock
 /testing-plugins
+/loot_api*

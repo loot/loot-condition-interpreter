@@ -1,6 +1,7 @@
 extern crate crc;
 #[macro_use]
 extern crate nom;
+extern crate pelite;
 extern crate regex;
 
 #[cfg(test)]
@@ -24,8 +25,7 @@ use function::Function;
 pub enum Error {
     ParsingIncomplete,
     ParsingError,
-    InvalidPath(PathBuf),
-    InvalidRegex(String),
+    PeParsingError,
     IoError(io::Error),
 }
 
@@ -41,6 +41,12 @@ impl<I> From<Err<I>> for Error {
 impl From<io::Error> for Error {
     fn from(error: io::Error) -> Self {
         Error::IoError(error)
+    }
+}
+
+impl From<pelite::resources::FindError> for Error {
+    fn from(_: pelite::resources::FindError) -> Self {
+        Error::PeParsingError
     }
 }
 

@@ -21,4 +21,5 @@ Currently only condition parsing is complete. Evaluation is partially done, the
 rest hasn't yet been started.
 
 The tests need the [testing-plugins](https://github.com/WrinklyNinja/testing-plugins)
-directory to be present in the repo root.
+and the [LOOT API v0.13.8](https://github.com/loot/loot-api/releases/tag/0.13.8)
+Windows archives to be extracted and present in the repo root.

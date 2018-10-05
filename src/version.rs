@@ -1,6 +1,10 @@
 use std::cmp::Ordering;
 use std::path::Path;
 
+use pelite::resources::version_info::VersionInfo;
+use pelite::resources::FindError;
+use pelite::FileMap;
+
 use Error;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -25,8 +29,40 @@ pub struct Version {
 
 impl Version {
     pub fn read_file_version(file_path: &Path) -> Result<Self, Error> {
-        // TODO: Actually read the file's File Version field.
-        Ok(Version::from(format!("{}", file_path.display()).as_str()))
+        let file_map = FileMap::open(file_path)?;
+        let version_info = get_pe_version_info(file_map.as_ref())?;
+
+        if let Some(fixed_file_info) = version_info.fixed() {
+            let version = format!(
+                "{}.{}.{}.{}",
+                fixed_file_info.dwFileVersion.Major,
+                fixed_file_info.dwFileVersion.Minor,
+                fixed_file_info.dwFileVersion.Patch,
+                fixed_file_info.dwFileVersion.Build
+            );
+
+            Ok(Version::from(version.as_str()))
+        } else {
+            Ok(Version::from(""))
+        }
+    }
+}
+
+fn get_pe_version_info(bytes: &[u8]) -> Result<VersionInfo, FindError> {
+    use pelite;
+    use pelite::pe64;
+    match pe64::PeFile::from_bytes(bytes) {
+        Ok(file) => {
+            use pelite::pe64::Pe;
+
+            file.resources()?.version_info()
+        }
+        Err(pelite::Error::PeMagic) => {
+            use pelite::pe32::{Pe, PeFile};
+
+            PeFile::from_bytes(bytes)?.resources()?.version_info()
+        }
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -50,7 +86,7 @@ impl<'a> From<&'a str> for Version {
         Version {
             release_ids: release.split('.').map(Identifier::from).collect(),
             pre_release_ids: pre_release
-                .split(is_pre_release_separator)
+                .split_terminator(is_pre_release_separator)
                 .map(Identifier::from)
                 .collect(),
         }
@@ -107,6 +143,42 @@ fn pad_release_ids(ids1: &[Identifier], ids2: &[Identifier]) -> (Vec<Identifier>
 mod tests {
     mod empty {
         use super::super::*;
+
+        #[test]
+        fn version_read_file_version_should_read_the_file_version_field_of_a_32_bit_executable() {
+            let version = Version::read_file_version(Path::new(
+                "loot_api-0.13.8-0-g47797cc_dev-win32/loot_api.dll",
+            )).unwrap();
+
+            assert_eq!(
+                version.release_ids,
+                vec![
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(13),
+                    Identifier::Numeric(8),
+                    Identifier::Numeric(0),
+                ]
+            );
+            assert!(version.pre_release_ids.is_empty());
+        }
+
+        #[test]
+        fn version_read_file_version_should_read_the_file_version_field_of_a_64_bit_executable() {
+            let version = Version::read_file_version(Path::new(
+                "loot_api-0.13.8-0-g47797cc_dev-win64/loot_api.dll",
+            )).unwrap();
+
+            assert_eq!(
+                version.release_ids,
+                vec![
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(13),
+                    Identifier::Numeric(8),
+                    Identifier::Numeric(0),
+                ]
+            );
+            assert!(version.pre_release_ids.is_empty());
+        }
 
         #[test]
         fn version_eq_an_empty_string_should_equal_an_empty_string() {
