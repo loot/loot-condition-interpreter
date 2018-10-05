@@ -3,7 +3,7 @@ use std::path::Path;
 
 use Error;
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 enum Identifier {
     Numeric(u32),
     NonNumeric(String),
@@ -69,8 +69,10 @@ fn trim_metadata(version: &str) -> &str {
 
 impl PartialOrd for Version {
     fn partial_cmp(&self, other: &Version) -> Option<Ordering> {
-        // TODO: Compare with same behaviour as pseudosem.
-        match self.release_numbers.partial_cmp(&other.release_numbers) {
+        let (self_release_numbers, other_release_numbers) =
+            pad_release_numbers(&self.release_numbers, &other.release_numbers);
+
+        match self_release_numbers.partial_cmp(&other_release_numbers) {
             Some(Ordering::Equal) | None => {
                 self.pre_release_ids.partial_cmp(&other.pre_release_ids)
             }
@@ -81,10 +83,28 @@ impl PartialOrd for Version {
 
 impl PartialEq for Version {
     fn eq(&self, other: &Version) -> bool {
-        // TODO: Compare with same behaviour as pseudosem.
-        self.release_numbers == other.release_numbers
+        let (self_release_numbers, other_release_numbers) =
+            pad_release_numbers(&self.release_numbers, &other.release_numbers);
+
+        self_release_numbers == other_release_numbers
             && self.pre_release_ids == other.pre_release_ids
     }
+}
+
+fn pad_release_numbers(
+    ids1: &[Identifier],
+    ids2: &[Identifier],
+) -> (Vec<Identifier>, Vec<Identifier>) {
+    let mut ids1 = ids1.to_vec();
+    let mut ids2 = ids2.to_vec();
+
+    if ids1.len() < ids2.len() {
+        ids1.resize(ids2.len(), Identifier::Numeric(0));
+    } else if ids2.len() < ids1.len() {
+        ids2.resize(ids1.len(), Identifier::Numeric(0));
+    }
+
+    (ids1, ids2)
 }
 
 #[cfg(test)]
@@ -397,6 +417,30 @@ mod tests {
         fn version_partial_cmp_should_compare_pre_release_ids_case_insensitively() {
             assert!(Version::from("1.0.0-alpha") < Version::from("1.0.0-Beta"));
             assert!(Version::from("1.0.0-Beta") > Version::from("1.0.0-alpha"));
+        }
+
+        #[test]
+        fn version_eq_should_pad_release_id_vecs_to_equal_length_with_zeroes() {
+            assert_eq!(Version::from("1-beta"), Version::from("1.0.0-beta"));
+            assert_eq!(Version::from("1.0.0-beta"), Version::from("1-beta"));
+
+            assert_eq!(Version::from("0.0.0.1"), Version::from("0.0.0.1.0.0"));
+            assert_eq!(Version::from("0.0.0.1.0.0"), Version::from("0.0.0.1"));
+
+            assert_ne!(Version::from("1.0.0.0"), Version::from("1.0.0.0.0.1"));
+            assert_ne!(Version::from("1.0.0.0.0.1"), Version::from("1.0.0.0"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_pad_release_id_vecs_to_equal_length_with_zeroes() {
+            assert!(Version::from("1.0.0.0.0.0") < Version::from("1.0.0.1"));
+            assert!(Version::from("1.0.0.1") > Version::from("1.0.0.0.0.0"));
+
+            assert!(Version::from("1.0.0.0") < Version::from("1.0.0.0.0.1"));
+            assert!(Version::from("1.0.0.0.0.1") > Version::from("1.0.0.0"));
+
+            assert!(!(Version::from("1.0.0.0.0.0") < Version::from("1.0.0.0")));
+            assert!(!(Version::from("1.0.0.0") < Version::from("1.0.0.0.0.0")));
         }
 
         #[test]
