@@ -1,0 +1,27 @@
+language: rust
+
+addons:
+  apt:
+    packages:
+      - p7zip-full
+
+cache: cargo
+
+install:
+  - rustup component add rustfmt-preview
+  - rustfmt --version
+
+before_script:
+  - wget https://github.com/WrinklyNinja/testing-plugins/archive/1.4.1.tar.gz
+  - tar -xf 1.4.1.tar.gz
+  - mv testing-plugins-1.4.1 testing-plugins
+
+  - wget https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win32.7z
+  - 7z x loot_api-0.13.8-0-g47797cc_dev-win32.7z
+
+  - wget https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win64.7z
+  - 7z x loot_api-0.13.8-0-g47797cc_dev-win64.7z
+
+script:
+  - cargo fmt -- --check
+  - cargo test
