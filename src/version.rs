@@ -19,7 +19,7 @@ impl<'a> From<&'a str> for Identifier {
 
 #[derive(Debug)]
 pub struct Version {
-    release_numbers: Vec<Identifier>,
+    release_ids: Vec<Identifier>,
     pre_release_ids: Vec<Identifier>,
 }
 
@@ -48,7 +48,7 @@ impl<'a> From<&'a str> for Version {
         };
 
         Version {
-            release_numbers: release.split('.').map(Identifier::from).collect(),
+            release_ids: release.split('.').map(Identifier::from).collect(),
             pre_release_ids: pre_release
                 .split(is_pre_release_separator)
                 .map(Identifier::from)
@@ -69,10 +69,10 @@ fn trim_metadata(version: &str) -> &str {
 
 impl PartialOrd for Version {
     fn partial_cmp(&self, other: &Version) -> Option<Ordering> {
-        let (self_release_numbers, other_release_numbers) =
-            pad_release_numbers(&self.release_numbers, &other.release_numbers);
+        let (self_release_ids, other_release_ids) =
+            pad_release_ids(&self.release_ids, &other.release_ids);
 
-        match self_release_numbers.partial_cmp(&other_release_numbers) {
+        match self_release_ids.partial_cmp(&other_release_ids) {
             Some(Ordering::Equal) | None => {
                 self.pre_release_ids.partial_cmp(&other.pre_release_ids)
             }
@@ -83,18 +83,14 @@ impl PartialOrd for Version {
 
 impl PartialEq for Version {
     fn eq(&self, other: &Version) -> bool {
-        let (self_release_numbers, other_release_numbers) =
-            pad_release_numbers(&self.release_numbers, &other.release_numbers);
+        let (self_release_ids, other_release_ids) =
+            pad_release_ids(&self.release_ids, &other.release_ids);
 
-        self_release_numbers == other_release_numbers
-            && self.pre_release_ids == other.pre_release_ids
+        self_release_ids == other_release_ids && self.pre_release_ids == other.pre_release_ids
     }
 }
 
-fn pad_release_numbers(
-    ids1: &[Identifier],
-    ids2: &[Identifier],
-) -> (Vec<Identifier>, Vec<Identifier>) {
+fn pad_release_ids(ids1: &[Identifier], ids2: &[Identifier]) -> (Vec<Identifier>, Vec<Identifier>) {
     let mut ids1 = ids1.to_vec();
     let mut ids2 = ids2.to_vec();
 
@@ -282,7 +278,7 @@ mod tests {
         }
 
         #[test]
-        fn version_partial_cmp_release_numbers_should_take_precedence_over_pre_release_ids() {
+        fn version_partial_cmp_release_ids_should_take_precedence_over_pre_release_ids() {
             assert!(Version::from("0.0.5-10") < Version::from("0.0.10-5"));
             assert!(Version::from("0.0.10-5") > Version::from("0.0.5-10"));
         }
@@ -384,7 +380,7 @@ mod tests {
         }
 
         #[test]
-        fn version_partial_cmp_non_numeric_release_ids_should_be_greater_than_release_numbers() {
+        fn version_partial_cmp_non_numeric_release_ids_should_be_greater_than_release_ids() {
             assert!(Version::from("1.0.0") < Version::from("1.0.0a"));
             assert!(Version::from("1.0.0a") > Version::from("1.0.0"));
         }
@@ -447,7 +443,7 @@ mod tests {
         fn version_from_should_treat_space_as_separator_between_release_and_pre_release_ids() {
             let version = Version::from("1.0.0 alpha");
             assert_eq!(
-                version.release_numbers,
+                version.release_ids,
                 vec![
                     Identifier::Numeric(1),
                     Identifier::Numeric(0),
@@ -464,7 +460,7 @@ mod tests {
         fn version_from_should_treat_colon_as_separator_between_release_and_pre_release_ids() {
             let version = Version::from("1.0.0:alpha");
             assert_eq!(
-                version.release_numbers,
+                version.release_ids,
                 vec![
                     Identifier::Numeric(1),
                     Identifier::Numeric(0),
@@ -481,7 +477,7 @@ mod tests {
         fn version_from_should_treat_underscore_as_separator_between_release_and_pre_release_ids() {
             let version = Version::from("1.0.0_alpha");
             assert_eq!(
-                version.release_numbers,
+                version.release_ids,
                 vec![
                     Identifier::Numeric(1),
                     Identifier::Numeric(0),
@@ -498,7 +494,7 @@ mod tests {
         fn version_from_should_treat_space_as_separator_between_pre_release_ids() {
             let version = Version::from("1.0.0-alpha 1");
             assert_eq!(
-                version.release_numbers,
+                version.release_ids,
                 vec![
                     Identifier::Numeric(1),
                     Identifier::Numeric(0),
@@ -518,7 +514,7 @@ mod tests {
         fn version_from_should_treat_colon_as_separator_between_pre_release_ids() {
             let version = Version::from("1.0.0-alpha:1");
             assert_eq!(
-                version.release_numbers,
+                version.release_ids,
                 vec![
                     Identifier::Numeric(1),
                     Identifier::Numeric(0),
@@ -538,7 +534,7 @@ mod tests {
         fn version_from_should_treat_underscore_as_separator_between_pre_release_ids() {
             let version = Version::from("1.0.0-alpha_1");
             assert_eq!(
-                version.release_numbers,
+                version.release_ids,
                 vec![
                     Identifier::Numeric(1),
                     Identifier::Numeric(0),
@@ -558,7 +554,7 @@ mod tests {
         fn version_from_should_treat_dash_as_separator_between_pre_release_ids() {
             let version = Version::from("1.0.0-alpha-1");
             assert_eq!(
-                version.release_numbers,
+                version.release_ids,
                 vec![
                     Identifier::Numeric(1),
                     Identifier::Numeric(0),
