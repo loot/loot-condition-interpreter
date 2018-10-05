@@ -13,7 +13,7 @@ impl<'a> From<&'a str> for Identifier {
     fn from(string: &'a str) -> Self {
         u32::from_str_radix(string, 10)
             .map(Identifier::Numeric)
-            .unwrap_or_else(|_| Identifier::NonNumeric(string.into()))
+            .unwrap_or_else(|_| Identifier::NonNumeric(string.to_lowercase()))
     }
 }
 
@@ -233,8 +233,7 @@ mod tests {
         }
 
         #[test]
-        fn version_partial_cmp_should_treat_numeric_pre_release_ids_as_less_than_than_non_numeric_ids(
-) {
+        fn version_partial_cmp_numeric_pre_release_ids_should_be_less_than_than_non_numeric_ids() {
             assert!(Version::from("0.0.5-9") < Version::from("0.0.5-a"));
             assert!(Version::from("0.0.5-a") > Version::from("0.0.5-9"));
         }
@@ -246,8 +245,7 @@ mod tests {
         }
 
         #[test]
-        fn version_partial_cmp_a_version_with_more_pre_release_ids_is_greater_than_a_version_with_less(
-) {
+        fn version_partial_cmp_a_version_with_more_pre_release_ids_is_greater() {
             assert!(Version::from("0.0.5-5") < Version::from("0.0.5-5.0"));
             assert!(Version::from("0.0.5-5.0") > Version::from("0.0.5-5"));
         }
@@ -270,6 +268,124 @@ mod tests {
 
             assert!(!(Version::from("0.0.1+2") < Version::from("0.0.1+1")));
             assert!(!(Version::from("0.0.1+1") > Version::from("0.0.1+2")));
+        }
+    }
+
+    mod extensions {
+        use super::super::*;
+
+        #[test]
+        fn version_eq_should_ignore_leading_zeroes_in_major_version_numbers() {
+            assert_eq!(Version::from("05.0.0"), Version::from("5.0.0"));
+            assert_eq!(Version::from("5.0.0"), Version::from("05.0.0"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_ignore_leading_zeroes_in_major_version_numbers() {
+            assert!(!(Version::from("05.0.0") < Version::from("5.0.0")));
+            assert!(!(Version::from("5.0.0") > Version::from("05.0.0")));
+        }
+
+        #[test]
+        fn version_eq_should_ignore_leading_zeroes_in_minor_version_numbers() {
+            assert_eq!(Version::from("0.05.0"), Version::from("0.5.0"));
+            assert_eq!(Version::from("0.5.0"), Version::from("0.05.0"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_ignore_leading_zeroes_in_minor_version_numbers() {
+            assert!(!(Version::from("0.05.0") < Version::from("0.5.0")));
+            assert!(!(Version::from("0.5.0") > Version::from("0.05.0")));
+        }
+
+        #[test]
+        fn version_eq_should_ignore_leading_zeroes_in_patch_version_numbers() {
+            assert_eq!(Version::from("0.0.05"), Version::from("0.0.5"));
+            assert_eq!(Version::from("0.0.5"), Version::from("0.0.05"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_ignore_leading_zeroes_in_patch_version_numbers() {
+            assert!(!(Version::from("0.0.05") < Version::from("0.0.5")));
+            assert!(!(Version::from("0.0.5") > Version::from("0.0.05")));
+        }
+
+        #[test]
+        fn version_eq_should_ignore_leading_zeroes_in_numeric_pre_release_ids() {
+            assert_eq!(Version::from("0.0.5-05"), Version::from("0.0.5-5"));
+            assert_eq!(Version::from("0.0.5-5"), Version::from("0.0.5-05"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_ignore_leading_zeroes_in_numeric_pre_release_ids() {
+            assert!(!(Version::from("0.0.5-05") < Version::from("0.0.5-5")));
+            assert!(!(Version::from("0.0.5-5") > Version::from("0.0.5-05")));
+        }
+
+        #[test]
+        fn version_eq_should_compare_an_equal_but_arbitrary_number_of_version_numbers() {
+            assert_eq!(Version::from("1.0.0.1.0.0"), Version::from("1.0.0.1.0.0"));
+
+            assert_ne!(Version::from("1.0.0.0.0.0"), Version::from("1.0.0.0.0.1"));
+            assert_ne!(Version::from("1.0.0.0.0.1"), Version::from("1.0.0.0.0.0"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_compare_an_equal_but_arbitrary_number_of_version_numbers() {
+            assert!(!(Version::from("1.0.0.1.0.0") > Version::from("1.0.0.1.0.0")));
+
+            assert!(Version::from("1.0.0.0.0.0") < Version::from("1.0.0.0.0.1"));
+            assert!(Version::from("1.0.0.0.0.1") > Version::from("1.0.0.0.0.0"));
+        }
+
+        #[test]
+        fn version_eq_non_numeric_release_ids_should_be_compared_lexically() {
+            assert_eq!(Version::from("1.0.0a"), Version::from("1.0.0a"));
+
+            assert_ne!(Version::from("1.0.0a"), Version::from("1.0.0b"));
+            assert_ne!(Version::from("1.0.0b"), Version::from("1.0.0a"));
+        }
+
+        #[test]
+        fn version_partial_cmp_non_numeric_release_ids_should_be_compared_lexically() {
+            assert!(Version::from("1.0.0a") < Version::from("1.0.0b"));
+            assert!(Version::from("1.0.0b") > Version::from("1.0.0a"));
+        }
+
+        #[test]
+        fn version_partial_cmp_non_numeric_release_ids_should_be_greater_than_release_numbers() {
+            assert!(Version::from("1.0.0") < Version::from("1.0.0a"));
+            assert!(Version::from("1.0.0a") > Version::from("1.0.0"));
+        }
+
+        #[test]
+        fn version_partial_cmp_any_release_id_may_be_non_numeric() {
+            assert!(Version::from("1.0.0alpha.2") < Version::from("1.0.0beta.2"));
+            assert!(Version::from("1.0.0beta.2") > Version::from("1.0.0alpha.2"));
+        }
+
+        #[test]
+        fn version_eq_should_compare_release_ids_case_insensitively() {
+            assert_eq!(Version::from("1.0.0A"), Version::from("1.0.0a"));
+            assert_eq!(Version::from("1.0.0a"), Version::from("1.0.0A"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_compare_release_ids_case_insensitively() {
+            assert!(Version::from("1.0.0a") < Version::from("1.0.0B"));
+            assert!(Version::from("1.0.0B") > Version::from("1.0.0a"));
+        }
+
+        #[test]
+        fn version_eq_should_compare_pre_release_ids_case_insensitively() {
+            assert_eq!(Version::from("1.0.0-Alpha"), Version::from("1.0.0-alpha"));
+            assert_eq!(Version::from("1.0.0-alpha"), Version::from("1.0.0-Alpha"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_compare_pre_release_ids_case_insensitively() {
+            assert!(Version::from("1.0.0-alpha") < Version::from("1.0.0-Beta"));
+            assert!(Version::from("1.0.0-Beta") > Version::from("1.0.0-alpha"));
         }
     }
 }
