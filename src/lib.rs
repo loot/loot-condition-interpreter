@@ -94,7 +94,7 @@ pub struct State {
 }
 
 // Compound conditions joined by 'or'
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Expression(Vec<CompoundCondition>);
 
 impl Expression {
@@ -125,7 +125,7 @@ impl fmt::Display for Expression {
 }
 
 // Conditions joined by 'and'
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct CompoundCondition(Vec<Condition>);
 
 impl CompoundCondition {
@@ -154,7 +154,7 @@ impl fmt::Display for CompoundCondition {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Condition {
     Function(Function),
     InvertedFunction(Function),

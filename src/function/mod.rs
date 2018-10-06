@@ -31,7 +31,7 @@ impl fmt::Display for ComparisonOperator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Function {
     FilePath(PathBuf),
     FileRegex(PathBuf, Regex),
