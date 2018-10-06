@@ -193,7 +193,13 @@ fn evaluate_version(
 
 impl Function {
     pub fn eval(&self, state: &State) -> Result<bool, Error> {
-        match *self {
+        if let Ok(reader) = state.condition_cache.read() {
+            if let Some(cached_result) = reader.get(self) {
+                return Ok(*cached_result);
+            }
+        }
+
+        let result = match *self {
             Function::FilePath(ref f) => evaluate_file_path(state, f),
             Function::FileRegex(ref p, ref r) => evaluate_file_regex(state, p, r),
             Function::ActivePath(ref p) => evaluate_active_path(state, p),
@@ -202,7 +208,15 @@ impl Function {
             Function::ManyActive(ref r) => evaluate_many_active(state, r),
             Function::Checksum(ref path, ref crc) => evaluate_checksum(state, path, *crc),
             Function::Version(ref p, ref v, ref c) => evaluate_version(state, p, v, *c),
+        };
+
+        if let Ok(function_result) = result {
+            if let Ok(mut writer) = state.condition_cache.write() {
+                writer.insert(self.clone(), function_result);
+            }
         }
+
+        result
     }
 }
 
@@ -210,7 +224,7 @@ impl Function {
 mod tests {
     use super::*;
 
-    use std::fs::{copy, create_dir};
+    use std::fs::{copy, create_dir, remove_file};
     use std::sync::RwLock;
 
     use regex::RegexBuilder;
@@ -261,6 +275,7 @@ mod tests {
                 .iter()
                 .map(|(p, v)| (p.to_lowercase(), v.to_string()))
                 .collect(),
+            condition_cache: RwLock::default(),
         }
     }
 
@@ -569,6 +584,23 @@ mod tests {
         ).unwrap();
 
         let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E2A6F);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_eval_should_cache_results_and_use_cached_results() {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        copy(Path::new("Cargo.toml"), &state.data_path.join("Cargo.toml")).unwrap();
+
+        let function = Function::FilePath(PathBuf::from("Cargo.toml"));
+
+        assert!(function.eval(&state).unwrap());
+
+        remove_file(&state.data_path.join("Cargo.toml")).unwrap();
 
         assert!(function.eval(&state).unwrap());
     }

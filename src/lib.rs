@@ -86,15 +86,22 @@ impl GameType {
 
 pub struct State {
     game_type: GameType,
+    /// Game Data folder path.
     data_path: PathBuf,
+    /// Path to the LOOT executable, used to resolve conditions that use the "LOOT" path.
     loot_path: PathBuf,
-    active_plugins: HashSet<String>, // Lowercased plugin filenames.
-    crc_cache: RwLock<HashMap<String, u32>>, // Lowercased paths.
-    plugin_versions: HashMap<String, String>, // Lowercased plugin filenames and their versions as found in description fields.
+    /// Lowercased plugin filenames.
+    active_plugins: HashSet<String>,
+    /// Lowercased paths.
+    crc_cache: RwLock<HashMap<String, u32>>,
+    /// Lowercased plugin filenames and their versions as found in description fields.
+    plugin_versions: HashMap<String, String>,
+    /// Conditions that have already been evaluated, and their results.
+    condition_cache: RwLock<HashMap<Function, bool>>,
 }
 
-// Compound conditions joined by 'or'
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// Compound conditions joined by 'or'
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Expression(Vec<CompoundCondition>);
 
 impl Expression {
@@ -124,8 +131,8 @@ impl fmt::Display for Expression {
     }
 }
 
-// Conditions joined by 'and'
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// Conditions joined by 'and'
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 struct CompoundCondition(Vec<Condition>);
 
 impl CompoundCondition {
@@ -154,7 +161,7 @@ impl fmt::Display for CompoundCondition {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum Condition {
     Function(Function),
     InvertedFunction(Function),
@@ -219,6 +226,7 @@ mod tests {
             active_plugins: HashSet::new(),
             crc_cache: RwLock::default(),
             plugin_versions: HashMap::default(),
+            condition_cache: RwLock::default(),
         }
     }
 
