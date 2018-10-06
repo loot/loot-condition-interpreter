@@ -193,9 +193,11 @@ fn evaluate_version(
 
 impl Function {
     pub fn eval(&self, state: &State) -> Result<bool, Error> {
-        if let Ok(reader) = state.condition_cache.read() {
-            if let Some(cached_result) = reader.get(self) {
-                return Ok(*cached_result);
+        if self.is_slow() {
+            if let Ok(reader) = state.condition_cache.read() {
+                if let Some(cached_result) = reader.get(self) {
+                    return Ok(*cached_result);
+                }
             }
         }
 
@@ -210,13 +212,26 @@ impl Function {
             Function::Version(ref p, ref v, ref c) => evaluate_version(state, p, v, *c),
         };
 
-        if let Ok(function_result) = result {
-            if let Ok(mut writer) = state.condition_cache.write() {
-                writer.insert(self.clone(), function_result);
+        if self.is_slow() {
+            if let Ok(function_result) = result {
+                if let Ok(mut writer) = state.condition_cache.write() {
+                    writer.insert(self.clone(), function_result);
+                }
             }
         }
 
         result
+    }
+
+    /// Some functions are faster to evaluate than to look their result up in
+    /// the cache, as the data they operate on are already cached separately and
+    /// the operation is simple.
+    fn is_slow(&self) -> bool {
+        use Function::*;
+        match self {
+            ActivePath(_) | ActiveRegex(_) | ManyActive(_) | Checksum(_, _) => false,
+            _ => true,
+        }
     }
 }
 
