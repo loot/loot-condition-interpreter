@@ -29,9 +29,10 @@ pub struct Version {
 
 impl Version {
     pub fn read_file_version(file_path: &Path) -> Result<Self, Error> {
-        let file_map = FileMap::open(file_path)?;
-        let version_info =
-            get_pe_version_info(file_map.as_ref()).map_err(|_| Error::PeParsingError)?;
+        let file_map =
+            FileMap::open(file_path).map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
+        let version_info = get_pe_version_info(file_map.as_ref())
+            .map_err(|e| Error::PeParsingError(file_path.to_path_buf(), e.into()))?;
 
         if let Some(fixed_file_info) = version_info.fixed() {
             let version = format!(
@@ -179,6 +180,24 @@ mod tests {
                 ]
             );
             assert!(version.pre_release_ids.is_empty());
+        }
+
+        #[test]
+        fn version_read_file_version_should_error_with_path_if_path_does_not_exist() {
+            let error = Version::read_file_version(Path::new("missing")).unwrap_err();
+
+            assert!(
+                error
+                    .to_string()
+                    .starts_with("An error was encountered while accessing the path \"missing\":")
+            );
+        }
+
+        #[test]
+        fn version_read_file_version_should_error_with_path_if_the_file_is_not_an_executable() {
+            let error = Version::read_file_version(Path::new("Cargo.toml")).unwrap_err();
+
+            assert_eq!("An error was encountered while reading the file version field of \"Cargo.toml\": bad magic", error.to_string());
         }
 
         #[test]

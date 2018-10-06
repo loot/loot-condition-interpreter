@@ -59,7 +59,8 @@ fn evaluate_file_regex(state: &State, parent_path: &Path, regex: &Regex) -> Resu
     };
 
     for entry in dir_iterator {
-        if is_match(regex, &entry?.file_name()) {
+        let entry = entry.map_err(|e| Error::IoError(parent_path.to_path_buf(), e))?;
+        if is_match(regex, &entry.file_name()) {
             return Ok(true);
         }
     }
@@ -75,7 +76,8 @@ fn evaluate_many(state: &State, parent_path: &Path, regex: &Regex) -> Result<boo
 
     let mut found_one = false;
     for entry in dir_iterator {
-        if is_match(regex, &entry?.file_name()) {
+        let entry = entry.map_err(|e| Error::IoError(parent_path.to_path_buf(), e))?;
+        if is_match(regex, &entry.file_name()) {
             if found_one {
                 return Ok(true);
             } else {
@@ -132,11 +134,13 @@ fn evaluate_checksum(state: &State, file_path: &Path, crc: u32) -> Result<bool, 
         return Ok(false);
     }
 
-    let reader = BufReader::new(File::open(path)?);
+    let file = File::open(path).map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
+    let reader = BufReader::new(file);
     let mut digest = crc32::Digest::new(crc32::IEEE);
 
     for byte in reader.bytes() {
-        digest.write_u8(byte?);
+        let byte = byte.map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
+        digest.write_u8(byte);
     }
 
     let calculated_crc = digest.sum32();

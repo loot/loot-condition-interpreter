@@ -28,8 +28,8 @@ use function::Function;
 pub enum Error {
     ParsingIncomplete,
     ParsingError,
-    PeParsingError,
-    IoError(io::Error),
+    PeParsingError(PathBuf, Box<error::Error>),
+    IoError(PathBuf, io::Error),
 }
 
 impl<I> From<Err<I>> for Error {
@@ -41,12 +41,6 @@ impl<I> From<Err<I>> for Error {
     }
 }
 
-impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Self {
-        Error::IoError(error)
-    }
-}
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -54,11 +48,18 @@ impl fmt::Display for Error {
             Error::ParsingError => {
                 write!(f, "An error was encountered while parsing the expression")
             }
-            Error::PeParsingError => write!(
+            Error::PeParsingError(p, e) => write!(
                 f,
-                "An error was encountered while reading the version of an executable"
+                "An error was encountered while reading the file version field of \"{}\": {}",
+                p.display(),
+                e
             ),
-            Error::IoError(e) => e.fmt(f),
+            Error::IoError(p, e) => write!(
+                f,
+                "An error was encountered while accessing the path \"{}\": {}",
+                p.display(),
+                e
+            ),
         }
     }
 }
@@ -66,7 +67,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn cause(&self) -> Option<&error::Error> {
         match self {
-            Error::IoError(e) => Some(e),
+            Error::IoError(_, e) => Some(e),
             _ => None,
         }
     }
