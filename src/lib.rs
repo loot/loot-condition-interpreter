@@ -12,6 +12,7 @@ mod function;
 mod version;
 
 use std::collections::{HashMap, HashSet};
+use std::error;
 use std::ffi::OsStr;
 use std::fmt;
 use std::io;
@@ -43,6 +44,31 @@ impl<I> From<Err<I>> for Error {
 impl From<io::Error> for Error {
     fn from(error: io::Error) -> Self {
         Error::IoError(error)
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::ParsingIncomplete => write!(f, "More input was expected by the parser"),
+            Error::ParsingError => {
+                write!(f, "An error was encountered while parsing the expression")
+            }
+            Error::PeParsingError => write!(
+                f,
+                "An error was encountered while reading the version of an executable"
+            ),
+            Error::IoError(e) => e.fmt(f),
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn cause(&self) -> Option<&error::Error> {
+        match self {
+            Error::IoError(e) => Some(e),
+            _ => None,
+        }
     }
 }
 
