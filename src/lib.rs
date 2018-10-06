@@ -3,6 +3,7 @@ extern crate crc;
 extern crate nom;
 extern crate pelite;
 extern crate regex;
+extern crate unicase;
 
 #[cfg(test)]
 extern crate tempfile;
