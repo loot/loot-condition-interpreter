@@ -1,13 +1,14 @@
 use std::path::{Component, Path, PathBuf};
 use std::str;
 
-use nom::{hex_digit, Context, Err, ErrorKind, IResult};
+use nom::{hex_digit, Context, Err, ErrorKind};
 use regex::{Regex, RegexBuilder};
 
+use ParsingResult;
 use super::{ComparisonOperator, Function};
 
 impl ComparisonOperator {
-    pub fn parse(input: &str) -> IResult<&str, ComparisonOperator> {
+    pub fn parse(input: &str) -> ParsingResult<ComparisonOperator> {
         do_parse!(
             input,
             operator:
@@ -45,7 +46,7 @@ fn is_in_game_path(path: &Path) -> bool {
     true
 }
 
-fn parse_regex(input: &str) -> IResult<&str, Regex> {
+fn parse_regex(input: &str) -> ParsingResult<Regex> {
     RegexBuilder::new(input)
         .case_insensitive(true)
         .build()
@@ -53,7 +54,7 @@ fn parse_regex(input: &str) -> IResult<&str, Regex> {
         .map_err(|_| Err::Failure(Context::Code(input, PARSE_REGEX_ERROR)))
 }
 
-fn parse_version_args(input: &str) -> IResult<&str, (PathBuf, &str, ComparisonOperator)> {
+fn parse_version_args(input: &str) -> ParsingResult<(PathBuf, &str, ComparisonOperator)> {
     let (remaining_input, (path, version, comparator)) = try_parse!(
         input,
         do_parse!(
@@ -77,13 +78,13 @@ fn parse_version_args(input: &str) -> IResult<&str, (PathBuf, &str, ComparisonOp
     }
 }
 
-fn parse_crc(input: &str) -> IResult<&str, u32> {
+fn parse_crc(input: &str) -> ParsingResult<u32> {
     u32::from_str_radix(input, 16)
         .map(|c| ("", c))
         .map_err(|_| Err::Failure(Context::Code(input, PARSE_CRC_ERROR)))
 }
 
-fn parse_checksum_args(input: &str) -> IResult<&str, (PathBuf, u32)> {
+fn parse_checksum_args(input: &str) -> ParsingResult<(PathBuf, u32)> {
     let (remaining_input, (path, crc)) = try_parse!(
         input,
         do_parse!(
@@ -103,7 +104,7 @@ fn parse_checksum_args(input: &str) -> IResult<&str, (PathBuf, u32)> {
     }
 }
 
-fn parse_path(input: &str) -> IResult<&str, PathBuf> {
+fn parse_path(input: &str) -> ParsingResult<PathBuf> {
     let (remaining_input, path) =
         try_parse!(input, map!(is_not!(INVALID_PATH_CHARS), PathBuf::from));
 
@@ -116,7 +117,7 @@ fn parse_path(input: &str) -> IResult<&str, PathBuf> {
 
 /// Parse a string that is a path where the last component is a regex string
 /// that may contain characters that are invalid in paths but valid in regex.
-fn parse_regex_path(input: &str) -> IResult<&str, (PathBuf, Regex)> {
+fn parse_regex_path(input: &str) -> ParsingResult<(PathBuf, Regex)> {
     let (remaining_input, string) = try_parse!(input, is_not!(INVALID_REGEX_PATH_CHARS));
 
     if string.ends_with('/') {
@@ -140,7 +141,7 @@ fn parse_regex_path(input: &str) -> IResult<&str, (PathBuf, Regex)> {
 }
 
 impl Function {
-    pub fn parse(input: &str) -> IResult<&str, Function> {
+    pub fn parse(input: &str) -> ParsingResult<Function> {
         do_parse!(
             input,
             function:

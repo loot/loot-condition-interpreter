@@ -73,6 +73,8 @@ impl error::Error for Error {
     }
 }
 
+type ParsingResult<'a, T> = IResult<&'a str, T, u32>;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GameType {
     Tes4,
@@ -181,7 +183,7 @@ impl str::FromStr for Expression {
     }
 }
 
-fn parse_expression(input: &str) -> IResult<&str, Expression> {
+fn parse_expression(input: &str) -> ParsingResult<Expression> {
     do_parse!(
         input,
         compound_conditions: separated_list_complete!(ws!(tag!("or")), CompoundCondition::parse)
@@ -210,7 +212,7 @@ impl CompoundCondition {
         Ok(true)
     }
 
-    fn parse(input: &str) -> IResult<&str, CompoundCondition> {
+    fn parse(input: &str) -> ParsingResult<CompoundCondition> {
         do_parse!(
             input,
             conditions: separated_list_complete!(ws!(tag!("and")), Condition::parse)
@@ -242,7 +244,7 @@ impl Condition {
         }
     }
 
-    fn parse(input: &str) -> IResult<&str, Condition> {
+    fn parse(input: &str) -> ParsingResult<Condition> {
         do_parse!(
             input,
             condition:
