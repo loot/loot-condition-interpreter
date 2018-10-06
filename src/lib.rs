@@ -13,6 +13,7 @@ mod version;
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
+use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::str;
@@ -116,6 +117,13 @@ impl Expression {
     }
 }
 
+impl fmt::Display for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let strings: Vec<String> = self.0.iter().map(CompoundCondition::to_string).collect();
+        write!(f, "{}", strings.join(" or "))
+    }
+}
+
 // Conditions joined by 'and'
 #[derive(Debug, PartialEq, Eq)]
 struct CompoundCondition(Vec<Condition>);
@@ -136,6 +144,13 @@ impl CompoundCondition {
             conditions: separated_list_complete!(ws!(tag!("and")), Condition::parse)
                 >> (CompoundCondition(conditions))
         )
+    }
+}
+
+impl fmt::Display for CompoundCondition {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let strings: Vec<String> = self.0.iter().map(Condition::to_string).collect();
+        write!(f, "{}", strings.join(" and "))
     }
 }
 
@@ -171,6 +186,17 @@ impl Condition {
                     }
             ) >> (condition)
         )
+    }
+}
+
+impl fmt::Display for Condition {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Condition::*;
+        match self {
+            Function(function) => write!(f, "{}", function),
+            InvertedFunction(function) => write!(f, "not {}", function),
+            Expression(e) => write!(f, "({})", e),
+        }
     }
 }
 
@@ -479,6 +505,30 @@ mod tests {
     }
 
     #[test]
+    fn condition_fmt_should_format_function_correctly() {
+        let condition = Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml")));
+
+        assert_eq!("file(\"Cargo.toml\")", &format!("{}", condition));
+    }
+
+    #[test]
+    fn condition_fmt_should_format_inverted_function_correctly() {
+        let condition =
+            Condition::InvertedFunction(Function::FilePath(PathBuf::from("Cargo.toml")));
+
+        assert_eq!("not file(\"Cargo.toml\")", &format!("{}", condition));
+    }
+
+    #[test]
+    fn condition_fmt_should_format_expression_correctly() {
+        let condition = Condition::Expression(Expression(vec![CompoundCondition(vec![
+            Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml"))),
+        ])]));
+
+        assert_eq!("(file(\"Cargo.toml\"))", &format!("{}", condition));
+    }
+
+    #[test]
     fn compound_condition_eval_should_be_true_if_all_conditions_are_true() {
         let state = state(".");
 
@@ -500,6 +550,25 @@ mod tests {
         ]);
 
         assert!(!compound_condition.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn compound_condition_fmt_should_format_correctly() {
+        let compound_condition = CompoundCondition(vec![
+            Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml"))),
+            Condition::Function(Function::FilePath(PathBuf::from("missing"))),
+        ]);
+
+        assert_eq!(
+            "file(\"Cargo.toml\") and file(\"missing\")",
+            &format!("{}", compound_condition)
+        );
+
+        let compound_condition = CompoundCondition(vec![Condition::Function(Function::FilePath(
+            PathBuf::from("Cargo.toml"),
+        ))]);
+
+        assert_eq!("file(\"Cargo.toml\")", &format!("{}", compound_condition));
     }
 
     #[test]
@@ -530,5 +599,28 @@ mod tests {
             ))]),
         ]);
         assert!(!expression.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn expression_fmt_should_format_correctly() {
+        let expression = Expression(vec![
+            CompoundCondition(vec![Condition::Function(Function::FilePath(
+                PathBuf::from("Cargo.toml"),
+            ))]),
+            CompoundCondition(vec![Condition::Function(Function::FilePath(
+                PathBuf::from("missing"),
+            ))]),
+        ]);
+
+        assert_eq!(
+            "file(\"Cargo.toml\") or file(\"missing\")",
+            &format!("{}", expression)
+        );
+
+        let expression = Expression(vec![CompoundCondition(vec![Condition::Function(
+            Function::FilePath(PathBuf::from("Cargo.toml")),
+        )])]);
+
+        assert_eq!("file(\"Cargo.toml\")", &format!("{}", expression));
     }
 }

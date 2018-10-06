@@ -1,3 +1,4 @@
+use std::fmt;
 use std::path::PathBuf;
 
 use regex::Regex;
@@ -16,6 +17,20 @@ pub enum ComparisonOperator {
     GreaterThanOrEqual,
 }
 
+impl fmt::Display for ComparisonOperator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::ComparisonOperator::*;
+        match self {
+            Equal => write!(f, "=="),
+            NotEqual => write!(f, "=="),
+            LessThan => write!(f, "<"),
+            GreaterThan => write!(f, ">"),
+            LessThanOrEqual => write!(f, "<="),
+            GreaterThanOrEqual => write!(f, ">="),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Function {
     FilePath(PathBuf),
@@ -26,6 +41,22 @@ pub enum Function {
     ManyActive(Regex),
     Checksum(PathBuf, u32),
     Version(PathBuf, String, ComparisonOperator),
+}
+
+impl fmt::Display for Function {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Function::*;
+        match self {
+            FilePath(p) => write!(f, "file(\"{}\")", p.display()),
+            FileRegex(p, r) => write!(f, "file(\"{}/{}\")", p.display(), r),
+            ActivePath(p) => write!(f, "active(\"{}\")", p.display()),
+            ActiveRegex(r) => write!(f, "active(\"{}\")", r),
+            Many(p, r) => write!(f, "many(\"{}/{}\")", p.display(), r),
+            ManyActive(r) => write!(f, "many_active(\"{}\")", r),
+            Checksum(p, c) => write!(f, "checksum(\"{}\", {:02X?})", p.display(), c),
+            Version(p, v, c) => write!(f, "version(\"{}\", \"{}\", {})", p.display(), v, c),
+        }
+    }
 }
 
 impl PartialEq for Function {
@@ -61,6 +92,72 @@ mod tests {
 
     fn regex(string: &str) -> Regex {
         Regex::new(string).unwrap()
+    }
+
+    #[test]
+    fn function_fmt_for_file_path_should_format_correctly() {
+        let function = Function::FilePath("subdir/Blank.esm".into());
+
+        assert_eq!("file(\"subdir/Blank.esm\")", &format!("{}", function));
+    }
+
+    #[test]
+    fn function_fmt_for_file_regex_should_format_correctly() {
+        let function = Function::FileRegex("subdir".into(), regex("Blank.*"));
+
+        assert_eq!("file(\"subdir/Blank.*\")", &format!("{}", function));
+    }
+
+    #[test]
+    fn function_fmt_for_active_path_should_format_correctly() {
+        let function = Function::ActivePath("Blank.esm".into());
+
+        assert_eq!("active(\"Blank.esm\")", &format!("{}", function));
+    }
+
+    #[test]
+    fn function_fmt_for_active_regex_should_format_correctly() {
+        let function = Function::ActiveRegex(regex("Blank.*"));
+
+        assert_eq!("active(\"Blank.*\")", &format!("{}", function));
+    }
+
+    #[test]
+    fn function_fmt_for_many_should_format_correctly() {
+        let function = Function::Many("subdir".into(), regex("Blank.*"));
+
+        assert_eq!("many(\"subdir/Blank.*\")", &format!("{}", function));
+    }
+
+    #[test]
+    fn function_fmt_for_many_active_should_format_correctly() {
+        let function = Function::ManyActive(regex("Blank.*"));
+
+        assert_eq!("many_active(\"Blank.*\")", &format!("{}", function));
+    }
+
+    #[test]
+    fn function_fmt_for_checksum_should_format_correctly() {
+        let function = Function::Checksum("subdir/Blank.esm".into(), 0xDEADBEEF);
+
+        assert_eq!(
+            "checksum(\"subdir/Blank.esm\", DEADBEEF)",
+            &format!("{}", function)
+        );
+    }
+
+    #[test]
+    fn function_fmt_for_version_should_format_correctly() {
+        let function = Function::Version(
+            "subdir/Blank.esm".into(),
+            "1.2a".into(),
+            ComparisonOperator::Equal,
+        );
+
+        assert_eq!(
+            "version(\"subdir/Blank.esm\", \"1.2a\", ==)",
+            &format!("{}", function)
+        );
     }
 
     #[test]
