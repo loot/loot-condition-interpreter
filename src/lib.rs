@@ -234,10 +234,10 @@ enum Condition {
 
 impl Condition {
     fn eval(&self, state: &State) -> Result<bool, Error> {
-        match *self {
-            Condition::Function(ref f) => f.eval(state),
-            Condition::InvertedFunction(ref f) => f.eval(state).map(|r| !r),
-            Condition::Expression(ref e) => e.eval(state),
+        match self {
+            Condition::Function(f) => f.eval(state),
+            Condition::InvertedFunction(f) => f.eval(state).map(|r| !r),
+            Condition::Expression(e) => e.eval(state),
         }
     }
 

@@ -201,15 +201,15 @@ impl Function {
             }
         }
 
-        let result = match *self {
-            Function::FilePath(ref f) => evaluate_file_path(state, f),
-            Function::FileRegex(ref p, ref r) => evaluate_file_regex(state, p, r),
-            Function::ActivePath(ref p) => evaluate_active_path(state, p),
-            Function::ActiveRegex(ref r) => evaluate_active_regex(state, r),
-            Function::Many(ref p, ref r) => evaluate_many(state, p, r),
-            Function::ManyActive(ref r) => evaluate_many_active(state, r),
-            Function::Checksum(ref path, ref crc) => evaluate_checksum(state, path, *crc),
-            Function::Version(ref p, ref v, ref c) => evaluate_version(state, p, v, *c),
+        let result = match self {
+            Function::FilePath(f) => evaluate_file_path(state, f),
+            Function::FileRegex(p, r) => evaluate_file_regex(state, p, r),
+            Function::ActivePath(p) => evaluate_active_path(state, p),
+            Function::ActiveRegex(r) => evaluate_active_regex(state, r),
+            Function::Many(p, r) => evaluate_many(state, p, r),
+            Function::ManyActive(r) => evaluate_many_active(state, r),
+            Function::Checksum(path, crc) => evaluate_checksum(state, path, *crc),
+            Function::Version(p, v, c) => evaluate_version(state, p, v, *c),
         };
 
         if self.is_slow() {
