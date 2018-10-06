@@ -52,6 +52,7 @@ impl From<pelite::resources::FindError> for Error {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GameType {
     Tes4,
     Tes5,
@@ -84,6 +85,7 @@ impl GameType {
     }
 }
 
+#[derive(Debug)]
 pub struct State {
     game_type: GameType,
     /// Game Data folder path.
@@ -98,6 +100,39 @@ pub struct State {
     plugin_versions: HashMap<String, String>,
     /// Conditions that have already been evaluated, and their results.
     condition_cache: RwLock<HashMap<Function, bool>>,
+}
+
+impl State {
+    pub fn new(game_type: GameType, data_path: PathBuf, loot_path: PathBuf) -> Self {
+        State {
+            game_type,
+            data_path,
+            loot_path,
+            active_plugins: HashSet::default(),
+            crc_cache: RwLock::default(),
+            plugin_versions: HashMap::default(),
+            condition_cache: RwLock::default(),
+        }
+    }
+
+    pub fn with_plugin_versions<T: AsRef<str>, V: ToString>(
+        mut self,
+        plugin_versions: &[(T, V)],
+    ) -> Self {
+        self.plugin_versions = plugin_versions
+            .iter()
+            .map(|(p, v)| (p.as_ref().to_lowercase(), v.to_string()))
+            .collect();
+        self
+    }
+
+    pub fn with_active_plugins<T: AsRef<str>>(mut self, active_plugins: &[T]) -> Self {
+        self.active_plugins = active_plugins
+            .into_iter()
+            .map(|s| s.as_ref().to_lowercase())
+            .collect();
+        self
+    }
 }
 
 /// Compound conditions joined by 'or'
