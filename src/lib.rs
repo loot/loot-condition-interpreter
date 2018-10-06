@@ -46,12 +46,6 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<pelite::resources::FindError> for Error {
-    fn from(_: pelite::resources::FindError) -> Self {
-        Error::PeParsingError
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GameType {
     Tes4,
@@ -148,15 +142,24 @@ impl Expression {
         }
         Ok(false)
     }
+}
 
-    pub fn parse(input: &str) -> IResult<&str, Expression> {
-        do_parse!(
-            input,
-            compound_conditions:
-                separated_list_complete!(ws!(tag!("or")), CompoundCondition::parse)
-                >> (Expression(compound_conditions))
-        )
+impl str::FromStr for Expression {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parse_expression(s)
+            .map(|(_, expression)| expression)
+            .map_err(Error::from)
     }
+}
+
+fn parse_expression(input: &str) -> IResult<&str, Expression> {
+    do_parse!(
+        input,
+        compound_conditions: separated_list_complete!(ws!(tag!("or")), CompoundCondition::parse)
+            >> (Expression(compound_conditions))
+    )
 }
 
 impl fmt::Display for Expression {
@@ -223,7 +226,7 @@ impl Condition {
                     preceded!(ws!(tag!("not")), call!(Function::parse)) => {
                         |f| Condition::InvertedFunction(f)
                     } |
-                    delimited!(tag!("("), call!(Expression::parse), tag!(")")) => {
+                    delimited!(tag!("("), call!(parse_expression), tag!(")")) => {
                         |e| Condition::Expression(e)
                     }
             ) >> (condition)
@@ -247,6 +250,7 @@ mod tests {
     use super::*;
 
     use std::fs::create_dir;
+    use std::str::FromStr;
 
     fn state<T: Into<PathBuf>>(data_path: T) -> State {
         let data_path = data_path.into();
@@ -409,7 +413,7 @@ mod tests {
 
     #[test]
     fn expression_parse_should_handle_a_single_compound_condition() {
-        let result = Expression::parse("file(\"Cargo.toml\")").unwrap().1;
+        let result = Expression::from_str("file(\"Cargo.toml\")").unwrap();
 
         match result.0.as_slice() {
             [CompoundCondition(_)] => {}
@@ -419,9 +423,7 @@ mod tests {
 
     #[test]
     fn expression_parse_should_handle_multiple_compound_conditions() {
-        let result = Expression::parse("file(\"Cargo.toml\") or file(\"Cargo.toml\")")
-            .unwrap()
-            .1;
+        let result = Expression::from_str("file(\"Cargo.toml\") or file(\"Cargo.toml\")").unwrap();
 
         match result.0.as_slice() {
             [CompoundCondition(_), CompoundCondition(_)] => {}

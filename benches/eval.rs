@@ -2,6 +2,8 @@
 extern crate criterion;
 extern crate loot_condition_interpreter;
 
+use std::str::FromStr;
+
 use criterion::Criterion;
 use loot_condition_interpreter::{Expression, GameType, State};
 
@@ -22,7 +24,7 @@ fn generate_plugin_versions() -> Vec<(String, String)> {
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("Expression.eval() file(path)", |b| {
         let state = State::new(GameType::Tes4, ".".into(), ".".into());
-        let expression = Expression::parse("file(\"Cargo.toml\")").unwrap().1;
+        let expression = Expression::from_str("file(\"Cargo.toml\")").unwrap();
 
         b.iter(|| {
             assert!(expression.eval(&state).unwrap());
@@ -31,7 +33,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("Expression.eval() file(regex)", |b| {
         let state = State::new(GameType::Tes4, ".".into(), ".".into());
-        let expression = Expression::parse("file(\"Cargo.*\")").unwrap().1;
+        let expression = Expression::from_str("file(\"Cargo.*\")").unwrap();
 
         b.iter(|| {
             assert!(expression.eval(&state).unwrap());
@@ -45,7 +47,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             ".".into(),
         ).with_active_plugins(&generate_active_plugins());
 
-        let expression = Expression::parse("active(\"Blank.esm\")").unwrap().1;
+        let expression = Expression::from_str("active(\"Blank.esm\")").unwrap();
 
         b.iter(|| {
             assert!(expression.eval(&state).unwrap());
@@ -59,7 +61,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             ".".into(),
         ).with_active_plugins(&generate_active_plugins());
 
-        let expression = Expression::parse("active(\"Blank.*\")").unwrap().1;
+        let expression = Expression::from_str("active(\"Blank.*\")").unwrap();
 
         b.iter(|| {
             assert!(expression.eval(&state).unwrap());
@@ -68,7 +70,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("Expression.eval() many()", |b| {
         let state = State::new(GameType::Tes4, ".".into(), ".".into());
-        let expression = Expression::parse("many(\"Cargo.*\")").unwrap().1;
+        let expression = Expression::from_str("many(\"Cargo.*\")").unwrap();
 
         b.iter(|| {
             assert!(expression.eval(&state).unwrap());
@@ -82,7 +84,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             ".".into(),
         ).with_active_plugins(&generate_active_plugins());
 
-        let expression = Expression::parse("many_active(\"Blank.*\")").unwrap().1;
+        let expression = Expression::from_str("many_active(\"Blank.*\")").unwrap();
 
         b.iter(|| {
             assert!(expression.eval(&state).unwrap());
@@ -95,9 +97,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             "testing-plugins/Oblivion/Data".into(),
             ".".into(),
         );
-        let expression = Expression::parse("checksum(\"Blank.esm\", 374E2A6F)")
-            .unwrap()
-            .1;
+        let expression = Expression::from_str("checksum(\"Blank.esm\", 374E2A6F)").unwrap();
 
         b.iter(|| {
             assert!(expression.eval(&state).unwrap());
@@ -111,9 +111,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             ".".into(),
         ).with_plugin_versions(&generate_plugin_versions());
 
-        let expression = Expression::parse("version(\"Blank.esm\", \"5.0\", ==)")
-            .unwrap()
-            .1;
+        let expression = Expression::from_str("version(\"Blank.esm\", \"5.0\", ==)").unwrap();
 
         b.iter(|| {
             assert!(expression.eval(&state).unwrap());
@@ -122,10 +120,9 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("Expression.eval() version(executable)", |b| {
         let state = State::new(GameType::Tes4, ".".into(), ".".into());
-        let expression = Expression::parse(
+        let expression = Expression::from_str(
             "version(\"loot_api-0.13.8-0-g47797cc_dev-win32/loot_api.dll\", \"0.13.8.0\", ==)",
-        ).unwrap()
-        .1;
+        ).unwrap();
 
         b.iter(|| {
             assert!(expression.eval(&state).unwrap());

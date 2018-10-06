@@ -30,7 +30,8 @@ pub struct Version {
 impl Version {
     pub fn read_file_version(file_path: &Path) -> Result<Self, Error> {
         let file_map = FileMap::open(file_path)?;
-        let version_info = get_pe_version_info(file_map.as_ref())?;
+        let version_info =
+            get_pe_version_info(file_map.as_ref()).map_err(|_| Error::PeParsingError)?;
 
         if let Some(fixed_file_info) = version_info.fixed() {
             let version = format!(
