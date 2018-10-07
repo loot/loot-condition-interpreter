@@ -15,9 +15,10 @@ mod version;
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::fmt;
+use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::str;
-use std::sync::RwLock;
+use std::sync::{PoisonError, RwLock, RwLockWriteGuard};
 
 use nom::types::CompleteStr;
 use nom::IResult;
@@ -94,19 +95,43 @@ impl State {
         mut self,
         plugin_versions: &[(T, V)],
     ) -> Self {
-        self.plugin_versions = plugin_versions
-            .iter()
-            .map(|(p, v)| (p.as_ref().to_lowercase(), v.to_string()))
-            .collect();
+        self.set_plugin_versions(plugin_versions);
         self
     }
 
     pub fn with_active_plugins<T: AsRef<str>>(mut self, active_plugins: &[T]) -> Self {
+        self.set_active_plugins(active_plugins);
+        self
+    }
+
+    pub fn set_active_plugins<T: AsRef<str>>(&mut self, active_plugins: &[T]) {
         self.active_plugins = active_plugins
             .into_iter()
             .map(|s| s.as_ref().to_lowercase())
             .collect();
-        self
+    }
+
+    pub fn set_plugin_versions<T: AsRef<str>, V: ToString>(&mut self, plugin_versions: &[(T, V)]) {
+        self.plugin_versions = plugin_versions
+            .iter()
+            .map(|(p, v)| (p.as_ref().to_lowercase(), v.to_string()))
+            .collect();
+    }
+
+    pub fn set_cached_crcs<T: AsRef<str>>(
+        &mut self,
+        plugin_crcs: &[(T, u32)],
+    ) -> Result<(), PoisonError<RwLockWriteGuard<HashMap<String, u32>>>> {
+        let mut writer = self.crc_cache.write()?;
+
+        writer.deref_mut().clear();
+        writer.deref_mut().extend(
+            plugin_crcs
+                .iter()
+                .map(|(p, v)| (p.as_ref().to_lowercase(), *v)),
+        );
+
+        Ok(())
     }
 
     pub fn clear_condition_cache(

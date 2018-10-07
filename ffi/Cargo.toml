@@ -1,0 +1,21 @@
+[package]
+name = "loot-condition-interpreter-ffi"
+version = "0.1.0"
+authors = ["Oliver Hamlet <oliver.hamlet@gmail.com>"]
+license = "MIT"
+build = "build.rs"
+
+[dependencies]
+loot-condition-interpreter = { path = ".." }
+libc = "0.2"
+
+[lib]
+name = "loot_condition_interpreter_ffi"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+ffi-headers = ["cbindgen"]
+
+[build-dependencies]
+cbindgen = { version = "0.6", optional = true }
