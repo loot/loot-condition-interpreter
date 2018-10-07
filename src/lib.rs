@@ -8,72 +8,24 @@ extern crate unicase;
 #[cfg(test)]
 extern crate tempfile;
 
+mod error;
 mod function;
 mod version;
 
 use std::collections::{HashMap, HashSet};
-use std::error;
 use std::ffi::OsStr;
 use std::fmt;
-use std::io;
 use std::path::{Path, PathBuf};
 use std::str;
 use std::sync::RwLock;
 
-use nom::{Err, IResult};
+use nom::types::CompleteStr;
+use nom::IResult;
 
+pub use error::{Error, ParsingError};
 use function::Function;
 
-#[derive(Debug)]
-pub enum Error {
-    ParsingIncomplete,
-    ParsingError,
-    PeParsingError(PathBuf, Box<error::Error>),
-    IoError(PathBuf, io::Error),
-}
-
-impl<I> From<Err<I>> for Error {
-    fn from(error: Err<I>) -> Self {
-        match error {
-            Err::Incomplete(_) => Error::ParsingIncomplete,
-            _ => Error::ParsingError,
-        }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::ParsingIncomplete => write!(f, "More input was expected by the parser"),
-            Error::ParsingError => {
-                write!(f, "An error was encountered while parsing the expression")
-            }
-            Error::PeParsingError(p, e) => write!(
-                f,
-                "An error was encountered while reading the file version field of \"{}\": {}",
-                p.display(),
-                e
-            ),
-            Error::IoError(p, e) => write!(
-                f,
-                "An error was encountered while accessing the path \"{}\": {}",
-                p.display(),
-                e
-            ),
-        }
-    }
-}
-
-impl error::Error for Error {
-    fn cause(&self) -> Option<&error::Error> {
-        match self {
-            Error::IoError(_, e) => Some(e),
-            _ => None,
-        }
-    }
-}
-
-type ParsingResult<'a, T> = IResult<&'a str, T, u32>;
+type ParsingResult<'a, T> = IResult<CompleteStr<'a>, T, ParsingError>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GameType {
@@ -177,16 +129,20 @@ impl str::FromStr for Expression {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_expression(s)
+        parse_expression(nom::types::CompleteStr(s))
             .map(|(_, expression)| expression)
             .map_err(Error::from)
     }
 }
 
-fn parse_expression(input: &str) -> ParsingResult<Expression> {
+fn parse_expression(input: nom::types::CompleteStr) -> ParsingResult<Expression> {
     do_parse!(
         input,
-        compound_conditions: separated_list_complete!(ws!(tag!("or")), CompoundCondition::parse)
+        compound_conditions:
+            separated_list!(
+                fix_error!(ParsingError, ws!(tag!("or"))),
+                CompoundCondition::parse
+            )
             >> (Expression(compound_conditions))
     )
 }
@@ -212,10 +168,11 @@ impl CompoundCondition {
         Ok(true)
     }
 
-    fn parse(input: &str) -> ParsingResult<CompoundCondition> {
+    fn parse(input: nom::types::CompleteStr) -> ParsingResult<CompoundCondition> {
         do_parse!(
             input,
-            conditions: separated_list_complete!(ws!(tag!("and")), Condition::parse)
+            conditions:
+                separated_list!(fix_error!(ParsingError, ws!(tag!("and"))), Condition::parse)
                 >> (CompoundCondition(conditions))
         )
     }
@@ -244,7 +201,7 @@ impl Condition {
         }
     }
 
-    fn parse(input: &str) -> ParsingResult<Condition> {
+    fn parse(input: nom::types::CompleteStr) -> ParsingResult<Condition> {
         do_parse!(
             input,
             condition:
@@ -252,10 +209,10 @@ impl Condition {
                     call!(Function::parse) => {
                         |f| Condition::Function(f)
                     } |
-                    preceded!(ws!(tag!("not")), call!(Function::parse)) => {
+                    preceded!(fix_error!(ParsingError, ws!(tag!("not"))), call!(Function::parse)) => {
                         |f| Condition::InvertedFunction(f)
                     } |
-                    delimited!(tag!("("), call!(parse_expression), tag!(")")) => {
+                    delimited!(fix_error!(ParsingError, tag!("(")), call!(parse_expression), fix_error!(ParsingError, tag!(")"))) => {
                         |e| Condition::Expression(e)
                     }
             ) >> (condition)
@@ -441,6 +398,56 @@ mod tests {
     }
 
     #[test]
+    fn expression_from_str_should_error_with_input_on_incomplete_input() {
+        let error = Expression::from_str("file(\"Carg").unwrap_err();
+
+        assert_eq!(
+            "An error was encountered in the parser \"SeparatedList\" while parsing the expression \"file(\\\"Carg\"",
+            error.to_string()
+        );
+    }
+
+    #[test]
+    fn expression_from_str_should_error_with_input_on_invalid_regex() {
+        let error = Expression::from_str("file(\"Carg\\.*(\")").unwrap_err();
+
+        assert_eq!(
+            "An error was encountered while parsing the expression \"Carg\\.*(\": regex parse error:\n    Carg\\.*(\n           ^\nerror: unclosed group",
+            error.to_string()
+        );
+    }
+
+    #[test]
+    fn expression_from_str_should_error_with_input_on_invalid_crc() {
+        let error = Expression::from_str("checksum(\"Cargo.toml\", DEADBEEFDEAD)").unwrap_err();
+
+        assert_eq!(
+            "An error was encountered while parsing the expression \"DEADBEEFDEAD\": number too large to fit in target type",
+            error.to_string()
+        );
+    }
+
+    #[test]
+    fn expression_from_str_should_error_with_input_on_directory_regex() {
+        let error = Expression::from_str("file(\"targ.*et/\")").unwrap_err();
+
+        assert_eq!(
+            "An error was encountered while parsing the expression \"targ.*et/\\\")\": \"targ.*et/\" ends in a directory separator",
+            error.to_string()
+        );
+    }
+
+    #[test]
+    fn expression_from_str_should_error_with_input_on_path_outside_game_directory() {
+        let error = Expression::from_str("file(\"../../Cargo.toml\")").unwrap_err();
+
+        assert_eq!(
+            "An error was encountered while parsing the expression \"../../Cargo.toml\\\")\": \"../../Cargo.toml\" is not in the game directory",
+            error.to_string()
+        );
+    }
+
+    #[test]
     fn expression_parse_should_handle_a_single_compound_condition() {
         let result = Expression::from_str("file(\"Cargo.toml\")").unwrap();
 
@@ -465,7 +472,9 @@ mod tests {
 
     #[test]
     fn compound_condition_parse_should_handle_a_single_condition() {
-        let result = CompoundCondition::parse("file(\"Cargo.toml\")").unwrap().1;
+        let result = CompoundCondition::parse("file(\"Cargo.toml\")".into())
+            .unwrap()
+            .1;
 
         match result.0.as_slice() {
             [Condition::Function(Function::FilePath(f))] => {
@@ -480,9 +489,10 @@ mod tests {
 
     #[test]
     fn compound_condition_parse_should_handle_multiple_conditions() {
-        let result = CompoundCondition::parse("file(\"Cargo.toml\") and file(\"README.md\")")
-            .unwrap()
-            .1;
+        let result =
+            CompoundCondition::parse("file(\"Cargo.toml\") and file(\"README.md\")".into())
+                .unwrap()
+                .1;
 
         match result.0.as_slice() {
             [Condition::Function(Function::FilePath(f1)), Condition::Function(Function::FilePath(f2))] =>
@@ -499,7 +509,7 @@ mod tests {
 
     #[test]
     fn condition_parse_should_handle_a_function() {
-        let result = Condition::parse("file(\"Cargo.toml\")").unwrap().1;
+        let result = Condition::parse("file(\"Cargo.toml\")".into()).unwrap().1;
 
         match result {
             Condition::Function(Function::FilePath(f)) => {
@@ -514,7 +524,9 @@ mod tests {
 
     #[test]
     fn condition_parse_should_handle_a_inverted_function() {
-        let result = Condition::parse("not file(\"Cargo.toml\")").unwrap().1;
+        let result = Condition::parse("not file(\"Cargo.toml\")".into())
+            .unwrap()
+            .1;
 
         match result {
             Condition::InvertedFunction(Function::FilePath(f)) => {
@@ -529,7 +541,9 @@ mod tests {
 
     #[test]
     fn condition_parse_should_handle_an_expression_in_parentheses() {
-        let result = Condition::parse("(not file(\"Cargo.toml\"))").unwrap().1;
+        let result = Condition::parse("(not file(\"Cargo.toml\"))".into())
+            .unwrap()
+            .1;
 
         match result {
             Condition::Expression(_) => {}

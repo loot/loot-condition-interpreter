@@ -5,7 +5,7 @@ use pelite::resources::version_info::VersionInfo;
 use pelite::resources::FindError;
 use pelite::FileMap;
 
-use Error;
+use error::Error;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 enum Identifier {

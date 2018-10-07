@@ -1,14 +1,16 @@
 use std::path::{Component, Path, PathBuf};
 use std::str;
 
-use nom::{hex_digit, Context, Err, ErrorKind};
+use nom::types::CompleteStr;
+use nom::{hex_digit, Context, Err, ErrorKind, IResult};
 use regex::{Regex, RegexBuilder};
 
-use ParsingResult;
 use super::{ComparisonOperator, Function};
+use ParsingError;
+use ParsingResult;
 
 impl ComparisonOperator {
-    pub fn parse(input: &str) -> ParsingResult<ComparisonOperator> {
+    pub fn parse(input: CompleteStr) -> IResult<CompleteStr, ComparisonOperator> {
         do_parse!(
             input,
             operator:
@@ -27,10 +29,6 @@ impl ComparisonOperator {
 const INVALID_PATH_CHARS: &str = "\":*?<>|\\"; // \ is treated as invalid to distinguish regex strings.
 const INVALID_REGEX_PATH_CHARS: &str = "\"<>";
 
-const PARSE_REGEX_ERROR: ErrorKind = ErrorKind::Custom(1);
-const PARSE_CRC_ERROR: ErrorKind = ErrorKind::Custom(2);
-const PARSE_PATH_ERROR: ErrorKind = ErrorKind::Custom(3);
-
 fn is_in_game_path(path: &Path) -> bool {
     let mut previous_component = Component::CurDir;
     for component in path.components() {
@@ -46,130 +44,195 @@ fn is_in_game_path(path: &Path) -> bool {
     true
 }
 
-fn parse_regex(input: &str) -> ParsingResult<Regex> {
-    RegexBuilder::new(input)
+fn parse_regex(input: CompleteStr) -> ParsingResult<Regex> {
+    RegexBuilder::new(input.as_ref())
         .case_insensitive(true)
         .build()
-        .map(|r| ("", r))
-        .map_err(|_| Err::Failure(Context::Code(input, PARSE_REGEX_ERROR)))
+        .map(|r| (CompleteStr(""), r))
+        .map_err(|e| {
+            Err::Failure(Context::Code(
+                input,
+                ErrorKind::Custom(ParsingError::from(e)),
+            ))
+        })
 }
 
-fn parse_version_args(input: &str) -> ParsingResult<(PathBuf, &str, ComparisonOperator)> {
+fn not_in_game_directory(input: CompleteStr, path: PathBuf) -> Err<CompleteStr, ParsingError> {
+    Err::Failure(Context::Code(
+        input,
+        ErrorKind::Custom(ParsingError::PathIsNotInGameDirectory(path)),
+    ))
+}
+
+fn parse_version_args(input: CompleteStr) -> ParsingResult<(PathBuf, String, ComparisonOperator)> {
     let (remaining_input, (path, version, comparator)) = try_parse!(
         input,
-        do_parse!(
-            tag!("\"")
-                >> path: is_not!(INVALID_PATH_CHARS)
-                >> tag!("\"")
-                >> ws!(tag!(","))
-                >> tag!("\"")
-                >> version: is_not!("\"")
-                >> tag!("\"")
-                >> ws!(tag!(","))
-                >> operator: call!(ComparisonOperator::parse)
-                >> (PathBuf::from(path), version, operator)
+        fix_error!(
+            ParsingError,
+            do_parse!(
+                tag!("\"")
+                    >> path: is_not!(INVALID_PATH_CHARS)
+                    >> tag!("\"")
+                    >> ws!(tag!(","))
+                    >> tag!("\"")
+                    >> version: is_not!("\"")
+                    >> tag!("\"")
+                    >> ws!(tag!(","))
+                    >> operator: call!(ComparisonOperator::parse)
+                    >> (PathBuf::from(path.as_ref()), version.to_string(), operator)
+            )
         )
     );
 
     if is_in_game_path(&path) {
         Ok((remaining_input, (path, version, comparator)))
     } else {
-        Err(Err::Failure(Context::Code(input, PARSE_PATH_ERROR)))
+        Err(not_in_game_directory(input, path))
     }
 }
 
-fn parse_crc(input: &str) -> ParsingResult<u32> {
-    u32::from_str_radix(input, 16)
-        .map(|c| ("", c))
-        .map_err(|_| Err::Failure(Context::Code(input, PARSE_CRC_ERROR)))
+fn parse_crc(input: CompleteStr) -> ParsingResult<u32> {
+    u32::from_str_radix(input.as_ref(), 16)
+        .map(|c| (CompleteStr(""), c))
+        .map_err(|e| {
+            Err::Failure(Context::Code(
+                input,
+                ErrorKind::Custom(ParsingError::from(e)),
+            ))
+        })
 }
 
-fn parse_checksum_args(input: &str) -> ParsingResult<(PathBuf, u32)> {
+fn parse_checksum_args(input: CompleteStr) -> ParsingResult<(PathBuf, u32)> {
     let (remaining_input, (path, crc)) = try_parse!(
         input,
         do_parse!(
-            tag!("\"")
-                >> path: is_not!(INVALID_PATH_CHARS)
-                >> tag!("\"")
-                >> ws!(tag!(","))
-                >> crc: flat_map!(call!(hex_digit), parse_crc)
-                >> (PathBuf::from(path), crc)
+            fix_error!(ParsingError, tag!("\""))
+                >> path: fix_error!(ParsingError, is_not!(INVALID_PATH_CHARS))
+                >> fix_error!(ParsingError, tag!("\""))
+                >> fix_error!(ParsingError, ws!(tag!(",")))
+                >> crc: flat_map!(fix_error!(ParsingError, hex_digit), parse_crc)
+                >> (PathBuf::from(path.as_ref()), crc)
         )
     );
 
     if is_in_game_path(&path) {
         Ok((remaining_input, (path, crc)))
     } else {
-        Err(Err::Failure(Context::Code(input, PARSE_PATH_ERROR)))
+        Err(not_in_game_directory(input, path))
     }
 }
 
-fn parse_path(input: &str) -> ParsingResult<PathBuf> {
-    let (remaining_input, path) =
-        try_parse!(input, map!(is_not!(INVALID_PATH_CHARS), PathBuf::from));
+fn parse_path(input: CompleteStr) -> ParsingResult<PathBuf> {
+    let (remaining_input, path) = try_parse!(
+        input,
+        fix_error!(
+            ParsingError,
+            map!(is_not!(INVALID_PATH_CHARS), |s| PathBuf::from(s.as_ref()))
+        )
+    );
 
     if is_in_game_path(&path) {
         Ok((remaining_input, path))
     } else {
-        Err(Err::Failure(Context::Code(input, PARSE_PATH_ERROR)))
+        Err(not_in_game_directory(input, path))
     }
 }
 
 /// Parse a string that is a path where the last component is a regex string
 /// that may contain characters that are invalid in paths but valid in regex.
-fn parse_regex_path(input: &str) -> ParsingResult<(PathBuf, Regex)> {
-    let (remaining_input, string) = try_parse!(input, is_not!(INVALID_REGEX_PATH_CHARS));
+fn parse_regex_path(input: CompleteStr) -> ParsingResult<(PathBuf, Regex)> {
+    let (remaining_input, string) = try_parse!(
+        input,
+        fix_error!(ParsingError, is_not!(INVALID_REGEX_PATH_CHARS))
+    );
 
     if string.ends_with('/') {
-        return Err(Err::Failure(Context::Code(input, PARSE_PATH_ERROR)));
+        return Err(Err::Failure(Context::Code(
+            input,
+            ErrorKind::Custom(ParsingError::PathEndsInADirectorySeparator(
+                string.as_ref().into(),
+            )),
+        )));
     }
 
     let (parent_path_slice, regex_slice) = string
         .rfind('/')
         .map(|i| (&string[..i], &string[i + 1..]))
-        .unwrap_or_else(|| (".", string));
+        .unwrap_or_else(|| (".", &string));
 
     let parent_path = PathBuf::from(parent_path_slice);
 
     if !is_in_game_path(&parent_path) {
-        return Err(Err::Failure(Context::Code(input, PARSE_PATH_ERROR)));
+        return Err(not_in_game_directory(input, parent_path));
     }
 
-    let regex = parse_regex(regex_slice)?.1;
+    let regex = parse_regex(CompleteStr(regex_slice))?.1;
 
     Ok((remaining_input, (parent_path, regex)))
 }
 
 impl Function {
-    pub fn parse(input: &str) -> ParsingResult<Function> {
+    pub fn parse(input: CompleteStr) -> ParsingResult<Function> {
         do_parse!(
             input,
             function:
                 alt!(
-                delimited!(tag!("file(\""), call!(parse_path), tag!("\")")) => {
+                delimited!(
+                    fix_error!(ParsingError, tag!("file(\"")),
+                    call!(parse_path),
+                    fix_error!(ParsingError, tag!("\")"))
+                ) => {
                     |path| Function::FilePath(path)
                 } |
-                delimited!(tag!("file(\""), call!(parse_regex_path), tag!("\"")) => {
+                delimited!(
+                    fix_error!(ParsingError, tag!("file(\"")),
+                    call!(parse_regex_path),
+                    fix_error!(ParsingError, tag!("\""))
+                ) => {
                     |(p, r)| Function::FileRegex(p, r)
                 } |
-                delimited!(tag!("active(\""), call!(parse_path), tag!("\")")) => {
+                delimited!(
+                    fix_error!(ParsingError, tag!("active(\"")),
+                    call!(parse_path),
+                    fix_error!(ParsingError, tag!("\")"))
+                ) => {
                     |path| Function::ActivePath(path)
                 } |
-                delimited!(tag!("active(\""), flat_map!(is_not!(INVALID_REGEX_PATH_CHARS), parse_regex), tag!("\"")) => {
+                delimited!(
+                    fix_error!(ParsingError, tag!("active(\"")),
+                    flat_map!(fix_error!(ParsingError, is_not!(INVALID_REGEX_PATH_CHARS)), parse_regex),
+                    fix_error!(ParsingError, tag!("\""))
+                ) => {
                     |r| Function::ActiveRegex(r)
                 } |
-                delimited!(tag!("many(\""), call!(parse_regex_path), tag!("\"")) => {
+                delimited!(
+                    fix_error!(ParsingError, tag!("many(\"")),
+                    call!(parse_regex_path),
+                    fix_error!(ParsingError, tag!("\""))
+                ) => {
                     |(p, r)| Function::Many(p, r)
                 } |
-                delimited!(tag!("many_active(\""), flat_map!(is_not!(INVALID_REGEX_PATH_CHARS), parse_regex), tag!("\"")) => {
+                delimited!(
+                    fix_error!(ParsingError, tag!("many_active(\"")),
+                    flat_map!(fix_error!(ParsingError, is_not!(INVALID_REGEX_PATH_CHARS)), parse_regex),
+                    fix_error!(ParsingError, tag!("\""))
+                ) => {
                     |r| Function::ManyActive(r)
                 } |
-                delimited!(tag!("version("), call!(parse_version_args), tag!(")")) => {
-                    |(path, version, comparator): (PathBuf, &str, ComparisonOperator)| {
-                        Function::Version(path, version.to_string(), comparator)
+                delimited!(
+                    fix_error!(ParsingError, tag!("version(")),
+                    call!(parse_version_args),
+                    fix_error!(ParsingError, tag!(")"))
+                ) => {
+                    |(path, version, comparator)| {
+                        Function::Version(path, version, comparator)
                     }
                 } |
-                delimited!(tag!("checksum("), call!(parse_checksum_args), tag!(")")) => {
+                delimited!(
+                    fix_error!(ParsingError, tag!("checksum(")),
+                    call!(parse_checksum_args),
+                    fix_error!(ParsingError, tag!(")"))
+                ) => {
                     |(path, crc)| Function::Checksum(path, crc)
                 }
             ) >> (function)
@@ -185,14 +248,14 @@ mod tests {
 
     #[test]
     fn parse_regex_should_produce_case_insensitive_regex() {
-        let (_, regex) = parse_regex("cargo.*").unwrap();
+        let (_, regex) = parse_regex("cargo.*".into()).unwrap();
 
         assert!(regex.is_match("Cargo.toml"));
     }
 
     #[test]
     fn function_parse_should_parse_a_file_path_function() {
-        let result = Function::parse("file(\"Cargo.toml\")").unwrap().1;
+        let result = Function::parse("file(\"Cargo.toml\")".into()).unwrap().1;
 
         match result {
             Function::FilePath(f) => assert_eq!(Path::new("Cargo.toml"), f),
@@ -202,12 +265,12 @@ mod tests {
 
     #[test]
     fn function_parse_should_error_if_the_file_path_is_outside_the_game_directory() {
-        assert!(Function::parse("file(\"../../Cargo.toml\")").is_err());
+        assert!(Function::parse("file(\"../../Cargo.toml\")".into()).is_err());
     }
 
     #[test]
     fn function_parse_should_parse_a_file_regex_function_with_no_parent_path() {
-        let result = Function::parse("file(\"Cargo.*\")").unwrap().1;
+        let result = Function::parse("file(\"Cargo.*\")".into()).unwrap().1;
 
         match result {
             Function::FileRegex(p, r) => {
@@ -220,7 +283,9 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_file_regex_function_with_a_parent_path() {
-        let result = Function::parse("file(\"subdir/Cargo.*\")").unwrap().1;
+        let result = Function::parse("file(\"subdir/Cargo.*\")".into())
+            .unwrap()
+            .1;
 
         match result {
             Function::FileRegex(p, r) => {
@@ -233,17 +298,17 @@ mod tests {
 
     #[test]
     fn function_parse_should_error_if_given_a_file_regex_function_ending_in_a_forward_slash() {
-        assert!(Function::parse("file(\"sub\\dir/\")").is_err());
+        assert!(Function::parse("file(\"sub\\dir/\")".into()).is_err());
     }
 
     #[test]
     fn function_parse_should_error_if_the_file_regex_parent_path_is_outside_the_game_directory() {
-        assert!(Function::parse("file(\"../../Cargo.*\")").is_err());
+        assert!(Function::parse("file(\"../../Cargo.*\")".into()).is_err());
     }
 
     #[test]
     fn function_parse_should_parse_an_active_path_function() {
-        let result = Function::parse("active(\"Cargo.toml\")").unwrap().1;
+        let result = Function::parse("active(\"Cargo.toml\")".into()).unwrap().1;
 
         match result {
             Function::ActivePath(f) => assert_eq!(Path::new("Cargo.toml"), f),
@@ -255,12 +320,12 @@ mod tests {
     fn function_parse_should_error_if_the_active_path_is_outside_the_game_directory() {
         // Trying to check if a path that isn't a plugin in the data folder is
         // active is pointless, but it's not worth having a more specific check.
-        assert!(Function::parse("active(\"../../Cargo.toml\")").is_err());
+        assert!(Function::parse("active(\"../../Cargo.toml\")".into()).is_err());
     }
 
     #[test]
     fn function_parse_should_parse_an_active_regex_function() {
-        let result = Function::parse("active(\"Cargo.*\")").unwrap().1;
+        let result = Function::parse("active(\"Cargo.*\")".into()).unwrap().1;
 
         match result {
             Function::ActiveRegex(r) => {
@@ -272,7 +337,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_many_function_with_no_parent_path() {
-        let result = Function::parse("many(\"Cargo.*\")").unwrap().1;
+        let result = Function::parse("many(\"Cargo.*\")".into()).unwrap().1;
 
         match result {
             Function::Many(p, r) => {
@@ -285,7 +350,9 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_many_function_with_a_parent_path() {
-        let result = Function::parse("many(\"subdir/Cargo.*\")").unwrap().1;
+        let result = Function::parse("many(\"subdir/Cargo.*\")".into())
+            .unwrap()
+            .1;
 
         match result {
             Function::Many(p, r) => {
@@ -298,17 +365,19 @@ mod tests {
 
     #[test]
     fn function_parse_should_error_if_given_a_many_function_ending_in_a_forward_slash() {
-        assert!(Function::parse("many(\"subdir/\")").is_err());
+        assert!(Function::parse("many(\"subdir/\")".into()).is_err());
     }
 
     #[test]
     fn function_parse_should_error_if_the_many_parent_path_is_outside_the_game_directory() {
-        assert!(Function::parse("file(\"../../Cargo.*\")").is_err());
+        assert!(Function::parse("file(\"../../Cargo.*\")".into()).is_err());
     }
 
     #[test]
     fn function_parse_should_parse_a_many_active_function() {
-        let result = Function::parse("many_active(\"Cargo.*\")").unwrap().1;
+        let result = Function::parse("many_active(\"Cargo.*\")".into())
+            .unwrap()
+            .1;
 
         match result {
             Function::ManyActive(r) => {
@@ -320,7 +389,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_checksum_function() {
-        let result = Function::parse("checksum(\"Cargo.toml\", DEADBEEF)")
+        let result = Function::parse("checksum(\"Cargo.toml\", DEADBEEF)".into())
             .unwrap()
             .1;
 
@@ -335,12 +404,12 @@ mod tests {
 
     #[test]
     fn function_parse_should_error_if_the_checksum_path_is_outside_the_game_directory() {
-        assert!(Function::parse("checksum(\"../../Cargo.toml\", DEADBEEF)").is_err());
+        assert!(Function::parse("checksum(\"../../Cargo.toml\", DEADBEEF)".into()).is_err());
     }
 
     #[test]
     fn function_parse_should_parse_a_version_equals_function() {
-        let result = Function::parse("version(\"Cargo.toml\", \"1.2\", ==)")
+        let result = Function::parse("version(\"Cargo.toml\", \"1.2\", ==)".into())
             .unwrap()
             .1;
 
@@ -356,6 +425,6 @@ mod tests {
 
     #[test]
     fn function_parse_should_error_if_the_version_path_is_outside_the_game_directory() {
-        assert!(Function::parse("version(\"../../Cargo.toml\", \"1.2\", ==)").is_err());
+        assert!(Function::parse("version(\"../../Cargo.toml\", \"1.2\", ==)".into()).is_err());
     }
 }
