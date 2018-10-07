@@ -21,8 +21,7 @@ test coverage.
 
 The library is still experimental because it currently lacks:
 
-- an FFI for LOOT to call it through.
-- good error handling, details about parsing errors are not exposed.
+- an FFI for LOOT to call it through
 
 The tests need the [testing-plugins](https://github.com/WrinklyNinja/testing-plugins)
 and the [LOOT API v0.13.8](https://github.com/loot/loot-api/releases/tag/0.13.8)
