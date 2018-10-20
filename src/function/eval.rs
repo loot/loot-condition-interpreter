@@ -159,14 +159,22 @@ fn lowercase_filename(path: &Path) -> Option<String> {
         .map(str::to_lowercase)
 }
 
-fn get_version(state: &State, file_path: &Path) -> Result<Version, Error> {
+fn get_version(state: &State, file_path: &Path) -> Result<Option<Version>, Error> {
+    if !file_path.exists() {
+        return Ok(None);
+    }
+
     if let Some(key) = lowercase_filename(file_path) {
         if let Some(version) = state.plugin_versions.get(&key) {
-            return Ok(Version::from(version.as_str()));
+            return Ok(Some(Version::from(version.as_str())));
         }
     }
 
-    Version::read_file_version(file_path)
+    if state.game_type.is_plugin_filename(file_path) {
+        Ok(None)
+    } else {
+        Version::read_file_version(file_path).map(|v| Some(v))
+    }
 }
 
 fn evaluate_version(
@@ -176,14 +184,16 @@ fn evaluate_version(
     comparator: ComparisonOperator,
 ) -> Result<bool, Error> {
     let file_path = resolve_path(state, file_path);
-    if !file_path.exists() {
-        return Ok(comparator == ComparisonOperator::NotEqual
-            || comparator == ComparisonOperator::LessThan
-            || comparator == ComparisonOperator::LessThanOrEqual);
-    }
+    let actual_version = match get_version(state, &file_path)? {
+        Some(v) => v,
+        None => {
+            return Ok(comparator == ComparisonOperator::NotEqual
+                || comparator == ComparisonOperator::LessThan
+                || comparator == ComparisonOperator::LessThanOrEqual);
+        }
+    };
 
     let given_version = Version::from(given_version);
-    let actual_version = get_version(state, &file_path)?;
 
     match comparator {
         ComparisonOperator::Equal => Ok(actual_version == given_version),
@@ -683,6 +693,28 @@ mod tests {
         );
         let state = state(".");
 
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_treat_a_plugin_with_no_cached_version_as_if_it_did_not_exist() {
+        use self::ComparisonOperator::*;
+
+        let plugin = PathBuf::from("Blank.esm");
+        let version = String::from("1.0");
+        let state = state("./testing-plugins/Oblivion/Data");
+
+        let function = Function::Version(plugin.clone(), version.clone(), NotEqual);
+        assert!(function.eval(&state).unwrap());
+        let function = Function::Version(plugin.clone(), version.clone(), LessThan);
+        assert!(function.eval(&state).unwrap());
+        let function = Function::Version(plugin.clone(), version.clone(), LessThanOrEqual);
+        assert!(function.eval(&state).unwrap());
+        let function = Function::Version(plugin.clone(), version.clone(), Equal);
+        assert!(!function.eval(&state).unwrap());
+        let function = Function::Version(plugin.clone(), version.clone(), GreaterThan);
+        assert!(!function.eval(&state).unwrap());
+        let function = Function::Version(plugin.clone(), version.clone(), GreaterThanOrEqual);
         assert!(!function.eval(&state).unwrap());
     }
 
