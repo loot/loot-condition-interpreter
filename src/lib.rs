@@ -108,6 +108,12 @@ impl State {
             .collect();
         self
     }
+
+    pub fn clear_condition_cache(
+        &mut self,
+    ) -> Result<(), PoisonError<RwLockWriteGuard<HashMap<Function, bool>>>> {
+        self.condition_cache.write().map(|mut c| c.clear())
+    }
 }
 
 /// Compound conditions joined by 'or'
