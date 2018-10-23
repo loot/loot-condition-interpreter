@@ -16,15 +16,22 @@ install:
   - rustup component add rustfmt-preview
   - rustfmt --version
 
-  - ps: (New-Object Net.WebClient).DownloadFile('https://github.com/WrinklyNinja/testing-plugins/archive/1.4.0.zip', "$env:APPVEYOR_BUILD_FOLDER\1.4.0.zip")
-  - ps: 7z x "$env:APPVEYOR_BUILD_FOLDER\1.4.0.zip"
+  - ps: mkdir tests
+  - cd tests
+
+  - ps: (New-Object Net.WebClient).DownloadFile('https://github.com/WrinklyNinja/testing-plugins/archive/1.4.0.zip', "$PWD/1.4.0.zip")
+  - 7z x 1.4.0.zip
   - mv testing-plugins-1.4.0 testing-plugins
 
-  - ps: (New-Object Net.WebClient).DownloadFile('https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win32.7z', "$env:APPVEYOR_BUILD_FOLDER\loot_api-0.13.8-0-g47797cc_dev-win32.7z")
-  - ps: 7z x "$env:APPVEYOR_BUILD_FOLDER\loot_api-0.13.8-0-g47797cc_dev-win32.7z"
+  - ps: (New-Object Net.WebClient).DownloadFile('https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win32.7z', "$PWD/loot_api_win32.7z")
+  - 7z x loot_api_win32.7z
+  - mv loot_api-0.13.8-0-g47797cc_dev-win32 loot_api_win32
 
-  - ps: (New-Object Net.WebClient).DownloadFile('https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win64.7z', "$env:APPVEYOR_BUILD_FOLDER\loot_api-0.13.8-0-g47797cc_dev-win64.7z")
-  - ps: 7z x "$env:APPVEYOR_BUILD_FOLDER\loot_api-0.13.8-0-g47797cc_dev-win64.7z"
+  - ps: (New-Object Net.WebClient).DownloadFile('https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win64.7z', "$PWD/loot_api_win64.7z")
+  - 7z x loot_api_win64.7z
+  - mv loot_api-0.13.8-0-g47797cc_dev-win64 loot_api_win64
+
+  - cd ..
 
 build: false
 

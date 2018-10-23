@@ -2,8 +2,8 @@
 /target/
 **/*.rs.bk
 Cargo.lock
-/testing-plugins
-/loot_api*
+/tests/testing-plugins
+/tests/loot_api*
 /ffi/include/
 /ffi/build/
 .vscode

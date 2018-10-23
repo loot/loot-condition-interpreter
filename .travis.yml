@@ -12,15 +12,22 @@ install:
   - rustfmt --version
 
 before_script:
+  - mkdir tests
+  - cd tests
+
   - wget https://github.com/WrinklyNinja/testing-plugins/archive/1.4.1.tar.gz
   - tar -xf 1.4.1.tar.gz
   - mv testing-plugins-1.4.1 testing-plugins
 
   - wget https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win32.7z
   - 7z x loot_api-0.13.8-0-g47797cc_dev-win32.7z
+  - mv loot_api-0.13.8-0-g47797cc_dev-win32 loot_api_win32
 
   - wget https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win64.7z
   - 7z x loot_api-0.13.8-0-g47797cc_dev-win64.7z
+  - mv loot_api-0.13.8-0-g47797cc_dev-win64 loot_api_win64
+
+  - cd ..
 
 script:
   - cargo fmt --all -- --check

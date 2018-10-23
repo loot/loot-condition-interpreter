@@ -43,7 +43,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("Expression.eval() active(path)", |b| {
         let state = State::new(
             GameType::Tes4,
-            "testing-plugins/Oblivion/Data".into(),
+            "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
         ).with_active_plugins(&generate_active_plugins());
 
@@ -57,7 +57,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("Expression.eval() active(regex)", |b| {
         let state = State::new(
             GameType::Tes4,
-            "testing-plugins/Oblivion/Data".into(),
+            "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
         ).with_active_plugins(&generate_active_plugins());
 
@@ -80,7 +80,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("Expression.eval() many_active()", |b| {
         let state = State::new(
             GameType::Tes4,
-            "testing-plugins/Oblivion/Data".into(),
+            "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
         ).with_active_plugins(&generate_active_plugins());
 
@@ -94,7 +94,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("Expression.eval() checksum()", |b| {
         let state = State::new(
             GameType::Tes4,
-            "testing-plugins/Oblivion/Data".into(),
+            "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
         );
         let expression = Expression::from_str("checksum(\"Blank.esm\", 374E2A6F)").unwrap();
@@ -107,7 +107,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("Expression.eval() version(plugin)", |b| {
         let state = State::new(
             GameType::Tes4,
-            "testing-plugins/Oblivion/Data".into(),
+            "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
         ).with_plugin_versions(&generate_plugin_versions());
 
@@ -121,7 +121,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("Expression.eval() version(executable)", |b| {
         let state = State::new(GameType::Tes4, ".".into(), ".".into());
         let expression = Expression::from_str(
-            "version(\"loot_api-0.13.8-0-g47797cc_dev-win32/loot_api.dll\", \"0.13.8.0\", ==)",
+            "version(\"tests/loot_api_win32/loot_api.dll\", \"0.13.8.0\", ==)",
         ).unwrap();
 
         b.iter(|| {

@@ -148,9 +148,8 @@ mod tests {
 
         #[test]
         fn version_read_file_version_should_read_the_file_version_field_of_a_32_bit_executable() {
-            let version = Version::read_file_version(Path::new(
-                "loot_api-0.13.8-0-g47797cc_dev-win32/loot_api.dll",
-            )).unwrap();
+            let version =
+                Version::read_file_version(Path::new("tests/loot_api_win32/loot_api.dll")).unwrap();
 
             assert_eq!(
                 version.release_ids,
@@ -166,9 +165,8 @@ mod tests {
 
         #[test]
         fn version_read_file_version_should_read_the_file_version_field_of_a_64_bit_executable() {
-            let version = Version::read_file_version(Path::new(
-                "loot_api-0.13.8-0-g47797cc_dev-win64/loot_api.dll",
-            )).unwrap();
+            let version =
+                Version::read_file_version(Path::new("tests/loot_api_win64/loot_api.dll")).unwrap();
 
             assert_eq!(
                 version.release_ids,

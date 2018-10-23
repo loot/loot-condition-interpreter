@@ -330,7 +330,7 @@ mod tests {
         let state = state(data_path);
 
         copy(
-            Path::new("testing-plugins/Oblivion/Data/Blank.esp"),
+            Path::new("tests/testing-plugins/Oblivion/Data/Blank.esp"),
             &state.data_path.join("Blank.esp.ghost"),
         ).unwrap();
 
@@ -400,7 +400,7 @@ mod tests {
     #[test]
     fn function_file_regex_eval_should_be_true_if_a_directory_entry_matches() {
         let function = Function::FileRegex(
-            PathBuf::from("testing-plugins/Oblivion/Data"),
+            PathBuf::from("tests/testing-plugins/Oblivion/Data"),
             regex("Blank\\.esp"),
         );
         let state = state(".");
@@ -467,7 +467,7 @@ mod tests {
     #[test]
     fn function_many_eval_should_be_false_if_one_directory_entry_matches() {
         let function = Function::Many(
-            PathBuf::from("testing-plugins/Oblivion/Data"),
+            PathBuf::from("tests/testing-plugins/Oblivion/Data"),
             regex("Blank\\.esp"),
         );
         let state = state(".");
@@ -478,7 +478,7 @@ mod tests {
     #[test]
     fn function_many_eval_should_be_true_if_more_than_one_directory_entry_matches() {
         let function = Function::Many(
-            PathBuf::from("testing-plugins/Oblivion/Data"),
+            PathBuf::from("tests/testing-plugins/Oblivion/Data"),
             regex("Blank.*"),
         );
         let state = state(".");
@@ -522,7 +522,7 @@ mod tests {
     fn function_checksum_eval_should_be_false_if_the_file_checksum_does_not_equal_the_given_checksum(
 ) {
         let function = Function::Checksum(
-            PathBuf::from("testing-plugins/Oblivion/Data/Blank.esm"),
+            PathBuf::from("tests/testing-plugins/Oblivion/Data/Blank.esm"),
             0xDEADBEEF,
         );
         let state = state(".");
@@ -533,7 +533,7 @@ mod tests {
     #[test]
     fn function_checksum_eval_should_be_true_if_the_file_checksum_equals_the_given_checksum() {
         let function = Function::Checksum(
-            PathBuf::from("testing-plugins/Oblivion/Data/Blank.esm"),
+            PathBuf::from("tests/testing-plugins/Oblivion/Data/Blank.esm"),
             0x374E2A6F,
         );
         let state = state(".");
@@ -548,7 +548,7 @@ mod tests {
         let state = state(data_path);
 
         copy(
-            Path::new("testing-plugins/Oblivion/Data/Blank.esm"),
+            Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
             &state.data_path.join("Blank.esm.ghost"),
         ).unwrap();
 
@@ -564,7 +564,7 @@ mod tests {
         let state = state(data_path);
 
         copy(
-            Path::new("testing-plugins/Oblivion/Data/Blank.bsa"),
+            Path::new("tests/testing-plugins/Oblivion/Data/Blank.bsa"),
             &state.data_path.join("Blank.bsa.ghost"),
         ).unwrap();
 
@@ -577,7 +577,7 @@ mod tests {
     #[allow(non_snake_case)]
     fn function_checksum_eval_should_be_true_if_given_LOOT_crc_matches() {
         let function = Function::Checksum(PathBuf::from("LOOT"), 0x374E2A6F);
-        let state = state_with_loot_path(".", "testing-plugins/Oblivion/Data/Blank.esm");
+        let state = state_with_loot_path(".", "tests/testing-plugins/Oblivion/Data/Blank.esm");
 
         assert!(function.eval(&state).unwrap());
     }
@@ -586,7 +586,7 @@ mod tests {
     #[allow(non_snake_case)]
     fn function_checksum_eval_should_be_false_if_given_LOOT_crc_does_not_match() {
         let function = Function::Checksum(PathBuf::from("LOOT"), 0xDEADBEEF);
-        let state = state_with_loot_path(".", "testing-plugins/Oblivion/Data/Blank.esm");
+        let state = state_with_loot_path(".", "tests/testing-plugins/Oblivion/Data/Blank.esm");
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -598,7 +598,7 @@ mod tests {
         let state = state(data_path);
 
         copy(
-            Path::new("testing-plugins/Oblivion/Data/Blank.esm"),
+            Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
             &state.data_path.join("Blank.esm"),
         ).unwrap();
 
@@ -608,7 +608,7 @@ mod tests {
 
         // Change the CRC of the file to test that the cached value is used.
         copy(
-            Path::new("testing-plugins/Oblivion/Data/Blank.bsa"),
+            Path::new("tests/testing-plugins/Oblivion/Data/Blank.bsa"),
             &state.data_path.join("Blank.esm"),
         ).unwrap();
 
@@ -702,7 +702,7 @@ mod tests {
 
         let plugin = PathBuf::from("Blank.esm");
         let version = String::from("1.0");
-        let state = state("./testing-plugins/Oblivion/Data");
+        let state = state("tests/testing-plugins/Oblivion/Data");
 
         let function = Function::Version(plugin.clone(), version.clone(), NotEqual);
         assert!(function.eval(&state).unwrap());
@@ -721,7 +721,8 @@ mod tests {
     #[test]
     fn function_version_eval_should_be_false_if_versions_are_not_equal_and_comparator_is_eq() {
         let function = Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::Equal);
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "1")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "1")]);
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -729,7 +730,8 @@ mod tests {
     #[test]
     fn function_version_eval_should_be_true_if_versions_are_equal_and_comparator_is_eq() {
         let function = Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::Equal);
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
 
         assert!(function.eval(&state).unwrap());
     }
@@ -738,7 +740,8 @@ mod tests {
     fn function_version_eval_should_be_false_if_versions_are_equal_and_comparator_is_ne() {
         let function =
             Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::NotEqual);
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -747,7 +750,8 @@ mod tests {
     fn function_version_eval_should_be_true_if_versions_are_not_equal_and_comparator_is_ne() {
         let function =
             Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::NotEqual);
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "1")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "1")]);
 
         assert!(function.eval(&state).unwrap());
     }
@@ -756,7 +760,8 @@ mod tests {
     fn function_version_eval_should_be_false_if_actual_version_is_eq_and_comparator_is_lt() {
         let function =
             Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::LessThan);
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -765,7 +770,8 @@ mod tests {
     fn function_version_eval_should_be_false_if_actual_version_is_gt_and_comparator_is_lt() {
         let function =
             Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::LessThan);
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -774,7 +780,8 @@ mod tests {
     fn function_version_eval_should_be_true_if_actual_version_is_lt_and_comparator_is_lt() {
         let function =
             Function::Version("Blank.esm".into(), "5".into(), ComparisonOperator::NotEqual);
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "1")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "1")]);
 
         assert!(function.eval(&state).unwrap());
     }
@@ -786,7 +793,8 @@ mod tests {
             "5".into(),
             ComparisonOperator::GreaterThan,
         );
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -798,7 +806,8 @@ mod tests {
             "5".into(),
             ComparisonOperator::GreaterThan,
         );
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "4")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "4")]);
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -810,7 +819,8 @@ mod tests {
             "5".into(),
             ComparisonOperator::GreaterThan,
         );
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
 
         assert!(function.eval(&state).unwrap());
     }
@@ -822,7 +832,8 @@ mod tests {
             "5".into(),
             ComparisonOperator::LessThanOrEqual,
         );
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -834,7 +845,8 @@ mod tests {
             "5".into(),
             ComparisonOperator::LessThanOrEqual,
         );
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
 
         assert!(function.eval(&state).unwrap());
     }
@@ -846,7 +858,8 @@ mod tests {
             "5".into(),
             ComparisonOperator::LessThanOrEqual,
         );
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "4")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "4")]);
 
         assert!(function.eval(&state).unwrap());
     }
@@ -858,7 +871,8 @@ mod tests {
             "5".into(),
             ComparisonOperator::GreaterThanOrEqual,
         );
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "4")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "4")]);
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -870,7 +884,8 @@ mod tests {
             "5".into(),
             ComparisonOperator::GreaterThanOrEqual,
         );
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "5")]);
 
         assert!(function.eval(&state).unwrap());
     }
@@ -882,7 +897,8 @@ mod tests {
             "5".into(),
             ComparisonOperator::GreaterThanOrEqual,
         );
-        let state = state_with_versions("./testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
+        let state =
+            state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
 
         assert!(function.eval(&state).unwrap());
     }
