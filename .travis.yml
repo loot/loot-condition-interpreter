@@ -27,6 +27,9 @@ before_script:
   - 7z x loot_api-0.13.8-0-g47797cc_dev-win64.7z
   - mv loot_api-0.13.8-0-g47797cc_dev-win64 loot_api_win64
 
+  - wget https://7-zip.org/a/7z1805-extra.7z
+  - 7z x 7z1805-extra.7z -o7z
+
   - cd ..
 
 script:

@@ -53,7 +53,7 @@ impl fmt::Display for Error {
             ),
             Error::PeParsingError(p, e) => write!(
                 f,
-                "An error was encountered while reading the file version field of \"{}\": {}",
+                "An error was encountered while reading the version fields of \"{}\": {}",
                 p.display(),
                 e
             ),

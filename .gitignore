@@ -2,6 +2,7 @@
 /target/
 **/*.rs.bk
 Cargo.lock
+/tests/7z
 /tests/testing-plugins
 /tests/loot_api*
 /ffi/include/

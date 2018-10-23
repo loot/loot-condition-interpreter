@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::path::Path;
 
+use pelite::image::VS_FIXEDFILEINFO;
 use pelite::resources::version_info::VersionInfo;
 use pelite::resources::FindError;
 use pelite::FileMap;
@@ -29,21 +30,40 @@ pub struct Version {
 
 impl Version {
     pub fn read_file_version(file_path: &Path) -> Result<Self, Error> {
+        Self::read_version(file_path, |f| {
+            format!(
+                "{}.{}.{}.{}",
+                f.dwFileVersion.Major,
+                f.dwFileVersion.Minor,
+                f.dwFileVersion.Patch,
+                f.dwFileVersion.Build
+            )
+        })
+    }
+
+    pub fn read_product_version(file_path: &Path) -> Result<Self, Error> {
+        Self::read_version(file_path, |f| {
+            format!(
+                "{}.{}.{}.{}",
+                f.dwProductVersion.Major,
+                f.dwProductVersion.Minor,
+                f.dwProductVersion.Patch,
+                f.dwProductVersion.Build
+            )
+        })
+    }
+
+    fn read_version<F: Fn(&VS_FIXEDFILEINFO) -> String>(
+        file_path: &Path,
+        formatter: F,
+    ) -> Result<Self, Error> {
         let file_map =
             FileMap::open(file_path).map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
         let version_info = get_pe_version_info(file_map.as_ref())
             .map_err(|e| Error::PeParsingError(file_path.to_path_buf(), e.into()))?;
 
         if let Some(fixed_file_info) = version_info.fixed() {
-            let version = format!(
-                "{}.{}.{}.{}",
-                fixed_file_info.dwFileVersion.Major,
-                fixed_file_info.dwFileVersion.Minor,
-                fixed_file_info.dwFileVersion.Patch,
-                fixed_file_info.dwFileVersion.Build
-            );
-
-            Ok(Version::from(version.as_str()))
+            Ok(Version::from(formatter(fixed_file_info).as_str()))
         } else {
             Ok(Version::from(""))
         }
@@ -143,7 +163,7 @@ fn pad_release_ids(ids1: &[Identifier], ids2: &[Identifier]) -> (Vec<Identifier>
 
 #[cfg(test)]
 mod tests {
-    mod empty {
+    mod constructors {
         use super::super::*;
 
         #[test]
@@ -195,9 +215,64 @@ mod tests {
         fn version_read_file_version_should_error_with_path_if_the_file_is_not_an_executable() {
             let error = Version::read_file_version(Path::new("Cargo.toml")).unwrap_err();
 
-            assert_eq!("An error was encountered while reading the file version field of \"Cargo.toml\": bad magic", error.to_string());
+            assert_eq!("An error was encountered while reading the version fields of \"Cargo.toml\": bad magic", error.to_string());
         }
 
+        #[test]
+        fn version_read_product_version_should_read_the_file_version_field_of_a_32_bit_executable()
+        {
+            let version = Version::read_product_version(Path::new("tests/7z/7za.exe")).unwrap();
+
+            assert_eq!(
+                version.release_ids,
+                vec![
+                    Identifier::Numeric(18),
+                    Identifier::Numeric(5),
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(0),
+                ]
+            );
+            assert!(version.pre_release_ids.is_empty());
+        }
+
+        #[test]
+        fn version_read_product_version_should_read_the_file_version_field_of_a_64_bit_executable()
+        {
+            let version = Version::read_product_version(Path::new("tests/7z/x64/7za.exe")).unwrap();
+
+            assert_eq!(
+                version.release_ids,
+                vec![
+                    Identifier::Numeric(18),
+                    Identifier::Numeric(5),
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(0),
+                ]
+            );
+            assert!(version.pre_release_ids.is_empty());
+        }
+
+        #[test]
+        fn version_read_product_version_should_error_with_path_if_path_does_not_exist() {
+            let error = Version::read_product_version(Path::new("missing")).unwrap_err();
+
+            assert!(
+                error
+                    .to_string()
+                    .starts_with("An error was encountered while accessing the path \"missing\":")
+            );
+        }
+
+        #[test]
+        fn version_read_product_version_should_error_with_path_if_the_file_is_not_an_executable() {
+            let error = Version::read_product_version(Path::new("Cargo.toml")).unwrap_err();
+
+            assert_eq!("An error was encountered while reading the version fields of \"Cargo.toml\": bad magic", error.to_string());
+        }
+    }
+
+    mod empty {
+        use super::super::*;
         #[test]
         fn version_eq_an_empty_string_should_equal_an_empty_string() {
             assert_eq!(Version::from(""), Version::from(""));
