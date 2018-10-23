@@ -229,6 +229,15 @@ impl Function {
                     }
                 } |
                 delimited!(
+                    fix_error!(ParsingError, tag!("product_version(")),
+                    call!(parse_version_args),
+                    fix_error!(ParsingError, tag!(")"))
+                ) => {
+                    |(path, version, comparator)| {
+                        Function::ProductVersion(path, version, comparator)
+                    }
+                } |
+                delimited!(
                     fix_error!(ParsingError, tag!("checksum(")),
                     call!(parse_checksum_args),
                     fix_error!(ParsingError, tag!(")"))
@@ -419,12 +428,35 @@ mod tests {
                 assert_eq!("1.2", version);
                 assert_eq!(ComparisonOperator::Equal, comparator);
             }
-            _ => panic!("Expected a checksum function"),
+            _ => panic!("Expected a version function"),
         }
     }
 
     #[test]
     fn function_parse_should_error_if_the_version_path_is_outside_the_game_directory() {
         assert!(Function::parse("version(\"../../Cargo.toml\", \"1.2\", ==)".into()).is_err());
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_product_version_equals_function() {
+        let result = Function::parse("product_version(\"Cargo.toml\", \"1.2\", ==)".into())
+            .unwrap()
+            .1;
+
+        match result {
+            Function::ProductVersion(path, version, comparator) => {
+                assert_eq!(Path::new("Cargo.toml"), path);
+                assert_eq!("1.2", version);
+                assert_eq!(ComparisonOperator::Equal, comparator);
+            }
+            _ => panic!("Expected a product version function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_error_if_the_product_version_path_is_outside_the_game_directory() {
+        assert!(
+            Function::parse("product_version(\"../../Cargo.toml\", \"1.2\", ==)".into()).is_err()
+        );
     }
 }

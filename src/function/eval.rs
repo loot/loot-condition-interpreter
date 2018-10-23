@@ -173,18 +173,30 @@ fn get_version(state: &State, file_path: &Path) -> Result<Option<Version>, Error
     if state.game_type.is_plugin_filename(file_path) {
         Ok(None)
     } else {
-        Version::read_file_version(file_path).map(|v| Some(v))
+        Version::read_file_version(file_path).map(Some)
     }
 }
 
-fn evaluate_version(
+fn get_product_version(file_path: &Path) -> Result<Option<Version>, Error> {
+    if file_path.exists() {
+        Version::read_product_version(file_path).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
+fn evaluate_version<F>(
     state: &State,
     file_path: &Path,
     given_version: &str,
     comparator: ComparisonOperator,
-) -> Result<bool, Error> {
+    read_version: F,
+) -> Result<bool, Error>
+where
+    F: Fn(&State, &Path) -> Result<Option<Version>, Error>,
+{
     let file_path = resolve_path(state, file_path);
-    let actual_version = match get_version(state, &file_path)? {
+    let actual_version = match read_version(state, &file_path)? {
         Some(v) => v,
         None => {
             return Ok(comparator == ComparisonOperator::NotEqual
@@ -223,7 +235,10 @@ impl Function {
             Function::Many(p, r) => evaluate_many(state, p, r),
             Function::ManyActive(r) => evaluate_many_active(state, r),
             Function::Checksum(path, crc) => evaluate_checksum(state, path, *crc),
-            Function::Version(p, v, c) => evaluate_version(state, p, v, *c),
+            Function::Version(p, v, c) => evaluate_version(state, p, v, *c, get_version),
+            Function::ProductVersion(p, v, c) => {
+                evaluate_version(state, p, v, *c, |_, p| get_product_version(p))
+            }
         };
 
         if self.is_slow() {
@@ -901,5 +916,45 @@ mod tests {
             state_with_versions("tests/testing-plugins/Oblivion/Data", &[("Blank.esm", "6")]);
 
         assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_read_executable_file_version() {
+        let function = Function::Version(
+            "loot_api.dll".into(),
+            "0.13.8.0".into(),
+            ComparisonOperator::Equal,
+        );
+        let state = state("tests/loot_api_win32");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_product_version_eval_should_read_executable_product_version() {
+        let function =
+            Function::Version("7za.exe".into(), "18.05".into(), ComparisonOperator::Equal);
+        let state = state("tests/7z");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn get_product_version_should_return_ok_none_if_the_path_does_not_exist() {
+        assert!(get_product_version(Path::new("missing")).unwrap().is_none());
+    }
+
+    #[test]
+    fn get_product_version_should_return_ok_some_if_the_path_is_an_executable() {
+        let version = get_product_version(Path::new("tests/7z/7za.exe"))
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(Version::from("18.05"), version);
+    }
+
+    #[test]
+    fn get_product_version_should_error_if_the_path_is_not_an_executable() {
+        assert!(get_product_version(Path::new("Cargo.toml")).is_err());
     }
 }

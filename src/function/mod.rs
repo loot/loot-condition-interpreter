@@ -43,6 +43,7 @@ pub enum Function {
     ManyActive(Regex),
     Checksum(PathBuf, u32),
     Version(PathBuf, String, ComparisonOperator),
+    ProductVersion(PathBuf, String, ComparisonOperator),
 }
 
 impl fmt::Display for Function {
@@ -57,6 +58,9 @@ impl fmt::Display for Function {
             ManyActive(r) => write!(f, "many_active(\"{}\")", r),
             Checksum(p, c) => write!(f, "checksum(\"{}\", {:02X?})", p.display(), c),
             Version(p, v, c) => write!(f, "version(\"{}\", \"{}\", {})", p.display(), v, c),
+            ProductVersion(p, v, c) => {
+                write!(f, "product_version(\"{}\", \"{}\", {})", p.display(), v, c)
+            }
         }
     }
 }
@@ -79,6 +83,9 @@ impl PartialEq for Function {
                 c1 == c2 && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
             (Version(p1, v1, c1), Version(p2, v2, c2)) => {
+                c1 == c2 && eq(&v1, &v2) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
+            }
+            (ProductVersion(p1, v1, c1), ProductVersion(p2, v2, c2)) => {
                 c1 == c2 && eq(&v1, &v2) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
             _ => false,
@@ -117,6 +124,11 @@ impl Hash for Function {
                 c.hash(state);
             }
             Version(p, v, c) => {
+                p.to_string_lossy().to_lowercase().hash(state);
+                v.to_lowercase().hash(state);
+                c.hash(state);
+            }
+            ProductVersion(p, v, c) => {
                 p.to_string_lossy().to_lowercase().hash(state);
                 v.to_lowercase().hash(state);
                 c.hash(state);
@@ -200,6 +212,20 @@ mod tests {
 
             assert_eq!(
                 "version(\"subdir/Blank.esm\", \"1.2a\", ==)",
+                &format!("{}", function)
+            );
+        }
+
+        #[test]
+        fn function_fmt_for_product_version_should_format_correctly() {
+            let function = Function::ProductVersion(
+                "../TESV.exe".into(),
+                "1.2a".into(),
+                ComparisonOperator::Equal,
+            );
+
+            assert_eq!(
+                "product_version(\"../TESV.exe\", \"1.2a\", ==)",
                 &format!("{}", function)
             );
         }
@@ -417,6 +443,39 @@ mod tests {
             assert_eq!(
                 Function::Version("Blank.esm".into(), "A".into(), ComparisonOperator::Equal),
                 Function::Version("blank.esm".into(), "a".into(), ComparisonOperator::Equal)
+            );
+        }
+
+        #[test]
+        fn function_eq_for_product_version_should_check_pathbuf_version_and_comparator() {
+            assert_eq!(
+                Function::ProductVersion("Blank.esm".into(), "1".into(), ComparisonOperator::Equal),
+                Function::ProductVersion("Blank.esm".into(), "1".into(), ComparisonOperator::Equal)
+            );
+
+            assert_ne!(
+                Function::ProductVersion("Blank.esm".into(), "1".into(), ComparisonOperator::Equal),
+                Function::ProductVersion("Blank.esp".into(), "1".into(), ComparisonOperator::Equal)
+            );
+            assert_ne!(
+                Function::ProductVersion("Blank.esm".into(), "1".into(), ComparisonOperator::Equal),
+                Function::ProductVersion("Blank.esm".into(), "2".into(), ComparisonOperator::Equal)
+            );
+            assert_ne!(
+                Function::ProductVersion("Blank.esm".into(), "1".into(), ComparisonOperator::Equal),
+                Function::ProductVersion(
+                    "Blank.esm".into(),
+                    "1".into(),
+                    ComparisonOperator::NotEqual
+                )
+            );
+        }
+
+        #[test]
+        fn function_eq_for_product_version_should_be_case_insensitive_on_pathbuf_and_version() {
+            assert_eq!(
+                Function::ProductVersion("Blank.esm".into(), "A".into(), ComparisonOperator::Equal),
+                Function::ProductVersion("blank.esm".into(), "a".into(), ComparisonOperator::Equal)
             );
         }
     }
@@ -655,6 +714,62 @@ mod tests {
                 Function::Version("Blank.esm".into(), "1.2a".into(), ComparisonOperator::Equal);
             let function2 =
                 Function::Version("Blank.esm".into(), "1.2A".into(), ComparisonOperator::Equal);
+
+            assert_eq!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_product_version_should_hash_pathbuf_and_version_and_comparator() {
+            let function1 = Function::ProductVersion(
+                "Blank.esm".into(),
+                "1.2a".into(),
+                ComparisonOperator::Equal,
+            );
+            let function2 = Function::ProductVersion(
+                "Blank.esm".into(),
+                "1.2a".into(),
+                ComparisonOperator::Equal,
+            );
+
+            assert_eq!(hash(function1), hash(function2));
+
+            let function1 =
+                Function::ProductVersion("Blank.esm".into(), "1".into(), ComparisonOperator::Equal);
+            let function2 =
+                Function::ProductVersion("Blank.esp".into(), "1".into(), ComparisonOperator::Equal);
+
+            assert_ne!(hash(function1), hash(function2));
+
+            let function1 =
+                Function::ProductVersion("Blank.esm".into(), "1".into(), ComparisonOperator::Equal);
+            let function2 =
+                Function::ProductVersion("Blank.esm".into(), "2".into(), ComparisonOperator::Equal);
+
+            assert_ne!(hash(function1), hash(function2));
+
+            let function1 =
+                Function::ProductVersion("Blank.esm".into(), "1".into(), ComparisonOperator::Equal);
+            let function2 = Function::ProductVersion(
+                "Blank.esm".into(),
+                "1".into(),
+                ComparisonOperator::NotEqual,
+            );
+
+            assert_ne!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_product_version_should_be_case_insensitive() {
+            let function1 = Function::ProductVersion(
+                "Blank.esm".into(),
+                "1.2a".into(),
+                ComparisonOperator::Equal,
+            );
+            let function2 = Function::ProductVersion(
+                "Blank.esm".into(),
+                "1.2A".into(),
+                ComparisonOperator::Equal,
+            );
 
             assert_eq!(hash(function1), hash(function2));
         }
