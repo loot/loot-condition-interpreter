@@ -308,7 +308,7 @@ mod tests {
 
         State {
             game_type: GameType::Tes4,
-            data_path: data_path,
+            data_path,
             loot_path: loot_path.into(),
             active_plugins: active_plugins
                 .into_iter()

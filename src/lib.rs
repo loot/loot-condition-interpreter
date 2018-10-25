@@ -41,14 +41,14 @@ pub enum GameType {
 }
 
 impl GameType {
-    fn supports_light_plugins(&self) -> bool {
+    fn supports_light_plugins(self) -> bool {
         match self {
             GameType::Tes5se | GameType::Tes5vr | GameType::Fo4 | GameType::Fo4vr => true,
             _ => false,
         }
     }
 
-    fn is_plugin_filename(&self, path: &Path) -> bool {
+    fn is_plugin_filename(self, path: &Path) -> bool {
         match path.extension().and_then(OsStr::to_str) {
             Some("esp") | Some("esm") => true,
             Some("esl") if self.supports_light_plugins() => true,
@@ -277,7 +277,7 @@ mod tests {
 
         State {
             game_type: GameType::Tes4,
-            data_path: data_path,
+            data_path,
             loot_path: PathBuf::new(),
             active_plugins: HashSet::new(),
             crc_cache: RwLock::default(),
