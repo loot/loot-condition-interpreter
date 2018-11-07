@@ -8,6 +8,7 @@ loot-condition-interpreter
 A library for parsing and evaluating LOOT's metadata condition strings. It
 provides:
 
+- Supports metadata syntax v0.14 condition strings.
 - Condition string parsing without evaluation, for checking syntax.
 - Evaluation of parsed condition strings.
 - Efficient and safe concurrent condition evaluation thanks to Rust's safety 
