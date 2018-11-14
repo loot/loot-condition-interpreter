@@ -243,7 +243,7 @@ impl Condition {
                     preceded!(fix_error!(ParsingError, ws!(tag!("not"))), call!(Function::parse)) => {
                         |f| Condition::InvertedFunction(f)
                     } |
-                    delimited!(fix_error!(ParsingError, tag!("(")), call!(parse_expression), fix_error!(ParsingError, tag!(")"))) => {
+                    delimited!(fix_error!(ParsingError, ws!(tag!("("))), call!(parse_expression), fix_error!(ParsingError, ws!(tag!(")")))) => {
                         |e| Condition::Expression(e)
                     }
             ) >> (condition)
@@ -573,6 +573,21 @@ mod tests {
     #[test]
     fn condition_parse_should_handle_an_expression_in_parentheses() {
         let result = Condition::parse("(not file(\"Cargo.toml\"))".into())
+            .unwrap()
+            .1;
+
+        match result {
+            Condition::Expression(_) => {}
+            v => panic!(
+                "Expected an expression with two compound conditions, got {:?}",
+                v
+            ),
+        }
+    }
+
+    #[test]
+    fn condition_parse_should_handle_an_expression_in_parentheses_with_whitespace() {
+        let result = Condition::parse("( not file(\"Cargo.toml\") )".into())
             .unwrap()
             .1;
 
