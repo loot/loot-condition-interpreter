@@ -26,7 +26,8 @@ impl ComparisonOperator {
     }
 }
 
-const INVALID_PATH_CHARS: &str = "\":*?<>|\\"; // \ is treated as invalid to distinguish regex strings.
+const INVALID_PATH_CHARS: &str = "\":*?<>|";
+const INVALID_NON_REGEX_PATH_CHARS: &str = "\":*?<>|\\"; // \ is treated as invalid to distinguish regex strings.
 const INVALID_REGEX_PATH_CHARS: &str = "\"<>";
 
 fn is_in_game_path(path: &Path) -> bool {
@@ -122,12 +123,14 @@ fn parse_checksum_args(input: CompleteStr) -> ParsingResult<(PathBuf, u32)> {
     }
 }
 
-fn parse_path(input: CompleteStr) -> ParsingResult<PathBuf> {
+fn parse_non_regex_path(input: CompleteStr) -> ParsingResult<PathBuf> {
     let (remaining_input, path) = try_parse!(
         input,
         fix_error!(
             ParsingError,
-            map!(is_not!(INVALID_PATH_CHARS), |s| PathBuf::from(s.as_ref()))
+            map!(is_not!(INVALID_NON_REGEX_PATH_CHARS), |s| PathBuf::from(
+                s.as_ref()
+            ))
         )
     );
 
@@ -179,7 +182,7 @@ impl Function {
                 alt!(
                 delimited!(
                     fix_error!(ParsingError, tag!("file(\"")),
-                    call!(parse_path),
+                    call!(parse_non_regex_path),
                     fix_error!(ParsingError, tag!("\")"))
                 ) => {
                     |path| Function::FilePath(path)
@@ -193,7 +196,7 @@ impl Function {
                 } |
                 delimited!(
                     fix_error!(ParsingError, tag!("active(\"")),
-                    call!(parse_path),
+                    call!(parse_non_regex_path),
                     fix_error!(ParsingError, tag!("\")"))
                 ) => {
                     |path| Function::ActivePath(path)
@@ -507,6 +510,22 @@ mod tests {
                 assert_eq!(Path::new("Cargo.toml"), path);
                 assert_eq!("1.2", version);
                 assert_eq!(ComparisonOperator::GreaterThanOrEqual, comparator);
+            }
+            _ => panic!("Expected a version function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_version_with_a_path_containing_backslashes() {
+        let result = Function::parse("version(\"..\\Cargo.toml\", \"1.2\", ==)".into())
+            .unwrap()
+            .1;
+
+        match result {
+            Function::Version(path, version, comparator) => {
+                assert_eq!(Path::new("..\\Cargo.toml"), path);
+                assert_eq!("1.2", version);
+                assert_eq!(ComparisonOperator::Equal, comparator);
             }
             _ => panic!("Expected a version function"),
         }
