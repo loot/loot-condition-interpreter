@@ -17,10 +17,10 @@ impl ComparisonOperator {
                 alt!(
                 tag!("==") => { |_| ComparisonOperator::Equal } |
                 tag!("!=") => { |_| ComparisonOperator::NotEqual } |
-                tag!("<") => { |_| ComparisonOperator::LessThan } |
-                tag!(">") => { |_| ComparisonOperator::GreaterThan } |
                 tag!("<=") => { |_| ComparisonOperator::LessThanOrEqual } |
-                tag!(">=") => { |_| ComparisonOperator::GreaterThanOrEqual }
+                tag!(">=") => { |_| ComparisonOperator::GreaterThanOrEqual } |
+                tag!("<") => { |_| ComparisonOperator::LessThan } |
+                tag!(">") => { |_| ComparisonOperator::GreaterThan }
             ) >> (operator)
         )
     }
@@ -427,6 +427,86 @@ mod tests {
                 assert_eq!(Path::new("Cargo.toml"), path);
                 assert_eq!("1.2", version);
                 assert_eq!(ComparisonOperator::Equal, comparator);
+            }
+            _ => panic!("Expected a version function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_version_not_equals_function() {
+        let result = Function::parse("version(\"Cargo.toml\", \"1.2\", !=)".into())
+            .unwrap()
+            .1;
+
+        match result {
+            Function::Version(path, version, comparator) => {
+                assert_eq!(Path::new("Cargo.toml"), path);
+                assert_eq!("1.2", version);
+                assert_eq!(ComparisonOperator::NotEqual, comparator);
+            }
+            _ => panic!("Expected a version function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_version_less_than_function() {
+        let result = Function::parse("version(\"Cargo.toml\", \"1.2\", <)".into())
+            .unwrap()
+            .1;
+
+        match result {
+            Function::Version(path, version, comparator) => {
+                assert_eq!(Path::new("Cargo.toml"), path);
+                assert_eq!("1.2", version);
+                assert_eq!(ComparisonOperator::LessThan, comparator);
+            }
+            _ => panic!("Expected a version function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_version_greater_than_function() {
+        let result = Function::parse("version(\"Cargo.toml\", \"1.2\", >)".into())
+            .unwrap()
+            .1;
+
+        match result {
+            Function::Version(path, version, comparator) => {
+                assert_eq!(Path::new("Cargo.toml"), path);
+                assert_eq!("1.2", version);
+                assert_eq!(ComparisonOperator::GreaterThan, comparator);
+            }
+            _ => panic!("Expected a version function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_version_less_than_or_equal_to_function() {
+        let result = Function::parse("version(\"Cargo.toml\", \"1.2\", <=)".into())
+            .unwrap()
+            .1;
+
+        match result {
+            Function::Version(path, version, comparator) => {
+                assert_eq!(Path::new("Cargo.toml"), path);
+                assert_eq!("1.2", version);
+                assert_eq!(ComparisonOperator::LessThanOrEqual, comparator);
+            }
+            _ => panic!("Expected a version function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_version_greater_than_or_equal_to_function() {
+        let result = Function::parse("version(\"Cargo.toml\", \"1.2\", >=)".into())
+            .unwrap()
+            .1;
+
+        match result {
+            Function::Version(path, version, comparator) => {
+                assert_eq!(Path::new("Cargo.toml"), path);
+                assert_eq!("1.2", version);
+                assert_eq!(ComparisonOperator::GreaterThanOrEqual, comparator);
             }
             _ => panic!("Expected a version function"),
         }
