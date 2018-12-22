@@ -38,7 +38,8 @@ pub unsafe extern "C" fn lci_condition_parse(condition: *const c_char) -> c_int 
                 LCI_OK
             }
         }
-    }).unwrap_or(LCI_ERROR_PANICKED)
+    })
+    .unwrap_or(LCI_ERROR_PANICKED)
 }
 
 #[no_mangle]
@@ -71,7 +72,8 @@ pub unsafe extern "C" fn lci_condition_eval(
                 Err(e) => handle_error(e),
             }
         }
-    }).unwrap_or(LCI_ERROR_PANICKED)
+    })
+    .unwrap_or(LCI_ERROR_PANICKED)
 }
 
 #[no_mangle]
@@ -90,5 +92,6 @@ pub unsafe extern "C" fn lci_get_error_message(message: *mut *const c_char) -> c
 
             LCI_OK
         }
-    }).unwrap_or(LCI_ERROR_PANICKED)
+    })
+    .unwrap_or(LCI_ERROR_PANICKED)
 }

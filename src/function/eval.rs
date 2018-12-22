@@ -347,7 +347,8 @@ mod tests {
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.esp"),
             &state.data_path.join("Blank.esp.ghost"),
-        ).unwrap();
+        )
+        .unwrap();
 
         let function = Function::FilePath(PathBuf::from("Blank.esp"));
 
@@ -381,7 +382,8 @@ mod tests {
         copy(
             Path::new("Cargo.toml"),
             &state.data_path.join("Cargo.toml.ghost"),
-        ).unwrap();
+        )
+        .unwrap();
 
         let function = Function::FilePath(PathBuf::from("Cargo.toml"));
 
@@ -535,7 +537,7 @@ mod tests {
 
     #[test]
     fn function_checksum_eval_should_be_false_if_the_file_checksum_does_not_equal_the_given_checksum(
-) {
+    ) {
         let function = Function::Checksum(
             PathBuf::from("tests/testing-plugins/Oblivion/Data/Blank.esm"),
             0xDEADBEEF,
@@ -565,7 +567,8 @@ mod tests {
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
             &state.data_path.join("Blank.esm.ghost"),
-        ).unwrap();
+        )
+        .unwrap();
 
         let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E2A6F);
 
@@ -581,7 +584,8 @@ mod tests {
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.bsa"),
             &state.data_path.join("Blank.bsa.ghost"),
-        ).unwrap();
+        )
+        .unwrap();
 
         let function = Function::Checksum(PathBuf::from("Blank.bsa"), 0x22AB79D9);
 
@@ -615,7 +619,8 @@ mod tests {
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
             &state.data_path.join("Blank.esm"),
-        ).unwrap();
+        )
+        .unwrap();
 
         let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E2A6F);
 
@@ -625,7 +630,8 @@ mod tests {
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.bsa"),
             &state.data_path.join("Blank.esm"),
-        ).unwrap();
+        )
+        .unwrap();
 
         let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E2A6F);
 

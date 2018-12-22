@@ -61,7 +61,8 @@ pub unsafe extern "C" fn lci_state_create(
 
             LCI_OK
         }
-    }).unwrap_or(LCI_ERROR_PANICKED)
+    })
+    .unwrap_or(LCI_ERROR_PANICKED)
 }
 
 #[no_mangle]
@@ -105,7 +106,8 @@ pub unsafe extern "C" fn lci_state_set_active_plugins(
 
             LCI_OK
         }
-    }).unwrap_or(LCI_ERROR_PANICKED)
+    })
+    .unwrap_or(LCI_ERROR_PANICKED)
 }
 
 #[no_mangle]
@@ -142,7 +144,8 @@ pub unsafe extern "C" fn lci_state_set_plugin_versions(
 
             LCI_OK
         }
-    }).unwrap_or(LCI_ERROR_PANICKED)
+    })
+    .unwrap_or(LCI_ERROR_PANICKED)
 }
 
 #[no_mangle]
@@ -178,7 +181,8 @@ pub unsafe extern "C" fn lci_state_set_crc_cache(
                 },
             }
         }
-    }).unwrap_or(LCI_ERROR_PANICKED)
+    })
+    .unwrap_or(LCI_ERROR_PANICKED)
 }
 
 #[no_mangle]
@@ -195,5 +199,6 @@ pub unsafe extern "C" fn lci_state_clear_condition_cache(state: *mut lci_state) 
                 },
             }
         }
-    }).unwrap_or(LCI_ERROR_PANICKED)
+    })
+    .unwrap_or(LCI_ERROR_PANICKED)
 }

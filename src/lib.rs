@@ -237,16 +237,17 @@ impl Condition {
             input,
             condition:
                 alt!(
-                    call!(Function::parse) => {
-                        |f| Condition::Function(f)
-                    } |
-                    preceded!(fix_error!(ParsingError, ws!(tag!("not"))), call!(Function::parse)) => {
-                        |f| Condition::InvertedFunction(f)
-                    } |
-                    delimited!(fix_error!(ParsingError, ws!(tag!("("))), call!(parse_expression), fix_error!(ParsingError, ws!(tag!(")")))) => {
-                        |e| Condition::Expression(e)
-                    }
-            ) >> (condition)
+                        call!(Function::parse) => {
+                            |f| Condition::Function(f)
+                        } |
+                        preceded!(fix_error!(ParsingError, ws!(tag!("not"))), call!(Function::parse)) => {
+                            |f| Condition::InvertedFunction(f)
+                        } |
+                        delimited!(fix_error!(ParsingError, ws!(tag!("("))), call!(parse_expression), fix_error!(ParsingError, ws!(tag!(")")))) => {
+                            |e| Condition::Expression(e)
+                        }
+                )
+                >> (condition)
         )
     }
 }
@@ -380,7 +381,7 @@ mod tests {
 
     #[test]
     fn game_type_is_plugin_filename_should_be_true_for_esl_dot_ghost_for_tes5se_tes5vr_fo4_and_fo4vr(
-) {
+    ) {
         let filename = Path::new("Blank.esl.ghost");
 
         assert!(GameType::Tes5se.is_plugin_filename(filename));
@@ -415,7 +416,7 @@ mod tests {
 
     #[test]
     fn game_type_is_plugin_filename_should_be_false_for_non_esp_esm_esl_dot_ghost_for_all_game_types(
-) {
+    ) {
         let filename = Path::new("Blank.txt.ghost");
 
         assert!(!GameType::Tes4.is_plugin_filename(filename));

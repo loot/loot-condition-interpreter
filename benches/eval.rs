@@ -45,7 +45,8 @@ fn criterion_benchmark(c: &mut Criterion) {
             GameType::Tes4,
             "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
-        ).with_active_plugins(&generate_active_plugins());
+        )
+        .with_active_plugins(&generate_active_plugins());
 
         let expression = Expression::from_str("active(\"Blank.esm\")").unwrap();
 
@@ -59,7 +60,8 @@ fn criterion_benchmark(c: &mut Criterion) {
             GameType::Tes4,
             "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
-        ).with_active_plugins(&generate_active_plugins());
+        )
+        .with_active_plugins(&generate_active_plugins());
 
         let expression = Expression::from_str("active(\"Blank.*\")").unwrap();
 
@@ -82,7 +84,8 @@ fn criterion_benchmark(c: &mut Criterion) {
             GameType::Tes4,
             "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
-        ).with_active_plugins(&generate_active_plugins());
+        )
+        .with_active_plugins(&generate_active_plugins());
 
         let expression = Expression::from_str("many_active(\"Blank.*\")").unwrap();
 
@@ -109,7 +112,8 @@ fn criterion_benchmark(c: &mut Criterion) {
             GameType::Tes4,
             "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
-        ).with_plugin_versions(&generate_plugin_versions());
+        )
+        .with_plugin_versions(&generate_plugin_versions());
 
         let expression = Expression::from_str("version(\"Blank.esm\", \"5.0\", ==)").unwrap();
 
@@ -122,7 +126,8 @@ fn criterion_benchmark(c: &mut Criterion) {
         let state = State::new(GameType::Tes4, ".".into(), ".".into());
         let expression = Expression::from_str(
             "version(\"tests/loot_api_win32/loot_api.dll\", \"0.13.8.0\", ==)",
-        ).unwrap();
+        )
+        .unwrap();
 
         b.iter(|| {
             assert!(expression.eval(&state).unwrap());

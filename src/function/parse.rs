@@ -15,13 +15,14 @@ impl ComparisonOperator {
             input,
             operator:
                 alt!(
-                tag!("==") => { |_| ComparisonOperator::Equal } |
-                tag!("!=") => { |_| ComparisonOperator::NotEqual } |
-                tag!("<=") => { |_| ComparisonOperator::LessThanOrEqual } |
-                tag!(">=") => { |_| ComparisonOperator::GreaterThanOrEqual } |
-                tag!("<") => { |_| ComparisonOperator::LessThan } |
-                tag!(">") => { |_| ComparisonOperator::GreaterThan }
-            ) >> (operator)
+                    tag!("==") => { |_| ComparisonOperator::Equal } |
+                    tag!("!=") => { |_| ComparisonOperator::NotEqual } |
+                    tag!("<=") => { |_| ComparisonOperator::LessThanOrEqual } |
+                    tag!(">=") => { |_| ComparisonOperator::GreaterThanOrEqual } |
+                    tag!("<") => { |_| ComparisonOperator::LessThan } |
+                    tag!(">") => { |_| ComparisonOperator::GreaterThan }
+                )
+                >> (operator)
         )
     }
 }
@@ -180,74 +181,75 @@ impl Function {
             input,
             function:
                 alt!(
-                delimited!(
-                    fix_error!(ParsingError, tag!("file(\"")),
-                    call!(parse_non_regex_path),
-                    fix_error!(ParsingError, tag!("\")"))
-                ) => {
-                    |path| Function::FilePath(path)
-                } |
-                delimited!(
-                    fix_error!(ParsingError, tag!("file(\"")),
-                    call!(parse_regex_path),
-                    fix_error!(ParsingError, tag!("\""))
-                ) => {
-                    |(p, r)| Function::FileRegex(p, r)
-                } |
-                delimited!(
-                    fix_error!(ParsingError, tag!("active(\"")),
-                    call!(parse_non_regex_path),
-                    fix_error!(ParsingError, tag!("\")"))
-                ) => {
-                    |path| Function::ActivePath(path)
-                } |
-                delimited!(
-                    fix_error!(ParsingError, tag!("active(\"")),
-                    flat_map!(fix_error!(ParsingError, is_not!(INVALID_REGEX_PATH_CHARS)), parse_regex),
-                    fix_error!(ParsingError, tag!("\""))
-                ) => {
-                    |r| Function::ActiveRegex(r)
-                } |
-                delimited!(
-                    fix_error!(ParsingError, tag!("many(\"")),
-                    call!(parse_regex_path),
-                    fix_error!(ParsingError, tag!("\""))
-                ) => {
-                    |(p, r)| Function::Many(p, r)
-                } |
-                delimited!(
-                    fix_error!(ParsingError, tag!("many_active(\"")),
-                    flat_map!(fix_error!(ParsingError, is_not!(INVALID_REGEX_PATH_CHARS)), parse_regex),
-                    fix_error!(ParsingError, tag!("\""))
-                ) => {
-                    |r| Function::ManyActive(r)
-                } |
-                delimited!(
-                    fix_error!(ParsingError, tag!("version(")),
-                    call!(parse_version_args),
-                    fix_error!(ParsingError, tag!(")"))
-                ) => {
-                    |(path, version, comparator)| {
-                        Function::Version(path, version, comparator)
+                    delimited!(
+                        fix_error!(ParsingError, tag!("file(\"")),
+                        call!(parse_non_regex_path),
+                        fix_error!(ParsingError, tag!("\")"))
+                    ) => {
+                        |path| Function::FilePath(path)
+                    } |
+                    delimited!(
+                        fix_error!(ParsingError, tag!("file(\"")),
+                        call!(parse_regex_path),
+                        fix_error!(ParsingError, tag!("\""))
+                    ) => {
+                        |(p, r)| Function::FileRegex(p, r)
+                    } |
+                    delimited!(
+                        fix_error!(ParsingError, tag!("active(\"")),
+                        call!(parse_non_regex_path),
+                        fix_error!(ParsingError, tag!("\")"))
+                    ) => {
+                        |path| Function::ActivePath(path)
+                    } |
+                    delimited!(
+                        fix_error!(ParsingError, tag!("active(\"")),
+                        flat_map!(fix_error!(ParsingError, is_not!(INVALID_REGEX_PATH_CHARS)), parse_regex),
+                        fix_error!(ParsingError, tag!("\""))
+                    ) => {
+                        |r| Function::ActiveRegex(r)
+                    } |
+                    delimited!(
+                        fix_error!(ParsingError, tag!("many(\"")),
+                        call!(parse_regex_path),
+                        fix_error!(ParsingError, tag!("\""))
+                    ) => {
+                        |(p, r)| Function::Many(p, r)
+                    } |
+                    delimited!(
+                        fix_error!(ParsingError, tag!("many_active(\"")),
+                        flat_map!(fix_error!(ParsingError, is_not!(INVALID_REGEX_PATH_CHARS)), parse_regex),
+                        fix_error!(ParsingError, tag!("\""))
+                    ) => {
+                        |r| Function::ManyActive(r)
+                    } |
+                    delimited!(
+                        fix_error!(ParsingError, tag!("version(")),
+                        call!(parse_version_args),
+                        fix_error!(ParsingError, tag!(")"))
+                    ) => {
+                        |(path, version, comparator)| {
+                            Function::Version(path, version, comparator)
+                        }
+                    } |
+                    delimited!(
+                        fix_error!(ParsingError, tag!("product_version(")),
+                        call!(parse_version_args),
+                        fix_error!(ParsingError, tag!(")"))
+                    ) => {
+                        |(path, version, comparator)| {
+                            Function::ProductVersion(path, version, comparator)
+                        }
+                    } |
+                    delimited!(
+                        fix_error!(ParsingError, tag!("checksum(")),
+                        call!(parse_checksum_args),
+                        fix_error!(ParsingError, tag!(")"))
+                    ) => {
+                        |(path, crc)| Function::Checksum(path, crc)
                     }
-                } |
-                delimited!(
-                    fix_error!(ParsingError, tag!("product_version(")),
-                    call!(parse_version_args),
-                    fix_error!(ParsingError, tag!(")"))
-                ) => {
-                    |(path, version, comparator)| {
-                        Function::ProductVersion(path, version, comparator)
-                    }
-                } |
-                delimited!(
-                    fix_error!(ParsingError, tag!("checksum(")),
-                    call!(parse_checksum_args),
-                    fix_error!(ParsingError, tag!(")"))
-                ) => {
-                    |(path, crc)| Function::Checksum(path, crc)
-                }
-            ) >> (function)
+                )
+                >> (function)
         )
     }
 }
