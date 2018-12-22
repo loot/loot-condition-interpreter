@@ -15,7 +15,7 @@ enum Identifier {
 
 impl<'a> From<&'a str> for Identifier {
     fn from(string: &'a str) -> Self {
-        u32::from_str_radix(string, 10)
+        u32::from_str_radix(string.trim(), 10)
             .map(Identifier::Numeric)
             .unwrap_or_else(|_| Identifier::NonNumeric(string.to_lowercase()))
     }
@@ -91,17 +91,30 @@ fn is_pre_release_separator(c: char) -> bool {
     c == '.' || is_separator(c)
 }
 
+fn split_version_string(string: &str) -> (&str, &str) {
+    // Special case for strings of the form "0, 1, 2, 3", which are used in
+    // OBSE and SKSE, and which should be interpreted as "0.1.2.3".
+    if let Ok(regex) = regex::Regex::new("\\d+, \\d+, \\d+, \\d+") {
+        if regex.is_match(string) {
+            return (string, "");
+        }
+    }
+
+    match string.find(is_separator) {
+        Some(i) if i + 1 < string.len() => (&string[..i], &string[i + 1..]),
+        Some(_) | None => (string, ""),
+    }
+}
+
 impl<'a> From<&'a str> for Version {
     fn from(string: &'a str) -> Self {
-        let trimmed = trim_metadata(string);
-
-        let (release, pre_release) = match trimmed.find(is_separator) {
-            Some(i) if i + 1 < trimmed.len() => (&trimmed[..i], &trimmed[i + 1..]),
-            Some(_) | None => (trimmed, ""),
-        };
+        let (release, pre_release) = split_version_string(trim_metadata(string));
 
         Version {
-            release_ids: release.split('.').map(Identifier::from).collect(),
+            release_ids: release
+                .split(|c| c == '.' || c == ',')
+                .map(Identifier::from)
+                .collect(),
             pre_release_ids: pre_release
                 .split_terminator(is_pre_release_separator)
                 .map(Identifier::from)
@@ -199,11 +212,9 @@ mod tests {
         fn version_read_file_version_should_error_with_path_if_path_does_not_exist() {
             let error = Version::read_file_version(Path::new("missing")).unwrap_err();
 
-            assert!(
-                error
-                    .to_string()
-                    .starts_with("An error was encountered while accessing the path \"missing\":")
-            );
+            assert!(error
+                .to_string()
+                .starts_with("An error was encountered while accessing the path \"missing\":"));
         }
 
         #[test]
@@ -241,11 +252,9 @@ mod tests {
         fn version_read_product_version_should_error_with_path_if_path_does_not_exist() {
             let error = Version::read_product_version(Path::new("missing")).unwrap_err();
 
-            assert!(
-                error
-                    .to_string()
-                    .starts_with("An error was encountered while accessing the path \"missing\":")
-            );
+            assert!(error
+                .to_string()
+                .starts_with("An error was encountered while accessing the path \"missing\":"));
         }
 
         #[test]
@@ -450,6 +459,23 @@ mod tests {
 
     mod extensions {
         use super::super::*;
+
+        #[test]
+        fn version_from_should_parse_comma_separated_versions() {
+            // OBSE and SKSE use version string fields of the form "0, 2, 0, 12".
+            let version = Version::from("0, 2, 0, 12");
+
+            assert_eq!(
+                version.release_ids,
+                vec![
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(2),
+                    Identifier::Numeric(0),
+                    Identifier::Numeric(12),
+                ]
+            );
+            assert!(version.pre_release_ids.is_empty());
+        }
 
         #[test]
         fn version_eq_should_ignore_leading_zeroes_in_major_version_numbers() {
