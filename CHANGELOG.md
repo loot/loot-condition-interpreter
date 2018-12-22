@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.0] - 2018-12-22
+
+### Added
+
+- Support for parsing version strings that match the regular expression
+  `\d+, \d+, \d+, \d+`.
+
+### Changed
+
+- An executable's product version is now read from the `ProductVersion` field in
+  the executable's `VS_VERSIONINFO` structure, not from the product version
+  fields in the `VS_FIXEDFILEINFO` structure. This is so that the version read
+  matches the version displayed by Windows' File Explorer.
+
 ## [1.1.1] - 2018-11-14
 
 ### Fixed
