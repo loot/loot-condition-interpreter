@@ -12,7 +12,6 @@ install:
   - rustfmt --version
 
 before_script:
-  - mkdir tests
   - cd tests
 
   - wget https://github.com/WrinklyNinja/testing-plugins/archive/1.4.1.tar.gz
