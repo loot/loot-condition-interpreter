@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 use std::path::Path;
 
-use pelite::image::VS_FIXEDFILEINFO;
 use pelite::resources::version_info::VersionInfo;
 use pelite::resources::FindError;
 use pelite::FileMap;
@@ -30,30 +29,30 @@ pub struct Version {
 
 impl Version {
     pub fn read_file_version(file_path: &Path) -> Result<Self, Error> {
-        Self::read_version(file_path, |f| {
-            format!(
-                "{}.{}.{}.{}",
-                f.dwFileVersion.Major,
-                f.dwFileVersion.Minor,
-                f.dwFileVersion.Patch,
-                f.dwFileVersion.Build
-            )
+        Self::read_version(file_path, |v| {
+            v.fixed()
+                .map(|f| {
+                    format!(
+                        "{}.{}.{}.{}",
+                        f.dwFileVersion.Major,
+                        f.dwFileVersion.Minor,
+                        f.dwFileVersion.Patch,
+                        f.dwFileVersion.Build
+                    )
+                })
+                .unwrap_or(String::new())
         })
     }
 
     pub fn read_product_version(file_path: &Path) -> Result<Self, Error> {
-        Self::read_version(file_path, |f| {
-            format!(
-                "{}.{}.{}.{}",
-                f.dwProductVersion.Major,
-                f.dwProductVersion.Minor,
-                f.dwProductVersion.Patch,
-                f.dwProductVersion.Build
-            )
+        Self::read_version(file_path, |v| {
+            v.query_value(&"ProductVersion")
+                .map(String::from_utf16_lossy)
+                .unwrap_or(String::new())
         })
     }
 
-    fn read_version<F: Fn(&VS_FIXEDFILEINFO) -> String>(
+    fn read_version<F: Fn(&VersionInfo) -> String>(
         file_path: &Path,
         formatter: F,
     ) -> Result<Self, Error> {
@@ -62,11 +61,7 @@ impl Version {
         let version_info = get_pe_version_info(file_map.as_ref())
             .map_err(|e| Error::PeParsingError(file_path.to_path_buf(), e.into()))?;
 
-        if let Some(fixed_file_info) = version_info.fixed() {
-            Ok(Version::from(formatter(fixed_file_info).as_str()))
-        } else {
-            Ok(Version::from(""))
-        }
+        Ok(Version::from(formatter(&version_info).as_str()))
     }
 }
 
@@ -225,12 +220,7 @@ mod tests {
 
             assert_eq!(
                 version.release_ids,
-                vec![
-                    Identifier::Numeric(18),
-                    Identifier::Numeric(5),
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(0),
-                ]
+                vec![Identifier::Numeric(18), Identifier::Numeric(5),]
             );
             assert!(version.pre_release_ids.is_empty());
         }
@@ -242,12 +232,7 @@ mod tests {
 
             assert_eq!(
                 version.release_ids,
-                vec![
-                    Identifier::Numeric(18),
-                    Identifier::Numeric(5),
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(0),
-                ]
+                vec![Identifier::Numeric(18), Identifier::Numeric(5),]
             );
             assert!(version.pre_release_ids.is_empty());
         }
