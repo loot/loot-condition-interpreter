@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.1] - 2018-01-20
+
+### Fixed
+
+- Parsing error when reading the version fields of an executable that did not
+  have any US English version info. Reading executables' version fields now uses
+  the first version info structure instead of attempting to read the US English
+  version info structure.
+
 ## [1.2.0] - 2018-12-22
 
 ### Added
