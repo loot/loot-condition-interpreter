@@ -2,10 +2,12 @@ use std::cmp::Ordering;
 use std::path::Path;
 
 use pelite::resources::version_info::VersionInfo;
-use pelite::resources::FindError;
+use pelite::resources::{FindError, Resources};
 use pelite::FileMap;
 
 use error::Error;
+
+const VERSION_INFO_RESOURCE_PATH: &str = "/16/1";
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 enum Identifier {
@@ -66,18 +68,36 @@ impl Version {
 }
 
 fn get_pe_version_info(bytes: &[u8]) -> Result<VersionInfo, FindError> {
-    use pelite;
+    let resources = get_pe_resources(bytes)?;
+
+    // Can't just call resources.version_info() because that only gets the
+    // version info for US English, which may not exist. Instead, get the first
+    // version info block, whatever the language.
+    let bytes = resources
+        .find_dir(Path::new(VERSION_INFO_RESOURCE_PATH))?
+        .entries()
+        .next()
+        .ok_or(FindError::NotFound)?
+        .entry()?
+        .data()
+        .ok_or(FindError::UnDirectory)?
+        .bytes()?;
+
+    VersionInfo::try_from(bytes).map_err(FindError::Pe)
+}
+
+fn get_pe_resources(bytes: &[u8]) -> Result<Resources, pelite::Error> {
     use pelite::pe64;
     match pe64::PeFile::from_bytes(bytes) {
         Ok(file) => {
             use pelite::pe64::Pe;
 
-            file.resources()?.version_info()
+            file.resources()
         }
         Err(pelite::Error::PeMagic) => {
             use pelite::pe32::{Pe, PeFile};
 
-            PeFile::from_bytes(bytes)?.resources()?.version_info()
+            PeFile::from_bytes(bytes)?.resources()
         }
         Err(e) => Err(e.into()),
     }
@@ -244,6 +264,25 @@ mod tests {
             assert_eq!(
                 version.release_ids,
                 vec![Identifier::Numeric(18), Identifier::Numeric(5),]
+            );
+            assert!(version.pre_release_ids.is_empty());
+        }
+
+        #[test]
+        fn version_read_file_version_should_find_non_us_english_version_strings() {
+            let tmp_dir = tempfile::tempdir().unwrap();
+            let dll_path = tmp_dir.path().join("7zxa.ru.dll");
+
+            // Set the version info block's language code to 1049 (Russian).
+            let mut dll_bytes = std::fs::read("tests/7z/7zxa.dll").unwrap();
+            dll_bytes[0x23B10] = 0x19;
+            std::fs::write(&dll_path, dll_bytes).unwrap();
+
+            let version = Version::read_product_version(&dll_path).unwrap();
+
+            assert_eq!(
+                version.release_ids,
+                vec![Identifier::Numeric(18), Identifier::Numeric(5)]
             );
             assert!(version.pre_release_ids.is_empty());
         }
