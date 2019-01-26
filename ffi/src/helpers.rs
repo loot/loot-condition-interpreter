@@ -23,6 +23,7 @@ pub fn handle_error(err: Error) -> c_int {
 fn map_error(err: &Error) -> c_int {
     match err {
         Error::ParsingIncomplete => LCI_ERROR_PARSING_ERROR,
+        Error::UnconsumedInput(_) => LCI_ERROR_PARSING_ERROR,
         Error::GenericParsingError(_, _) => LCI_ERROR_PARSING_ERROR,
         Error::CustomParsingError(_, _) => LCI_ERROR_PARSING_ERROR,
         Error::PeParsingError(_, _) => LCI_ERROR_PE_PARSING_ERROR,

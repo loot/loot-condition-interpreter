@@ -161,8 +161,14 @@ impl str::FromStr for Expression {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         parse_expression(nom::types::CompleteStr(s))
-            .map(|(_, expression)| expression)
             .map_err(Error::from)
+            .and_then(|(remaining_input, expression)| {
+                if remaining_input.is_empty() {
+                    Ok(expression)
+                } else {
+                    Err(Error::UnconsumedInput(remaining_input.to_string()))
+                }
+            })
     }
 }
 
@@ -500,6 +506,16 @@ mod tests {
                 v
             ),
         }
+    }
+
+    #[test]
+    fn expression_parse_should_error_if_it_does_not_consume_the_whole_input() {
+        let error = Expression::from_str("file(\"Cargo.toml\") foobar").unwrap_err();
+
+        assert_eq!(
+            "The parser did not consume the following input: \" foobar\"",
+            error.to_string()
+        );
     }
 
     #[test]

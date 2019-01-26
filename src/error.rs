@@ -10,6 +10,8 @@ use regex;
 #[derive(Debug)]
 pub enum Error {
     ParsingIncomplete,
+    // The string is the input that was not parsed.
+    UnconsumedInput(String),
     /// The first string is the expression parsed, the second is a tag describing the parser that failed.
     GenericParsingError(String, String),
     /// The string is the expression parsed.
@@ -41,6 +43,11 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::ParsingIncomplete => write!(f, "More input was expected by the parser"),
+            Error::UnconsumedInput(i) => write!(
+                f,
+                "The parser did not consume the following input: \"{}\"",
+                i
+            ),
             Error::GenericParsingError(i, e) => write!(
                 f,
                 "An error was encountered in the parser \"{}\" while parsing the expression \"{}\"",
