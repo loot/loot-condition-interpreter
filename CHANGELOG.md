@@ -1,6 +1,17 @@
 # Changelog
 
-## [1.2.1] - 2018-01-20
+## [1.2.2] - 2019-01-26
+
+### Fixed
+
+- `file(<regex>)`, `active(<regex>)`, `many(<regex>)` and `many_active(<regex>)`
+  did not parse the closing `)`, causing any remaining input to be skipped.
+
+## Changed
+
+- Parsing expressions will now fail if it does not consume all the given input.
+
+## [1.2.1] - 2019-01-20
 
 ### Fixed
 
