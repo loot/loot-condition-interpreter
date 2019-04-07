@@ -28,6 +28,8 @@ use function::Function;
 
 type ParsingResult<'a, T> = IResult<CompleteStr<'a>, T, ParsingError>;
 
+// GameType variants must not change order, as their integer values are used as
+// constants in the C API.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GameType {
     Tes4,
@@ -38,6 +40,7 @@ pub enum GameType {
     Fonv,
     Fo4,
     Fo4vr,
+    Tes3,
 }
 
 impl GameType {
@@ -302,7 +305,8 @@ mod tests {
     }
 
     #[test]
-    fn game_type_supports_light_master_should_be_false_for_tes4_tes5_fo3_and_fonv() {
+    fn game_type_supports_light_master_should_be_false_for_tes3_to_5_fo3_and_fonv() {
+        assert!(!GameType::Tes3.supports_light_plugins());
         assert!(!GameType::Tes4.supports_light_plugins());
         assert!(!GameType::Tes5.supports_light_plugins());
         assert!(!GameType::Fo3.supports_light_plugins());
@@ -313,6 +317,7 @@ mod tests {
     fn game_type_is_plugin_filename_should_be_true_for_esp_for_all_game_types() {
         let filename = Path::new("Blank.esp");
 
+        assert!(GameType::Tes3.is_plugin_filename(filename));
         assert!(GameType::Tes4.is_plugin_filename(filename));
         assert!(GameType::Tes5.is_plugin_filename(filename));
         assert!(GameType::Tes5se.is_plugin_filename(filename));
@@ -327,6 +332,7 @@ mod tests {
     fn game_type_is_plugin_filename_should_be_true_for_esm_for_all_game_types() {
         let filename = Path::new("Blank.esm");
 
+        assert!(GameType::Tes3.is_plugin_filename(filename));
         assert!(GameType::Tes4.is_plugin_filename(filename));
         assert!(GameType::Tes5.is_plugin_filename(filename));
         assert!(GameType::Tes5se.is_plugin_filename(filename));
@@ -348,9 +354,10 @@ mod tests {
     }
 
     #[test]
-    fn game_type_is_plugin_filename_should_be_false_for_esl_for_tes4_tes5_fo3_and_fonv() {
+    fn game_type_is_plugin_filename_should_be_false_for_esl_for_tes3_to_5_fo3_and_fonv() {
         let filename = Path::new("Blank.esl");
 
+        assert!(!GameType::Tes3.is_plugin_filename(filename));
         assert!(!GameType::Tes4.is_plugin_filename(filename));
         assert!(!GameType::Tes5.is_plugin_filename(filename));
         assert!(!GameType::Fo3.is_plugin_filename(filename));
@@ -361,6 +368,7 @@ mod tests {
     fn game_type_is_plugin_filename_should_be_true_for_esp_dot_ghost_for_all_game_types() {
         let filename = Path::new("Blank.esp.ghost");
 
+        assert!(GameType::Tes3.is_plugin_filename(filename));
         assert!(GameType::Tes4.is_plugin_filename(filename));
         assert!(GameType::Tes5.is_plugin_filename(filename));
         assert!(GameType::Tes5se.is_plugin_filename(filename));
@@ -375,6 +383,7 @@ mod tests {
     fn game_type_is_plugin_filename_should_be_true_for_esm_dot_ghost_for_all_game_types() {
         let filename = Path::new("Blank.esm.ghost");
 
+        assert!(GameType::Tes3.is_plugin_filename(filename));
         assert!(GameType::Tes4.is_plugin_filename(filename));
         assert!(GameType::Tes5.is_plugin_filename(filename));
         assert!(GameType::Tes5se.is_plugin_filename(filename));
@@ -397,9 +406,10 @@ mod tests {
     }
 
     #[test]
-    fn game_type_is_plugin_filename_should_be_false_for_esl_dot_ghost_for_tes4_tes5_fo3_and_fonv() {
+    fn game_type_is_plugin_filename_should_be_false_for_esl_dot_ghost_for_tes3_to_5_fo3_and_fonv() {
         let filename = Path::new("Blank.esl.ghost");
 
+        assert!(!GameType::Tes3.is_plugin_filename(filename));
         assert!(!GameType::Tes4.is_plugin_filename(filename));
         assert!(!GameType::Tes5.is_plugin_filename(filename));
         assert!(!GameType::Fo3.is_plugin_filename(filename));
@@ -410,6 +420,7 @@ mod tests {
     fn game_type_is_plugin_filename_should_be_false_for_non_esp_esm_esl_for_all_game_types() {
         let filename = Path::new("Blank.txt");
 
+        assert!(!GameType::Tes3.is_plugin_filename(filename));
         assert!(!GameType::Tes4.is_plugin_filename(filename));
         assert!(!GameType::Tes5.is_plugin_filename(filename));
         assert!(!GameType::Tes5se.is_plugin_filename(filename));
@@ -425,6 +436,7 @@ mod tests {
     ) {
         let filename = Path::new("Blank.txt.ghost");
 
+        assert!(!GameType::Tes3.is_plugin_filename(filename));
         assert!(!GameType::Tes4.is_plugin_filename(filename));
         assert!(!GameType::Tes5.is_plugin_filename(filename));
         assert!(!GameType::Tes5se.is_plugin_filename(filename));

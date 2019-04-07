@@ -38,6 +38,10 @@ pub static LCI_ERROR_POISONED_THREAD_LOCK: c_int = -6;
 #[no_mangle]
 pub static LCI_ERROR_TEXT_ENCODE_FAIL: c_int = -7;
 
+/// Game code for The Elder Scrolls III: Morrowind.
+#[no_mangle]
+pub static LCI_GAME_TES3: c_int = GameType::Tes3 as c_int;
+
 /// Game code for The Elder Scrolls IV: Oblivion.
 #[no_mangle]
 pub static LCI_GAME_TES4: c_int = GameType::Tes4 as c_int;
@@ -76,6 +80,7 @@ mod tests {
 
     #[test]
     fn game_constants_should_have_expected_integer_values() {
+        assert_eq!(8, LCI_GAME_TES3);
         assert_eq!(0, LCI_GAME_TES4);
         assert_eq!(1, LCI_GAME_TES5);
         assert_eq!(2, LCI_GAME_TES5SE);

@@ -33,6 +33,7 @@ fn map_error(err: &Error) -> c_int {
 
 pub fn map_game_type(game_type: c_int) -> Result<GameType, c_int> {
     match game_type {
+        x if x == LCI_GAME_TES3 => Ok(GameType::Tes3),
         x if x == LCI_GAME_TES4 => Ok(GameType::Tes4),
         x if x == LCI_GAME_TES5 => Ok(GameType::Tes5),
         x if x == LCI_GAME_TES5SE => Ok(GameType::Tes5se),

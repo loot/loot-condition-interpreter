@@ -12,6 +12,7 @@
 
 void test_game_id_values() {
   printf("testing LCI_GAME_* values...\n");
+  assert(LCI_GAME_TES3 == 8);
   assert(LCI_GAME_TES4 == 0);
   assert(LCI_GAME_TES5 == 1);
   assert(LCI_GAME_TES5SE == 2);
