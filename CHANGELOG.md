@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.0] - 2019-04-07
+
+### Added
+
+- Support for Morrowind using ``GameType::tes3``.
+
 ## [1.2.2] - 2019-01-26
 
 ### Fixed
