@@ -42,7 +42,7 @@ impl Version {
                         f.dwFileVersion.Build
                     )
                 })
-                .unwrap_or(String::new())
+                .unwrap_or_else(String::new)
         })
     }
 
@@ -50,7 +50,7 @@ impl Version {
         Self::read_version(file_path, |v| {
             v.query_value(&"ProductVersion")
                 .map(String::from_utf16_lossy)
-                .unwrap_or(String::new())
+                .unwrap_or_else(String::new)
         })
     }
 
@@ -99,7 +99,7 @@ fn get_pe_resources(bytes: &[u8]) -> Result<Resources, pelite::Error> {
 
             PeFile::from_bytes(bytes)?.resources()
         }
-        Err(e) => Err(e.into()),
+        Err(e) => Err(e),
     }
 }
 

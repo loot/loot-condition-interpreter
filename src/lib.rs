@@ -109,7 +109,7 @@ impl State {
 
     pub fn set_active_plugins<T: AsRef<str>>(&mut self, active_plugins: &[T]) {
         self.active_plugins = active_plugins
-            .into_iter()
+            .iter()
             .map(|s| s.as_ref().to_lowercase())
             .collect();
     }
