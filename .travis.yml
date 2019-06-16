@@ -4,12 +4,19 @@ addons:
   apt:
     packages:
       - p7zip-full
+      # tarpaulin dependencies
+      - libssl-dev
 
 cache: cargo
 
 install:
   - rustup component add rustfmt-preview
   - rustfmt --version
+  - |
+    if [[ $(cargo tarpaulin --version) != *0.8.4 ]]
+    then
+      cargo install --force cargo-tarpaulin
+    fi
 
 before_script:
   - cd tests
@@ -34,6 +41,10 @@ before_script:
 script:
   - cargo fmt --all -- --check
   - cargo test --all --all-features
+
+  # Running cbindgen through tarpaulin fails due to an unexpected "metadata"
+  # argument when generating the C header file, so skip the ffi-headers feature.
+  - cargo tarpaulin --all --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
 
   # Need to rebuild the FFI wrapper so that its binary is given a filename
   # without a hash.
