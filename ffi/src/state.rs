@@ -3,7 +3,7 @@ use std::panic::catch_unwind;
 use std::path::PathBuf;
 use std::sync::RwLock;
 
-use libc::{c_char, c_int, size_t, uint32_t};
+use libc::{c_char, c_int, size_t};
 use loot_condition_interpreter::State;
 
 use constants::*;
@@ -26,7 +26,7 @@ pub struct plugin_version {
 #[repr(C)]
 pub struct plugin_crc {
     pub plugin_name: *const c_char,
-    pub crc: uint32_t,
+    pub crc: u32,
 }
 
 #[no_mangle]
