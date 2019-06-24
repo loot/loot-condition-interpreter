@@ -1,29 +1,30 @@
 use std::path::{Component, Path, PathBuf};
 use std::str;
 
-use nom::types::CompleteStr;
-use nom::{hex_digit, Context, Err, ErrorKind, IResult};
+use nom::branch::alt;
+use nom::bytes::complete::{is_not, tag};
+use nom::character::complete::hex_digit1;
+use nom::combinator::{map, map_parser, value};
+use nom::sequence::{delimited, tuple};
+use nom::{Err, IResult};
 use regex::{Regex, RegexBuilder};
 
 use super::{ComparisonOperator, Function};
+use crate::{map_err, whitespace};
+use error::ParsingErrorKind;
 use ParsingError;
 use ParsingResult;
 
 impl ComparisonOperator {
-    pub fn parse(input: CompleteStr) -> IResult<CompleteStr, ComparisonOperator> {
-        do_parse!(
-            input,
-            operator:
-                alt!(
-                    tag!("==") => { |_| ComparisonOperator::Equal } |
-                    tag!("!=") => { |_| ComparisonOperator::NotEqual } |
-                    tag!("<=") => { |_| ComparisonOperator::LessThanOrEqual } |
-                    tag!(">=") => { |_| ComparisonOperator::GreaterThanOrEqual } |
-                    tag!("<") => { |_| ComparisonOperator::LessThan } |
-                    tag!(">") => { |_| ComparisonOperator::GreaterThan }
-                )
-                >> (operator)
-        )
+    pub fn parse(input: &str) -> IResult<&str, ComparisonOperator> {
+        alt((
+            value(ComparisonOperator::Equal, tag("==")),
+            value(ComparisonOperator::NotEqual, tag("!=")),
+            value(ComparisonOperator::LessThanOrEqual, tag("<=")),
+            value(ComparisonOperator::GreaterThanOrEqual, tag(">=")),
+            value(ComparisonOperator::LessThan, tag("<")),
+            value(ComparisonOperator::GreaterThan, tag(">")),
+        ))(input)
     }
 }
 
@@ -45,46 +46,40 @@ fn is_in_game_path(path: &Path) -> bool {
 
     true
 }
-
-fn parse_regex(input: CompleteStr) -> ParsingResult<Regex> {
-    RegexBuilder::new(input.as_ref())
+fn parse_regex(input: &str) -> ParsingResult<Regex> {
+    RegexBuilder::new(input)
         .case_insensitive(true)
         .build()
-        .map(|r| (CompleteStr(""), r))
-        .map_err(|e| {
-            Err::Failure(Context::Code(
-                input,
-                ErrorKind::Custom(ParsingError::from(e)),
-            ))
-        })
+        .map(|r| ("", r))
+        .map_err(|e| Err::Failure(ParsingErrorKind::from(e).at(input)))
 }
 
-fn not_in_game_directory(input: CompleteStr, path: PathBuf) -> Err<CompleteStr, ParsingError> {
-    Err::Failure(Context::Code(
-        input,
-        ErrorKind::Custom(ParsingError::PathIsNotInGameDirectory(path)),
-    ))
+fn not_in_game_directory(input: &str, path: PathBuf) -> Err<ParsingError<&str>> {
+    Err::Failure(ParsingErrorKind::PathIsNotInGameDirectory(path).at(input))
 }
 
-fn parse_version_args(input: CompleteStr) -> ParsingResult<(PathBuf, String, ComparisonOperator)> {
-    let (remaining_input, (path, version, comparator)) = try_parse!(
-        input,
-        fix_error!(
-            ParsingError,
-            do_parse!(
-                tag!("\"")
-                    >> path: is_not!(INVALID_PATH_CHARS)
-                    >> tag!("\"")
-                    >> ws!(tag!(","))
-                    >> tag!("\"")
-                    >> version: is_not!("\"")
-                    >> tag!("\"")
-                    >> ws!(tag!(","))
-                    >> operator: call!(ComparisonOperator::parse)
-                    >> (PathBuf::from(path.as_ref()), version.to_string(), operator)
-            )
-        )
+fn parse_path(input: &str) -> IResult<&str, PathBuf> {
+    map(
+        delimited(tag("\""), is_not(INVALID_PATH_CHARS), tag("\"")),
+        PathBuf::from,
+    )(input)
+}
+
+fn parse_version_args(input: &str) -> ParsingResult<(PathBuf, String, ComparisonOperator)> {
+    let version_parser = map(
+        delimited(tag("\""), is_not("\""), tag("\"")),
+        |version: &str| version.to_string(),
     );
+
+    let parser = tuple((
+        parse_path,
+        whitespace(tag(",")),
+        version_parser,
+        whitespace(tag(",")),
+        ComparisonOperator::parse,
+    ));
+
+    let (remaining_input, (path, _, version, _, comparator)) = map_err(parser)(input)?;
 
     if is_in_game_path(&path) {
         Ok((remaining_input, (path, version, comparator)))
@@ -93,29 +88,20 @@ fn parse_version_args(input: CompleteStr) -> ParsingResult<(PathBuf, String, Com
     }
 }
 
-fn parse_crc(input: CompleteStr) -> ParsingResult<u32> {
-    u32::from_str_radix(input.as_ref(), 16)
-        .map(|c| (CompleteStr(""), c))
-        .map_err(|e| {
-            Err::Failure(Context::Code(
-                input,
-                ErrorKind::Custom(ParsingError::from(e)),
-            ))
-        })
+fn parse_crc(input: &str) -> ParsingResult<u32> {
+    u32::from_str_radix(input, 16)
+        .map(|c| ("", c))
+        .map_err(|e| Err::Failure(ParsingErrorKind::from(e).at(input)))
 }
 
-fn parse_checksum_args(input: CompleteStr) -> ParsingResult<(PathBuf, u32)> {
-    let (remaining_input, (path, crc)) = try_parse!(
-        input,
-        do_parse!(
-            fix_error!(ParsingError, tag!("\""))
-                >> path: fix_error!(ParsingError, is_not!(INVALID_PATH_CHARS))
-                >> fix_error!(ParsingError, tag!("\""))
-                >> fix_error!(ParsingError, ws!(tag!(",")))
-                >> crc: flat_map!(fix_error!(ParsingError, hex_digit), parse_crc)
-                >> (PathBuf::from(path.as_ref()), crc)
-        )
-    );
+fn parse_checksum_args(input: &str) -> ParsingResult<(PathBuf, u32)> {
+    let parser = tuple((
+        map_err(parse_path),
+        map_err(whitespace(tag(","))),
+        map_parser(hex_digit1, parse_crc),
+    ));
+
+    let (remaining_input, (path, _, crc)) = parser(input)?;
 
     if is_in_game_path(&path) {
         Ok((remaining_input, (path, crc)))
@@ -124,16 +110,10 @@ fn parse_checksum_args(input: CompleteStr) -> ParsingResult<(PathBuf, u32)> {
     }
 }
 
-fn parse_non_regex_path(input: CompleteStr) -> ParsingResult<PathBuf> {
-    let (remaining_input, path) = try_parse!(
-        input,
-        fix_error!(
-            ParsingError,
-            map!(is_not!(INVALID_NON_REGEX_PATH_CHARS), |s| PathBuf::from(
-                s.as_ref()
-            ))
-        )
-    );
+fn parse_non_regex_path(input: &str) -> ParsingResult<PathBuf> {
+    let (remaining_input, path) = map(is_not(INVALID_NON_REGEX_PATH_CHARS), |path: &str| {
+        PathBuf::from(path)
+    })(input)?;
 
     if is_in_game_path(&path) {
         Ok((remaining_input, path))
@@ -144,19 +124,13 @@ fn parse_non_regex_path(input: CompleteStr) -> ParsingResult<PathBuf> {
 
 /// Parse a string that is a path where the last component is a regex string
 /// that may contain characters that are invalid in paths but valid in regex.
-fn parse_regex_path(input: CompleteStr) -> ParsingResult<(PathBuf, Regex)> {
-    let (remaining_input, string) = try_parse!(
-        input,
-        fix_error!(ParsingError, is_not!(INVALID_REGEX_PATH_CHARS))
-    );
+fn parse_regex_path(input: &str) -> ParsingResult<(PathBuf, Regex)> {
+    let (remaining_input, string) = is_not(INVALID_REGEX_PATH_CHARS)(input)?;
 
     if string.ends_with('/') {
-        return Err(Err::Failure(Context::Code(
-            input,
-            ErrorKind::Custom(ParsingError::PathEndsInADirectorySeparator(
-                string.as_ref().into(),
-            )),
-        )));
+        return Err(Err::Failure(
+            ParsingErrorKind::PathEndsInADirectorySeparator(string.into()).at(input),
+        ));
     }
 
     let (parent_path_slice, regex_slice) = string
@@ -170,87 +144,91 @@ fn parse_regex_path(input: CompleteStr) -> ParsingResult<(PathBuf, Regex)> {
         return Err(not_in_game_directory(input, parent_path));
     }
 
-    let regex = parse_regex(CompleteStr(regex_slice))?.1;
+    let regex = parse_regex(regex_slice)?.1;
 
     Ok((remaining_input, (parent_path, regex)))
 }
 
+fn parse_regex_filename(input: &str) -> ParsingResult<Regex> {
+    map_parser(is_not(INVALID_REGEX_PATH_CHARS), parse_regex)(input)
+}
+
 impl Function {
-    pub fn parse(input: CompleteStr) -> ParsingResult<Function> {
-        do_parse!(
-            input,
-            function:
-                alt!(
-                    delimited!(
-                        fix_error!(ParsingError, tag!("file(\"")),
-                        call!(parse_non_regex_path),
-                        fix_error!(ParsingError, tag!("\")"))
-                    ) => {
-                        |path| Function::FilePath(path)
-                    } |
-                    delimited!(
-                        fix_error!(ParsingError, tag!("file(\"")),
-                        call!(parse_regex_path),
-                        fix_error!(ParsingError, tag!("\")"))
-                    ) => {
-                        |(p, r)| Function::FileRegex(p, r)
-                    } |
-                    delimited!(
-                        fix_error!(ParsingError, tag!("active(\"")),
-                        call!(parse_non_regex_path),
-                        fix_error!(ParsingError, tag!("\")"))
-                    ) => {
-                        |path| Function::ActivePath(path)
-                    } |
-                    delimited!(
-                        fix_error!(ParsingError, tag!("active(\"")),
-                        flat_map!(fix_error!(ParsingError, is_not!(INVALID_REGEX_PATH_CHARS)), parse_regex),
-                        fix_error!(ParsingError, tag!("\")"))
-                    ) => {
-                        |r| Function::ActiveRegex(r)
-                    } |
-                    delimited!(
-                        fix_error!(ParsingError, tag!("many(\"")),
-                        call!(parse_regex_path),
-                        fix_error!(ParsingError, tag!("\")"))
-                    ) => {
-                        |(p, r)| Function::Many(p, r)
-                    } |
-                    delimited!(
-                        fix_error!(ParsingError, tag!("many_active(\"")),
-                        flat_map!(fix_error!(ParsingError, is_not!(INVALID_REGEX_PATH_CHARS)), parse_regex),
-                        fix_error!(ParsingError, tag!("\")"))
-                    ) => {
-                        |r| Function::ManyActive(r)
-                    } |
-                    delimited!(
-                        fix_error!(ParsingError, tag!("version(")),
-                        call!(parse_version_args),
-                        fix_error!(ParsingError, tag!(")"))
-                    ) => {
-                        |(path, version, comparator)| {
-                            Function::Version(path, version, comparator)
-                        }
-                    } |
-                    delimited!(
-                        fix_error!(ParsingError, tag!("product_version(")),
-                        call!(parse_version_args),
-                        fix_error!(ParsingError, tag!(")"))
-                    ) => {
-                        |(path, version, comparator)| {
-                            Function::ProductVersion(path, version, comparator)
-                        }
-                    } |
-                    delimited!(
-                        fix_error!(ParsingError, tag!("checksum(")),
-                        call!(parse_checksum_args),
-                        fix_error!(ParsingError, tag!(")"))
-                    ) => {
-                        |(path, crc)| Function::Checksum(path, crc)
-                    }
-                )
-                >> (function)
-        )
+    pub fn parse(input: &str) -> ParsingResult<Function> {
+        alt((
+            map(
+                delimited(
+                    map_err(tag("file(\"")),
+                    parse_non_regex_path,
+                    map_err(tag("\")")),
+                ),
+                Function::FilePath,
+            ),
+            map(
+                delimited(
+                    map_err(tag("file(\"")),
+                    parse_regex_path,
+                    map_err(tag("\")")),
+                ),
+                |(path, regex)| Function::FileRegex(path, regex),
+            ),
+            map(
+                delimited(
+                    map_err(tag("active(\"")),
+                    parse_non_regex_path,
+                    map_err(tag("\")")),
+                ),
+                Function::ActivePath,
+            ),
+            map(
+                delimited(
+                    map_err(tag("active(\"")),
+                    parse_regex_filename,
+                    map_err(tag("\")")),
+                ),
+                Function::ActiveRegex,
+            ),
+            map(
+                delimited(
+                    map_err(tag("many(\"")),
+                    parse_regex_path,
+                    map_err(tag("\")")),
+                ),
+                |(path, regex)| Function::Many(path, regex),
+            ),
+            map(
+                delimited(
+                    map_err(tag("many_active(\"")),
+                    parse_regex_filename,
+                    map_err(tag("\")")),
+                ),
+                Function::ManyActive,
+            ),
+            map(
+                delimited(
+                    map_err(tag("version(")),
+                    parse_version_args,
+                    map_err(tag(")")),
+                ),
+                |(path, version, comparator)| Function::Version(path, version, comparator),
+            ),
+            map(
+                delimited(
+                    map_err(tag("product_version(")),
+                    parse_version_args,
+                    map_err(tag(")")),
+                ),
+                |(path, version, comparator)| Function::ProductVersion(path, version, comparator),
+            ),
+            map(
+                delimited(
+                    map_err(tag("checksum(")),
+                    parse_checksum_args,
+                    map_err(tag(")")),
+                ),
+                |(path, crc)| Function::Checksum(path, crc),
+            ),
+        ))(input)
     }
 }
 

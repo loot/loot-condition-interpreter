@@ -4,7 +4,8 @@ use std::io;
 use std::num::ParseIntError;
 use std::path::PathBuf;
 
-use nom::{Context, Err, ErrorKind};
+use nom::error::ErrorKind;
+use nom::Err;
 use regex;
 
 #[derive(Debug)]
@@ -12,10 +13,8 @@ pub enum Error {
     ParsingIncomplete,
     // The string is the input that was not parsed.
     UnconsumedInput(String),
-    /// The first string is the expression parsed, the second is a tag describing the parser that failed.
-    GenericParsingError(String, String),
-    /// The string is the expression parsed.
-    CustomParsingError(String, ParsingError),
+    /// The string is the input at which the error was encountered.
+    ParsingError(String, ParsingErrorKind),
     PeParsingError(PathBuf, Box<error::Error>),
     IoError(PathBuf, io::Error),
 }
@@ -24,17 +23,11 @@ fn escape<I: fmt::Display>(input: I) -> String {
     input.to_string().replace("\"", "\\\"")
 }
 
-impl<I: fmt::Debug + fmt::Display> From<Err<I, ParsingError>> for Error {
-    fn from(error: Err<I, ParsingError>) -> Self {
+impl<I: fmt::Debug + fmt::Display> From<Err<ParsingError<I>>> for Error {
+    fn from(error: Err<ParsingError<I>>) -> Self {
         match error {
             Err::Incomplete(_) => Error::ParsingIncomplete,
-            Err::Error(Context::Code(i, ErrorKind::Custom(e)))
-            | Err::Failure(Context::Code(i, ErrorKind::Custom(e))) => {
-                Error::CustomParsingError(escape(i), e)
-            }
-            Err::Error(Context::Code(i, e)) | Err::Failure(Context::Code(i, e)) => {
-                Error::GenericParsingError(escape(i), format!("{:?}", e))
-            }
+            Err::Error(e) | Err::Failure(e) => Error::ParsingError(escape(e.input), e.kind),
         }
     }
 }
@@ -48,12 +41,7 @@ impl fmt::Display for Error {
                 "The parser did not consume the following input: \"{}\"",
                 i
             ),
-            Error::GenericParsingError(i, e) => write!(
-                f,
-                "An error was encountered in the parser \"{}\" while parsing the expression \"{}\"",
-                e, i
-            ),
-            Error::CustomParsingError(i, e) => write!(
+            Error::ParsingError(i, e) => write!(
                 f,
                 "An error was encountered while parsing the expression \"{}\": {}",
                 i, e
@@ -77,7 +65,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn cause(&self) -> Option<&error::Error> {
         match self {
-            Error::CustomParsingError(_, e) => Some(e),
+            Error::ParsingError(_, e) => Some(e),
             Error::PeParsingError(_, e) => Some(e.as_ref()),
             Error::IoError(_, e) => Some(e),
             _ => None,
@@ -86,58 +74,100 @@ impl error::Error for Error {
 }
 
 #[derive(Debug)]
-pub enum ParsingError {
+pub struct ParsingError<I: fmt::Debug + fmt::Display> {
+    input: I,
+    kind: ParsingErrorKind,
+}
+
+impl<I: fmt::Debug + fmt::Display> From<(I, ErrorKind)> for ParsingError<I> {
+    fn from((input, kind): (I, ErrorKind)) -> Self {
+        use nom::error::ParseError;
+        ParsingError::from_error_kind(input, kind)
+    }
+}
+
+impl<I: fmt::Debug + fmt::Display> fmt::Display for ParsingError<I> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "An error was encountered while parsing the expression \"{}\": {}",
+            self.input, self.kind
+        )
+    }
+}
+
+impl<I: fmt::Debug + fmt::Display> error::Error for ParsingError<I> {
+    fn cause(&self) -> Option<&error::Error> {
+        self.kind.cause()
+    }
+}
+
+impl<I: fmt::Debug + fmt::Display> nom::error::ParseError<I> for ParsingError<I> {
+    fn from_error_kind(input: I, kind: ErrorKind) -> Self {
+        ParsingError {
+            input,
+            kind: ParsingErrorKind::GenericParserError(kind.description().to_string()),
+        }
+    }
+
+    fn append(_: I, _: ErrorKind, other: Self) -> Self {
+        other
+    }
+}
+
+#[derive(Debug)]
+pub enum ParsingErrorKind {
     InvalidRegexSyntax(String),
     InvalidRegexUnknown,
     InvalidCrc(ParseIntError),
     PathEndsInADirectorySeparator(PathBuf),
     PathIsNotInGameDirectory(PathBuf),
-    Unknown(u32),
+    GenericParserError(String),
 }
 
-impl From<regex::Error> for ParsingError {
+impl ParsingErrorKind {
+    pub fn at<I: fmt::Debug + fmt::Display>(self, input: I) -> ParsingError<I> {
+        ParsingError { input, kind: self }
+    }
+}
+
+impl From<regex::Error> for ParsingErrorKind {
     fn from(error: regex::Error) -> Self {
         match error {
-            regex::Error::Syntax(s) => ParsingError::InvalidRegexSyntax(s),
-            _ => ParsingError::InvalidRegexUnknown,
+            regex::Error::Syntax(s) => ParsingErrorKind::InvalidRegexSyntax(s),
+            _ => ParsingErrorKind::InvalidRegexUnknown,
         }
     }
 }
 
-impl From<ParseIntError> for ParsingError {
+impl From<ParseIntError> for ParsingErrorKind {
     fn from(error: ParseIntError) -> Self {
-        ParsingError::InvalidCrc(error)
+        ParsingErrorKind::InvalidCrc(error)
     }
 }
 
-impl From<u32> for ParsingError {
-    fn from(error: u32) -> Self {
-        ParsingError::Unknown(error)
-    }
-}
-
-impl fmt::Display for ParsingError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ParsingError::InvalidRegexSyntax(s) => write!(f, "{}", s),
-            ParsingError::InvalidRegexUnknown => write!(f, "Unknown regex parsing error"),
-            ParsingError::InvalidCrc(e) => e.fmt(f),
-            ParsingError::PathEndsInADirectorySeparator(p) => {
-                write!(f, "\"{}\" ends in a directory separator", p.display())
-            }
-            ParsingError::PathIsNotInGameDirectory(p) => {
-                write!(f, "\"{}\" is not in the game directory", p.display())
-            }
-            ParsingError::Unknown(e) => write!(f, "Unknown error code {}", e),
-        }
-    }
-}
-
-impl error::Error for ParsingError {
+impl error::Error for ParsingErrorKind {
     fn cause(&self) -> Option<&error::Error> {
         match self {
-            ParsingError::InvalidCrc(e) => Some(e),
+            ParsingErrorKind::InvalidCrc(e) => Some(e),
             _ => None,
+        }
+    }
+}
+
+impl fmt::Display for ParsingErrorKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ParsingErrorKind::InvalidRegexSyntax(s) => write!(f, "{}", s),
+            ParsingErrorKind::InvalidRegexUnknown => write!(f, "Unknown regex parsing error"),
+            ParsingErrorKind::InvalidCrc(e) => e.fmt(f),
+            ParsingErrorKind::PathEndsInADirectorySeparator(p) => {
+                write!(f, "\"{}\" ends in a directory separator", p.display())
+            }
+            ParsingErrorKind::PathIsNotInGameDirectory(p) => {
+                write!(f, "\"{}\" is not in the game directory", p.display())
+            }
+            ParsingErrorKind::GenericParserError(e) => write!(f, "Error in parser: {}", e),
         }
     }
 }

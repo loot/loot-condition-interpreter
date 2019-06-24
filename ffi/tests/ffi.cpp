@@ -47,7 +47,7 @@ void test_lci_get_error_message() {
     return_code = lci_get_error_message(&message);
     assert(return_code == LCI_OK);
     assert(message != nullptr);
-    assert(strcmp(message, "An error was encountered in the parser \"SeparatedList\" while parsing the expression \"file(\\\"Blank.\"") == 0);
+    assert(strcmp(message, "An error was encountered while parsing the expression \"file(\\\"Blank.\": Error in parser: Separated list") == 0);
 }
 
 void test_lci_state_create() {

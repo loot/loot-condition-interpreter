@@ -1,5 +1,4 @@
 extern crate crc;
-#[macro_use]
 extern crate nom;
 extern crate pelite;
 extern crate regex;
@@ -20,13 +19,19 @@ use std::path::{Path, PathBuf};
 use std::str;
 use std::sync::{PoisonError, RwLock, RwLockWriteGuard};
 
-use nom::types::CompleteStr;
+use nom::branch::alt;
+use nom::bytes::complete::tag;
+use nom::character::complete::space0;
+use nom::combinator::map;
+use nom::multi::separated_list;
+use nom::sequence::{delimited, preceded};
 use nom::IResult;
 
-pub use error::{Error, ParsingError};
+use error::ParsingError;
+pub use error::{Error, ParsingErrorKind};
 use function::Function;
 
-type ParsingResult<'a, T> = IResult<CompleteStr<'a>, T, ParsingError>;
+type ParsingResult<'a, T> = IResult<&'a str, T, ParsingError<&'a str>>;
 
 // GameType variants must not change order, as their integer values are used as
 // constants in the C API.
@@ -163,7 +168,7 @@ impl str::FromStr for Expression {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_expression(nom::types::CompleteStr(s))
+        parse_expression(s)
             .map_err(Error::from)
             .and_then(|(remaining_input, expression)| {
                 if remaining_input.is_empty() {
@@ -175,16 +180,11 @@ impl str::FromStr for Expression {
     }
 }
 
-fn parse_expression(input: nom::types::CompleteStr) -> ParsingResult<Expression> {
-    do_parse!(
-        input,
-        compound_conditions:
-            separated_list!(
-                fix_error!(ParsingError, ws!(tag!("or"))),
-                CompoundCondition::parse
-            )
-            >> (Expression(compound_conditions))
-    )
+fn parse_expression(input: &str) -> ParsingResult<Expression> {
+    map(
+        separated_list(map_err(whitespace(tag("or"))), CompoundCondition::parse),
+        Expression,
+    )(input)
 }
 
 impl fmt::Display for Expression {
@@ -208,13 +208,11 @@ impl CompoundCondition {
         Ok(true)
     }
 
-    fn parse(input: nom::types::CompleteStr) -> ParsingResult<CompoundCondition> {
-        do_parse!(
-            input,
-            conditions:
-                separated_list!(fix_error!(ParsingError, ws!(tag!("and"))), Condition::parse)
-                >> (CompoundCondition(conditions))
-        )
+    fn parse(input: &str) -> ParsingResult<CompoundCondition> {
+        map(
+            separated_list(map_err(whitespace(tag("and"))), Condition::parse),
+            CompoundCondition,
+        )(input)
     }
 }
 
@@ -241,23 +239,22 @@ impl Condition {
         }
     }
 
-    fn parse(input: nom::types::CompleteStr) -> ParsingResult<Condition> {
-        do_parse!(
-            input,
-            condition:
-                alt!(
-                        call!(Function::parse) => {
-                            |f| Condition::Function(f)
-                        } |
-                        preceded!(fix_error!(ParsingError, ws!(tag!("not"))), call!(Function::parse)) => {
-                            |f| Condition::InvertedFunction(f)
-                        } |
-                        delimited!(fix_error!(ParsingError, ws!(tag!("("))), call!(parse_expression), fix_error!(ParsingError, ws!(tag!(")")))) => {
-                            |e| Condition::Expression(e)
-                        }
-                )
-                >> (condition)
-        )
+    fn parse(input: &str) -> ParsingResult<Condition> {
+        alt((
+            map(Function::parse, Condition::Function),
+            map(
+                preceded(map_err(whitespace(tag("not"))), Function::parse),
+                Condition::InvertedFunction,
+            ),
+            map(
+                delimited(
+                    map_err(whitespace(tag("("))),
+                    parse_expression,
+                    map_err(whitespace(tag(")"))),
+                ),
+                Condition::Expression,
+            ),
+        ))(input)
     }
 }
 
@@ -270,6 +267,18 @@ impl fmt::Display for Condition {
             Expression(e) => write!(f, "({})", e),
         }
     }
+}
+
+fn map_err<'a, O>(
+    parser: impl Fn(&'a str) -> IResult<&'a str, O, (&'a str, nom::error::ErrorKind)>,
+) -> impl Fn(&'a str) -> ParsingResult<'a, O> {
+    move |i| parser(i).map_err(nom::Err::convert)
+}
+
+fn whitespace<'a, O>(
+    parser: impl Fn(&'a str) -> IResult<&'a str, O>,
+) -> impl Fn(&'a str) -> IResult<&'a str, O> {
+    delimited(space0, parser, space0)
 }
 
 #[cfg(test)]
@@ -452,7 +461,7 @@ mod tests {
         let error = Expression::from_str("file(\"Carg").unwrap_err();
 
         assert_eq!(
-            "An error was encountered in the parser \"SeparatedList\" while parsing the expression \"file(\\\"Carg\"",
+            "An error was encountered while parsing the expression \"file(\\\"Carg\": Error in parser: Separated list",
             error.to_string()
         );
     }
