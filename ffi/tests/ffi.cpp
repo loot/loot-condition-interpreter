@@ -12,15 +12,15 @@
 
 void test_game_id_values() {
   printf("testing LCI_GAME_* values...\n");
-  assert(LCI_GAME_TES3 == 8);
-  assert(LCI_GAME_TES4 == 0);
-  assert(LCI_GAME_TES5 == 1);
-  assert(LCI_GAME_TES5SE == 2);
-  assert(LCI_GAME_TES5VR == 3);
-  assert(LCI_GAME_FO3 == 4);
-  assert(LCI_GAME_FNV == 5);
-  assert(LCI_GAME_FO4 == 6);
-  assert(LCI_GAME_FO4VR == 7);
+  assert(LCI_GAME_MORROWIND == 8);
+  assert(LCI_GAME_OBLIVION == 0);
+  assert(LCI_GAME_SKYRIM == 1);
+  assert(LCI_GAME_SKYRIM_SE == 2);
+  assert(LCI_GAME_SKYRIM_VR == 3);
+  assert(LCI_GAME_FALLOUT_3 == 4);
+  assert(LCI_GAME_FALLOUT_NV == 5);
+  assert(LCI_GAME_FALLOUT_4 == 6);
+  assert(LCI_GAME_FALLOUT_4_VR == 7);
 }
 
 void test_lci_condition_parse() {
@@ -54,7 +54,7 @@ void test_lci_state_create() {
     printf("testing lci_state_create()...\n");
 
     lci_state * state = nullptr;
-    int return_code = lci_state_create(&state, LCI_GAME_TES4, ".", ".");
+    int return_code = lci_state_create(&state, LCI_GAME_OBLIVION, ".", ".");
 
     assert(return_code == LCI_OK);
     assert(state != nullptr);
@@ -66,7 +66,7 @@ void test_lci_condition_eval() {
     printf("testing lci_condition_eval()...\n");
 
     lci_state * state = nullptr;
-    int return_code = lci_state_create(&state, LCI_GAME_TES4, "../../tests/testing-plugins/Oblivion/Data", ".");
+    int return_code = lci_state_create(&state, LCI_GAME_OBLIVION, "../../tests/testing-plugins/Oblivion/Data", ".");
 
     assert(return_code == LCI_OK);
     assert(state != nullptr);
@@ -86,7 +86,7 @@ void test_lci_state_set_active_plugins() {
     printf("testing lci_state_set_active_plugins()...\n");
 
     lci_state * state = nullptr;
-    int return_code = lci_state_create(&state, LCI_GAME_TES4, "../../tests/testing-plugins/Oblivion/Data", ".");
+    int return_code = lci_state_create(&state, LCI_GAME_OBLIVION, "../../tests/testing-plugins/Oblivion/Data", ".");
 
     assert(return_code == LCI_OK);
     assert(state != nullptr);
@@ -118,7 +118,7 @@ void test_lci_state_set_plugin_versions() {
     printf("testing lci_state_set_plugin_versions()...\n");
 
     lci_state * state = nullptr;
-    int return_code = lci_state_create(&state, LCI_GAME_TES4, "../../tests/testing-plugins/Oblivion/Data", ".");
+    int return_code = lci_state_create(&state, LCI_GAME_OBLIVION, "../../tests/testing-plugins/Oblivion/Data", ".");
 
     assert(return_code == LCI_OK);
     assert(state != nullptr);
@@ -153,7 +153,7 @@ void test_lci_state_set_crc_cache() {
     printf("testing lci_state_set_crc_cache()...\n");
 
     lci_state * state = nullptr;
-    int return_code = lci_state_create(&state, LCI_GAME_TES4, "../../tests/testing-plugins/Oblivion/Data", ".");
+    int return_code = lci_state_create(&state, LCI_GAME_OBLIVION, "../../tests/testing-plugins/Oblivion/Data", ".");
 
     assert(return_code == LCI_OK);
     assert(state != nullptr);
