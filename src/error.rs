@@ -63,7 +63,7 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
-    fn cause(&self) -> Option<&error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
             Error::ParsingError(_, e) => Some(e),
             Error::PeParsingError(_, e) => Some(e.as_ref()),
@@ -97,8 +97,8 @@ impl<I: fmt::Debug + fmt::Display> fmt::Display for ParsingError<I> {
 }
 
 impl<I: fmt::Debug + fmt::Display> error::Error for ParsingError<I> {
-    fn cause(&self) -> Option<&error::Error> {
-        self.kind.cause()
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        self.kind.source()
     }
 }
 
@@ -147,7 +147,7 @@ impl From<ParseIntError> for ParsingErrorKind {
 }
 
 impl error::Error for ParsingErrorKind {
-    fn cause(&self) -> Option<&error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
             ParsingErrorKind::InvalidCrc(e) => Some(e),
             _ => None,
