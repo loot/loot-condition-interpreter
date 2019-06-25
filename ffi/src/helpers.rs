@@ -5,8 +5,8 @@ use libc::{c_char, c_int, size_t};
 use loot_condition_interpreter::{Error, GameType};
 
 use super::ERROR_MESSAGE;
-use constants::*;
-use state::{plugin_crc, plugin_version};
+use crate::constants::*;
+use crate::state::{plugin_crc, plugin_version};
 
 pub fn error(code: c_int, message: &str) -> c_int {
     ERROR_MESSAGE.with(|f| {

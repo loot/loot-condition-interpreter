@@ -8,9 +8,8 @@ use crc::{crc32, Hasher32};
 use regex::Regex;
 
 use super::{ComparisonOperator, Function};
-use version::Version;
-use Error;
-use State;
+use crate::version::Version;
+use crate::{Error, State};
 
 fn add_extension(path: &Path, extension: &str) -> PathBuf {
     match path.extension() {
@@ -274,7 +273,7 @@ mod tests {
     use regex::RegexBuilder;
     use tempfile::tempdir;
 
-    use GameType;
+    use crate::GameType;
 
     fn state<T: Into<PathBuf>>(data_path: T) -> State {
         state_with_active_plugins(data_path, &[])

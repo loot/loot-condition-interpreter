@@ -6,8 +6,10 @@ use std::sync::RwLock;
 use libc::{c_char, c_int, size_t};
 use loot_condition_interpreter::State;
 
-use constants::*;
-use helpers::{error, map_game_type, map_plugin_crcs, map_plugin_versions, to_str, to_str_vec};
+use crate::constants::*;
+use crate::helpers::{
+    error, map_game_type, map_plugin_crcs, map_plugin_versions, to_str, to_str_vec,
+};
 
 #[allow(non_camel_case_types)]
 #[no_mangle]

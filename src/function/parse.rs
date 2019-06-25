@@ -10,10 +10,8 @@ use nom::{Err, IResult};
 use regex::{Regex, RegexBuilder};
 
 use super::{ComparisonOperator, Function};
-use crate::{map_err, whitespace};
-use error::ParsingErrorKind;
-use ParsingError;
-use ParsingResult;
+use crate::error::ParsingErrorKind;
+use crate::{map_err, whitespace, ParsingError, ParsingResult};
 
 impl ComparisonOperator {
     pub fn parse(input: &str) -> IResult<&str, ComparisonOperator> {

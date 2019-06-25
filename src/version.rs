@@ -5,7 +5,7 @@ use pelite::resources::version_info::VersionInfo;
 use pelite::resources::{FindError, Resources};
 use pelite::FileMap;
 
-use error::Error;
+use crate::error::Error;
 
 const VERSION_INFO_RESOURCE_PATH: &str = "/16/1";
 
