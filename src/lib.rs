@@ -37,21 +37,23 @@ type ParsingResult<'a, T> = IResult<&'a str, T, ParsingError<&'a str>>;
 // constants in the C API.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GameType {
-    Tes4,
-    Tes5,
-    Tes5se,
-    Tes5vr,
-    Fo3,
-    Fonv,
-    Fo4,
-    Fo4vr,
-    Tes3,
+    Oblivion,
+    Skyrim,
+    SkyrimSE,
+    SkyrimVR,
+    Fallout3,
+    FalloutNV,
+    Fallout4,
+    Fallout4VR,
+    Morrowind,
 }
 
 impl GameType {
     fn supports_light_plugins(self) -> bool {
         match self {
-            GameType::Tes5se | GameType::Tes5vr | GameType::Fo4 | GameType::Fo4vr => true,
+            GameType::SkyrimSE | GameType::SkyrimVR | GameType::Fallout4 | GameType::Fallout4VR => {
+                true
+            }
             _ => false,
         }
     }
@@ -295,7 +297,7 @@ mod tests {
         }
 
         State {
-            game_type: GameType::Tes4,
+            game_type: GameType::Oblivion,
             data_path,
             loot_path: PathBuf::new(),
             active_plugins: HashSet::new(),
@@ -307,100 +309,100 @@ mod tests {
 
     #[test]
     fn game_type_supports_light_plugins_should_be_true_for_tes5se_tes5vr_fo4_and_fo4vr() {
-        assert!(GameType::Tes5se.supports_light_plugins());
-        assert!(GameType::Tes5vr.supports_light_plugins());
-        assert!(GameType::Fo4.supports_light_plugins());
-        assert!(GameType::Fo4vr.supports_light_plugins());
+        assert!(GameType::SkyrimSE.supports_light_plugins());
+        assert!(GameType::SkyrimVR.supports_light_plugins());
+        assert!(GameType::Fallout4.supports_light_plugins());
+        assert!(GameType::Fallout4VR.supports_light_plugins());
     }
 
     #[test]
     fn game_type_supports_light_master_should_be_false_for_tes3_to_5_fo3_and_fonv() {
-        assert!(!GameType::Tes3.supports_light_plugins());
-        assert!(!GameType::Tes4.supports_light_plugins());
-        assert!(!GameType::Tes5.supports_light_plugins());
-        assert!(!GameType::Fo3.supports_light_plugins());
-        assert!(!GameType::Fonv.supports_light_plugins());
+        assert!(!GameType::Morrowind.supports_light_plugins());
+        assert!(!GameType::Oblivion.supports_light_plugins());
+        assert!(!GameType::Skyrim.supports_light_plugins());
+        assert!(!GameType::Fallout3.supports_light_plugins());
+        assert!(!GameType::FalloutNV.supports_light_plugins());
     }
 
     #[test]
     fn game_type_is_plugin_filename_should_be_true_for_esp_for_all_game_types() {
         let filename = Path::new("Blank.esp");
 
-        assert!(GameType::Tes3.is_plugin_filename(filename));
-        assert!(GameType::Tes4.is_plugin_filename(filename));
-        assert!(GameType::Tes5.is_plugin_filename(filename));
-        assert!(GameType::Tes5se.is_plugin_filename(filename));
-        assert!(GameType::Tes5vr.is_plugin_filename(filename));
-        assert!(GameType::Fo3.is_plugin_filename(filename));
-        assert!(GameType::Fonv.is_plugin_filename(filename));
-        assert!(GameType::Fo4.is_plugin_filename(filename));
-        assert!(GameType::Fo4vr.is_plugin_filename(filename));
+        assert!(GameType::Morrowind.is_plugin_filename(filename));
+        assert!(GameType::Oblivion.is_plugin_filename(filename));
+        assert!(GameType::Skyrim.is_plugin_filename(filename));
+        assert!(GameType::SkyrimSE.is_plugin_filename(filename));
+        assert!(GameType::SkyrimVR.is_plugin_filename(filename));
+        assert!(GameType::Fallout3.is_plugin_filename(filename));
+        assert!(GameType::FalloutNV.is_plugin_filename(filename));
+        assert!(GameType::Fallout4.is_plugin_filename(filename));
+        assert!(GameType::Fallout4VR.is_plugin_filename(filename));
     }
 
     #[test]
     fn game_type_is_plugin_filename_should_be_true_for_esm_for_all_game_types() {
         let filename = Path::new("Blank.esm");
 
-        assert!(GameType::Tes3.is_plugin_filename(filename));
-        assert!(GameType::Tes4.is_plugin_filename(filename));
-        assert!(GameType::Tes5.is_plugin_filename(filename));
-        assert!(GameType::Tes5se.is_plugin_filename(filename));
-        assert!(GameType::Tes5vr.is_plugin_filename(filename));
-        assert!(GameType::Fo3.is_plugin_filename(filename));
-        assert!(GameType::Fonv.is_plugin_filename(filename));
-        assert!(GameType::Fo4.is_plugin_filename(filename));
-        assert!(GameType::Fo4vr.is_plugin_filename(filename));
+        assert!(GameType::Morrowind.is_plugin_filename(filename));
+        assert!(GameType::Oblivion.is_plugin_filename(filename));
+        assert!(GameType::Skyrim.is_plugin_filename(filename));
+        assert!(GameType::SkyrimSE.is_plugin_filename(filename));
+        assert!(GameType::SkyrimVR.is_plugin_filename(filename));
+        assert!(GameType::Fallout3.is_plugin_filename(filename));
+        assert!(GameType::FalloutNV.is_plugin_filename(filename));
+        assert!(GameType::Fallout4.is_plugin_filename(filename));
+        assert!(GameType::Fallout4VR.is_plugin_filename(filename));
     }
 
     #[test]
     fn game_type_is_plugin_filename_should_be_true_for_esl_for_tes5se_tes5vr_fo4_and_fo4vr() {
         let filename = Path::new("Blank.esl");
 
-        assert!(GameType::Tes5se.is_plugin_filename(filename));
-        assert!(GameType::Tes5vr.is_plugin_filename(filename));
-        assert!(GameType::Fo4.is_plugin_filename(filename));
-        assert!(GameType::Fo4vr.is_plugin_filename(filename));
+        assert!(GameType::SkyrimSE.is_plugin_filename(filename));
+        assert!(GameType::SkyrimVR.is_plugin_filename(filename));
+        assert!(GameType::Fallout4.is_plugin_filename(filename));
+        assert!(GameType::Fallout4VR.is_plugin_filename(filename));
     }
 
     #[test]
     fn game_type_is_plugin_filename_should_be_false_for_esl_for_tes3_to_5_fo3_and_fonv() {
         let filename = Path::new("Blank.esl");
 
-        assert!(!GameType::Tes3.is_plugin_filename(filename));
-        assert!(!GameType::Tes4.is_plugin_filename(filename));
-        assert!(!GameType::Tes5.is_plugin_filename(filename));
-        assert!(!GameType::Fo3.is_plugin_filename(filename));
-        assert!(!GameType::Fonv.is_plugin_filename(filename));
+        assert!(!GameType::Morrowind.is_plugin_filename(filename));
+        assert!(!GameType::Oblivion.is_plugin_filename(filename));
+        assert!(!GameType::Skyrim.is_plugin_filename(filename));
+        assert!(!GameType::Fallout3.is_plugin_filename(filename));
+        assert!(!GameType::FalloutNV.is_plugin_filename(filename));
     }
 
     #[test]
     fn game_type_is_plugin_filename_should_be_true_for_esp_dot_ghost_for_all_game_types() {
         let filename = Path::new("Blank.esp.ghost");
 
-        assert!(GameType::Tes3.is_plugin_filename(filename));
-        assert!(GameType::Tes4.is_plugin_filename(filename));
-        assert!(GameType::Tes5.is_plugin_filename(filename));
-        assert!(GameType::Tes5se.is_plugin_filename(filename));
-        assert!(GameType::Tes5vr.is_plugin_filename(filename));
-        assert!(GameType::Fo3.is_plugin_filename(filename));
-        assert!(GameType::Fonv.is_plugin_filename(filename));
-        assert!(GameType::Fo4.is_plugin_filename(filename));
-        assert!(GameType::Fo4vr.is_plugin_filename(filename));
+        assert!(GameType::Morrowind.is_plugin_filename(filename));
+        assert!(GameType::Oblivion.is_plugin_filename(filename));
+        assert!(GameType::Skyrim.is_plugin_filename(filename));
+        assert!(GameType::SkyrimSE.is_plugin_filename(filename));
+        assert!(GameType::SkyrimVR.is_plugin_filename(filename));
+        assert!(GameType::Fallout3.is_plugin_filename(filename));
+        assert!(GameType::FalloutNV.is_plugin_filename(filename));
+        assert!(GameType::Fallout4.is_plugin_filename(filename));
+        assert!(GameType::Fallout4VR.is_plugin_filename(filename));
     }
 
     #[test]
     fn game_type_is_plugin_filename_should_be_true_for_esm_dot_ghost_for_all_game_types() {
         let filename = Path::new("Blank.esm.ghost");
 
-        assert!(GameType::Tes3.is_plugin_filename(filename));
-        assert!(GameType::Tes4.is_plugin_filename(filename));
-        assert!(GameType::Tes5.is_plugin_filename(filename));
-        assert!(GameType::Tes5se.is_plugin_filename(filename));
-        assert!(GameType::Tes5vr.is_plugin_filename(filename));
-        assert!(GameType::Fo3.is_plugin_filename(filename));
-        assert!(GameType::Fonv.is_plugin_filename(filename));
-        assert!(GameType::Fo4.is_plugin_filename(filename));
-        assert!(GameType::Fo4vr.is_plugin_filename(filename));
+        assert!(GameType::Morrowind.is_plugin_filename(filename));
+        assert!(GameType::Oblivion.is_plugin_filename(filename));
+        assert!(GameType::Skyrim.is_plugin_filename(filename));
+        assert!(GameType::SkyrimSE.is_plugin_filename(filename));
+        assert!(GameType::SkyrimVR.is_plugin_filename(filename));
+        assert!(GameType::Fallout3.is_plugin_filename(filename));
+        assert!(GameType::FalloutNV.is_plugin_filename(filename));
+        assert!(GameType::Fallout4.is_plugin_filename(filename));
+        assert!(GameType::Fallout4VR.is_plugin_filename(filename));
     }
 
     #[test]
@@ -408,36 +410,36 @@ mod tests {
     ) {
         let filename = Path::new("Blank.esl.ghost");
 
-        assert!(GameType::Tes5se.is_plugin_filename(filename));
-        assert!(GameType::Tes5vr.is_plugin_filename(filename));
-        assert!(GameType::Fo4.is_plugin_filename(filename));
-        assert!(GameType::Fo4vr.is_plugin_filename(filename));
+        assert!(GameType::SkyrimSE.is_plugin_filename(filename));
+        assert!(GameType::SkyrimVR.is_plugin_filename(filename));
+        assert!(GameType::Fallout4.is_plugin_filename(filename));
+        assert!(GameType::Fallout4VR.is_plugin_filename(filename));
     }
 
     #[test]
     fn game_type_is_plugin_filename_should_be_false_for_esl_dot_ghost_for_tes3_to_5_fo3_and_fonv() {
         let filename = Path::new("Blank.esl.ghost");
 
-        assert!(!GameType::Tes3.is_plugin_filename(filename));
-        assert!(!GameType::Tes4.is_plugin_filename(filename));
-        assert!(!GameType::Tes5.is_plugin_filename(filename));
-        assert!(!GameType::Fo3.is_plugin_filename(filename));
-        assert!(!GameType::Fonv.is_plugin_filename(filename));
+        assert!(!GameType::Morrowind.is_plugin_filename(filename));
+        assert!(!GameType::Oblivion.is_plugin_filename(filename));
+        assert!(!GameType::Skyrim.is_plugin_filename(filename));
+        assert!(!GameType::Fallout3.is_plugin_filename(filename));
+        assert!(!GameType::FalloutNV.is_plugin_filename(filename));
     }
 
     #[test]
     fn game_type_is_plugin_filename_should_be_false_for_non_esp_esm_esl_for_all_game_types() {
         let filename = Path::new("Blank.txt");
 
-        assert!(!GameType::Tes3.is_plugin_filename(filename));
-        assert!(!GameType::Tes4.is_plugin_filename(filename));
-        assert!(!GameType::Tes5.is_plugin_filename(filename));
-        assert!(!GameType::Tes5se.is_plugin_filename(filename));
-        assert!(!GameType::Tes5vr.is_plugin_filename(filename));
-        assert!(!GameType::Fo3.is_plugin_filename(filename));
-        assert!(!GameType::Fonv.is_plugin_filename(filename));
-        assert!(!GameType::Fo4.is_plugin_filename(filename));
-        assert!(!GameType::Fo4vr.is_plugin_filename(filename));
+        assert!(!GameType::Morrowind.is_plugin_filename(filename));
+        assert!(!GameType::Oblivion.is_plugin_filename(filename));
+        assert!(!GameType::Skyrim.is_plugin_filename(filename));
+        assert!(!GameType::SkyrimSE.is_plugin_filename(filename));
+        assert!(!GameType::SkyrimVR.is_plugin_filename(filename));
+        assert!(!GameType::Fallout3.is_plugin_filename(filename));
+        assert!(!GameType::FalloutNV.is_plugin_filename(filename));
+        assert!(!GameType::Fallout4.is_plugin_filename(filename));
+        assert!(!GameType::Fallout4VR.is_plugin_filename(filename));
     }
 
     #[test]
@@ -445,15 +447,15 @@ mod tests {
     ) {
         let filename = Path::new("Blank.txt.ghost");
 
-        assert!(!GameType::Tes3.is_plugin_filename(filename));
-        assert!(!GameType::Tes4.is_plugin_filename(filename));
-        assert!(!GameType::Tes5.is_plugin_filename(filename));
-        assert!(!GameType::Tes5se.is_plugin_filename(filename));
-        assert!(!GameType::Tes5vr.is_plugin_filename(filename));
-        assert!(!GameType::Fo3.is_plugin_filename(filename));
-        assert!(!GameType::Fonv.is_plugin_filename(filename));
-        assert!(!GameType::Fo4.is_plugin_filename(filename));
-        assert!(!GameType::Fo4vr.is_plugin_filename(filename));
+        assert!(!GameType::Morrowind.is_plugin_filename(filename));
+        assert!(!GameType::Oblivion.is_plugin_filename(filename));
+        assert!(!GameType::Skyrim.is_plugin_filename(filename));
+        assert!(!GameType::SkyrimSE.is_plugin_filename(filename));
+        assert!(!GameType::SkyrimVR.is_plugin_filename(filename));
+        assert!(!GameType::Fallout3.is_plugin_filename(filename));
+        assert!(!GameType::FalloutNV.is_plugin_filename(filename));
+        assert!(!GameType::Fallout4.is_plugin_filename(filename));
+        assert!(!GameType::Fallout4VR.is_plugin_filename(filename));
     }
 
     #[test]

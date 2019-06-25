@@ -23,7 +23,7 @@ fn generate_plugin_versions() -> Vec<(String, String)> {
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("Expression.eval() file(path)", |b| {
-        let state = State::new(GameType::Tes4, ".".into(), ".".into());
+        let state = State::new(GameType::Oblivion, ".".into(), ".".into());
         let expression = Expression::from_str("file(\"Cargo.toml\")").unwrap();
 
         b.iter(|| {
@@ -32,7 +32,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     c.bench_function("Expression.eval() file(regex)", |b| {
-        let state = State::new(GameType::Tes4, ".".into(), ".".into());
+        let state = State::new(GameType::Oblivion, ".".into(), ".".into());
         let expression = Expression::from_str("file(\"Cargo.*\")").unwrap();
 
         b.iter(|| {
@@ -42,7 +42,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("Expression.eval() active(path)", |b| {
         let state = State::new(
-            GameType::Tes4,
+            GameType::Oblivion,
             "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
         )
@@ -57,7 +57,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("Expression.eval() active(regex)", |b| {
         let state = State::new(
-            GameType::Tes4,
+            GameType::Oblivion,
             "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
         )
@@ -71,7 +71,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     c.bench_function("Expression.eval() many()", |b| {
-        let state = State::new(GameType::Tes4, ".".into(), ".".into());
+        let state = State::new(GameType::Oblivion, ".".into(), ".".into());
         let expression = Expression::from_str("many(\"Cargo.*\")").unwrap();
 
         b.iter(|| {
@@ -81,7 +81,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("Expression.eval() many_active()", |b| {
         let state = State::new(
-            GameType::Tes4,
+            GameType::Oblivion,
             "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
         )
@@ -96,7 +96,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("Expression.eval() checksum()", |b| {
         let state = State::new(
-            GameType::Tes4,
+            GameType::Oblivion,
             "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
         );
@@ -109,7 +109,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("Expression.eval() version(plugin)", |b| {
         let state = State::new(
-            GameType::Tes4,
+            GameType::Oblivion,
             "tests/testing-plugins/Oblivion/Data".into(),
             ".".into(),
         )
@@ -123,7 +123,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
 
     c.bench_function("Expression.eval() version(executable)", |b| {
-        let state = State::new(GameType::Tes4, ".".into(), ".".into());
+        let state = State::new(GameType::Oblivion, ".".into(), ".".into());
         let expression = Expression::from_str(
             "version(\"tests/loot_api_win32/loot_api.dll\", \"0.13.8.0\", ==)",
         )

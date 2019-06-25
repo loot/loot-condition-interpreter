@@ -307,7 +307,7 @@ mod tests {
         }
 
         State {
-            game_type: GameType::Tes4,
+            game_type: GameType::Oblivion,
             data_path,
             loot_path: loot_path.into(),
             active_plugins: active_plugins

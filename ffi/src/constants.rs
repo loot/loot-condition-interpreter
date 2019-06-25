@@ -40,39 +40,39 @@ pub static LCI_ERROR_TEXT_ENCODE_FAIL: c_int = -7;
 
 /// Game code for The Elder Scrolls III: Morrowind.
 #[no_mangle]
-pub static LCI_GAME_TES3: c_int = GameType::Tes3 as c_int;
+pub static LCI_GAME_TES3: c_int = GameType::Morrowind as c_int;
 
 /// Game code for The Elder Scrolls IV: Oblivion.
 #[no_mangle]
-pub static LCI_GAME_TES4: c_int = GameType::Tes4 as c_int;
+pub static LCI_GAME_TES4: c_int = GameType::Oblivion as c_int;
 
 /// Game code for The Elder Scrolls V: Skyrim.
 #[no_mangle]
-pub static LCI_GAME_TES5: c_int = GameType::Tes5 as c_int;
+pub static LCI_GAME_TES5: c_int = GameType::Skyrim as c_int;
 
 /// Game code for Fallout 3.
 #[no_mangle]
-pub static LCI_GAME_FO3: c_int = GameType::Fo3 as c_int;
+pub static LCI_GAME_FO3: c_int = GameType::Fallout3 as c_int;
 
 /// Game code for Fallout: New Vegas.
 #[no_mangle]
-pub static LCI_GAME_FNV: c_int = GameType::Fonv as c_int;
+pub static LCI_GAME_FNV: c_int = GameType::FalloutNV as c_int;
 
 /// Game code for Fallout 4.
 #[no_mangle]
-pub static LCI_GAME_FO4: c_int = GameType::Fo4 as c_int;
+pub static LCI_GAME_FO4: c_int = GameType::Fallout4 as c_int;
 
 /// Game code for The Elder Scrolls V: Skyrim Special Edition.
 #[no_mangle]
-pub static LCI_GAME_TES5SE: c_int = GameType::Tes5se as c_int;
+pub static LCI_GAME_TES5SE: c_int = GameType::SkyrimSE as c_int;
 
 /// Game code for The Elder Scrolls V: Skyrim VR.
 #[no_mangle]
-pub static LCI_GAME_TES5VR: c_int = GameType::Tes5vr as c_int;
+pub static LCI_GAME_TES5VR: c_int = GameType::SkyrimVR as c_int;
 
 /// Game code for Fallout 4 VR.
 #[no_mangle]
-pub static LCI_GAME_FO4VR: c_int = GameType::Fo4vr as c_int;
+pub static LCI_GAME_FO4VR: c_int = GameType::Fallout4VR as c_int;
 
 #[cfg(test)]
 mod tests {

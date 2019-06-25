@@ -32,15 +32,15 @@ fn map_error(err: &Error) -> c_int {
 
 pub fn map_game_type(game_type: c_int) -> Result<GameType, c_int> {
     match game_type {
-        x if x == LCI_GAME_TES3 => Ok(GameType::Tes3),
-        x if x == LCI_GAME_TES4 => Ok(GameType::Tes4),
-        x if x == LCI_GAME_TES5 => Ok(GameType::Tes5),
-        x if x == LCI_GAME_TES5SE => Ok(GameType::Tes5se),
-        x if x == LCI_GAME_TES5VR => Ok(GameType::Tes5vr),
-        x if x == LCI_GAME_FO3 => Ok(GameType::Fo3),
-        x if x == LCI_GAME_FNV => Ok(GameType::Fonv),
-        x if x == LCI_GAME_FO4 => Ok(GameType::Fo4),
-        x if x == LCI_GAME_FO4VR => Ok(GameType::Fo4vr),
+        x if x == LCI_GAME_TES3 => Ok(GameType::Morrowind),
+        x if x == LCI_GAME_TES4 => Ok(GameType::Oblivion),
+        x if x == LCI_GAME_TES5 => Ok(GameType::Skyrim),
+        x if x == LCI_GAME_TES5SE => Ok(GameType::SkyrimSE),
+        x if x == LCI_GAME_TES5VR => Ok(GameType::SkyrimVR),
+        x if x == LCI_GAME_FO3 => Ok(GameType::Fallout3),
+        x if x == LCI_GAME_FNV => Ok(GameType::FalloutNV),
+        x if x == LCI_GAME_FO4 => Ok(GameType::Fallout4),
+        x if x == LCI_GAME_FO4VR => Ok(GameType::Fallout4VR),
         _ => Err(LCI_ERROR_INVALID_ARGS),
     }
 }
