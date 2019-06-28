@@ -8,7 +8,7 @@
 #include <thread>
 #include <vector>
 
-#include "loot_condition_interpreter.hpp"
+#include "loot_condition_interpreter.h"
 
 void test_game_id_values() {
   printf("testing LCI_GAME_* values...\n");

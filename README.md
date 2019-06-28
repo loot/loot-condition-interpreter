@@ -35,13 +35,13 @@ To generate a C++ header file as part of the build, instead run:
 cargo build --release --package loot-condition-interpreter-ffi --all-features
 ```
 
-This will create a file at `ffi/include/loot_condition_interpreter.hpp`.
+This will create a file at `ffi/include/loot_condition_interpreter.h`.
 However, this involves building [cbindgen](https://github.com/eqrion/cbindgen)
 as a dependency, which is relatively slow. If you have cbindgen installed
 separately, it's faster to generate the headers using its CLI:
 
 ```
-cbindgen ffi/ -l c++ -o ffi/include/loot_condition_interpreter.hpp
+cbindgen ffi/ -o ffi/include/loot_condition_interpreter.h
 ```
 
 ## Tests & Benchmarks
