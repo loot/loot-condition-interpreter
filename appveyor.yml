@@ -30,6 +30,10 @@ install:
   - 7z x loot_api_win64.7z
   - mv loot_api-0.13.8-0-g47797cc_dev-win64 loot_api_win64
 
+  - ps: (New-Object Net.WebClient).DownloadFile('https://github.com/loot/loot-api-python/releases/download/4.0.2/loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z', "$PWD/loot_api_python.7z")
+  - 7z x loot_api_python.7z
+  - mv loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32 loot_api_python
+
   - ps: (New-Object Net.WebClient).DownloadFile('https://7-zip.org/a/7z1805-extra.7z', "$PWD/7z.7z")
   - ps: 7z x "$PWD/7z.7z" -o7z
 

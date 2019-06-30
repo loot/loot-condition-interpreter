@@ -172,13 +172,13 @@ fn get_version(state: &State, file_path: &Path) -> Result<Option<Version>, Error
     if state.game_type.is_plugin_filename(file_path) {
         Ok(None)
     } else {
-        Version::read_file_version(file_path).map(Some)
+        Version::read_file_version(file_path)
     }
 }
 
 fn get_product_version(file_path: &Path) -> Result<Option<Version>, Error> {
     if file_path.exists() {
-        Version::read_product_version(file_path).map(Some)
+        Version::read_product_version(file_path)
     } else {
         Ok(None)
     }

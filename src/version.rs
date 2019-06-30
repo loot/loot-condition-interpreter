@@ -30,40 +30,39 @@ pub struct Version {
 }
 
 impl Version {
-    pub fn read_file_version(file_path: &Path) -> Result<Self, Error> {
+    pub fn read_file_version(file_path: &Path) -> Result<Option<Self>, Error> {
         Self::read_version(file_path, |v| {
-            v.fixed()
-                .map(|f| {
-                    format!(
-                        "{}.{}.{}.{}",
-                        f.dwFileVersion.Major,
-                        f.dwFileVersion.Minor,
-                        f.dwFileVersion.Patch,
-                        f.dwFileVersion.Build
-                    )
-                })
-                .unwrap_or_else(String::new)
+            v.fixed().map(|f| {
+                format!(
+                    "{}.{}.{}.{}",
+                    f.dwFileVersion.Major,
+                    f.dwFileVersion.Minor,
+                    f.dwFileVersion.Patch,
+                    f.dwFileVersion.Build
+                )
+            })
         })
     }
 
-    pub fn read_product_version(file_path: &Path) -> Result<Self, Error> {
+    pub fn read_product_version(file_path: &Path) -> Result<Option<Self>, Error> {
         Self::read_version(file_path, |v| {
             v.query_value(&"ProductVersion")
                 .map(String::from_utf16_lossy)
-                .unwrap_or_else(String::new)
         })
     }
 
-    fn read_version<F: Fn(&VersionInfo) -> String>(
+    fn read_version<F: Fn(&VersionInfo) -> Option<String>>(
         file_path: &Path,
         formatter: F,
-    ) -> Result<Self, Error> {
+    ) -> Result<Option<Self>, Error> {
         let file_map =
             FileMap::open(file_path).map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
-        let version_info = get_pe_version_info(file_map.as_ref())
-            .map_err(|e| Error::PeParsingError(file_path.to_path_buf(), e.into()))?;
 
-        Ok(Version::from(formatter(&version_info).as_str()))
+        match get_pe_version_info(file_map.as_ref()) {
+            Ok(v) => Ok(formatter(&v).map(Version::from)),
+            Err(FindError::NotFound) => Ok(None),
+            Err(e) => Err(Error::PeParsingError(file_path.to_path_buf(), e.into())),
+        }
     }
 }
 
@@ -126,9 +125,9 @@ fn split_version_string(string: &str) -> (&str, &str) {
     }
 }
 
-impl<'a> From<&'a str> for Version {
-    fn from(string: &'a str) -> Self {
-        let (release, pre_release) = split_version_string(trim_metadata(string));
+impl<T: AsRef<str>> From<T> for Version {
+    fn from(string: T) -> Self {
+        let (release, pre_release) = split_version_string(trim_metadata(string.as_ref()));
 
         Version {
             release_ids: release
@@ -197,7 +196,9 @@ mod tests {
         #[test]
         fn version_read_file_version_should_read_the_file_version_field_of_a_32_bit_executable() {
             let version =
-                Version::read_file_version(Path::new("tests/loot_api_win32/loot_api.dll")).unwrap();
+                Version::read_file_version(Path::new("tests/loot_api_win32/loot_api.dll"))
+                    .unwrap()
+                    .unwrap();
 
             assert_eq!(
                 version.release_ids,
@@ -214,7 +215,9 @@ mod tests {
         #[test]
         fn version_read_file_version_should_read_the_file_version_field_of_a_64_bit_executable() {
             let version =
-                Version::read_file_version(Path::new("tests/loot_api_win64/loot_api.dll")).unwrap();
+                Version::read_file_version(Path::new("tests/loot_api_win64/loot_api.dll"))
+                    .unwrap()
+                    .unwrap();
 
             assert_eq!(
                 version.release_ids,
@@ -245,9 +248,20 @@ mod tests {
         }
 
         #[test]
+        fn version_read_file_version_should_return_none_if_there_is_no_version_info() {
+            let version =
+                Version::read_file_version(Path::new("tests/loot_api_python/loot_api.pyd"))
+                    .unwrap();
+
+            assert!(version.is_none());
+        }
+
+        #[test]
         fn version_read_product_version_should_read_the_file_version_field_of_a_32_bit_executable()
         {
-            let version = Version::read_product_version(Path::new("tests/7z/7za.exe")).unwrap();
+            let version = Version::read_product_version(Path::new("tests/7z/7za.exe"))
+                .unwrap()
+                .unwrap();
 
             assert_eq!(
                 version.release_ids,
@@ -259,7 +273,9 @@ mod tests {
         #[test]
         fn version_read_product_version_should_read_the_file_version_field_of_a_64_bit_executable()
         {
-            let version = Version::read_product_version(Path::new("tests/7z/x64/7za.exe")).unwrap();
+            let version = Version::read_product_version(Path::new("tests/7z/x64/7za.exe"))
+                .unwrap()
+                .unwrap();
 
             assert_eq!(
                 version.release_ids,
@@ -278,7 +294,7 @@ mod tests {
             dll_bytes[0x23B10] = 0x19;
             std::fs::write(&dll_path, dll_bytes).unwrap();
 
-            let version = Version::read_product_version(&dll_path).unwrap();
+            let version = Version::read_product_version(&dll_path).unwrap().unwrap();
 
             assert_eq!(
                 version.release_ids,
@@ -301,6 +317,15 @@ mod tests {
             let error = Version::read_product_version(Path::new("Cargo.toml")).unwrap_err();
 
             assert_eq!("An error was encountered while reading the version fields of \"Cargo.toml\": bad magic", error.to_string());
+        }
+
+        #[test]
+        fn version_read_product_version_should_return_none_if_there_is_no_version_info() {
+            let version =
+                Version::read_product_version(Path::new("tests/loot_api_python/loot_api.pyd"))
+                    .unwrap();
+
+            assert!(version.is_none());
         }
     }
 
