@@ -1,6 +1,6 @@
 [package]
 name = "loot-condition-interpreter-ffi"
-version = "1.3.0"
+version = "2.0.0"
 authors = ["Oliver Hamlet <oliver.hamlet@gmail.com>"]
 license = "MIT"
 build = "build.rs"
