@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1] - 2019-07-23
+
+### Fixed
+
+- Regular expressions are now prefixed with `^` and suffixed with `$` to ensure
+  that only exact matches to the given expression are found.
+
 ## [2.0.0] - 2019-06-30
 
 ### Added
