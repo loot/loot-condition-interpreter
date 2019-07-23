@@ -464,7 +464,7 @@ mod tests {
         let error = Expression::from_str("file(\"Carg\\.*(\")").unwrap_err();
 
         assert_eq!(
-            "An error was encountered while parsing the expression \"Carg\\.*(\": regex parse error:\n    Carg\\.*(\n           ^\nerror: unclosed group",
+            "An error was encountered while parsing the expression \"Carg\\.*(\": regex parse error:\n    ^Carg\\.*($\n            ^\nerror: unclosed group",
             error.to_string()
         );
     }

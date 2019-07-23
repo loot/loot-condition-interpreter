@@ -45,7 +45,7 @@ fn is_in_game_path(path: &Path) -> bool {
     true
 }
 fn parse_regex(input: &str) -> ParsingResult<Regex> {
-    RegexBuilder::new(input)
+    RegexBuilder::new(&format!("^{}$", input))
         .case_insensitive(true)
         .build()
         .map(|r| ("", r))
@@ -244,6 +244,13 @@ mod tests {
     }
 
     #[test]
+    fn parse_regex_should_produce_a_regex_that_does_not_partially_match() {
+        let (_, regex) = parse_regex("cargo.".into()).unwrap();
+
+        assert!(!regex.is_match("Cargo.toml"));
+    }
+
+    #[test]
     fn function_parse_should_parse_a_file_path_function() {
         let output = Function::parse("file(\"Cargo.toml\")".into()).unwrap();
 
@@ -267,7 +274,7 @@ mod tests {
         match output.1 {
             Function::FileRegex(p, r) => {
                 assert_eq!(PathBuf::from("."), p);
-                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str());
+                assert_eq!(Regex::new("^Cargo.*$").unwrap().as_str(), r.as_str());
             }
             _ => panic!("Expected a file regex function"),
         }
@@ -281,7 +288,7 @@ mod tests {
         match output.1 {
             Function::FileRegex(p, r) => {
                 assert_eq!(PathBuf::from("subdir"), p);
-                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str());
+                assert_eq!(Regex::new("^Cargo.*$").unwrap().as_str(), r.as_str());
             }
             _ => panic!("Expected a file regex function"),
         }
@@ -322,7 +329,7 @@ mod tests {
         assert!(output.0.is_empty());
         match output.1 {
             Function::ActiveRegex(r) => {
-                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str())
+                assert_eq!(Regex::new("^Cargo.*$").unwrap().as_str(), r.as_str())
             }
             _ => panic!("Expected an active regex function"),
         }
@@ -336,7 +343,7 @@ mod tests {
         match output.1 {
             Function::Many(p, r) => {
                 assert_eq!(PathBuf::from("."), p);
-                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str());
+                assert_eq!(Regex::new("^Cargo.*$").unwrap().as_str(), r.as_str());
             }
             _ => panic!("Expected a many function"),
         }
@@ -350,7 +357,7 @@ mod tests {
         match output.1 {
             Function::Many(p, r) => {
                 assert_eq!(PathBuf::from("subdir"), p);
-                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str());
+                assert_eq!(Regex::new("^Cargo.*$").unwrap().as_str(), r.as_str());
             }
             _ => panic!("Expected a many function"),
         }
@@ -373,7 +380,7 @@ mod tests {
         assert!(output.0.is_empty());
         match output.1 {
             Function::ManyActive(r) => {
-                assert_eq!(Regex::new("Cargo.*").unwrap().as_str(), r.as_str())
+                assert_eq!(Regex::new("^Cargo.*$").unwrap().as_str(), r.as_str())
             }
             _ => panic!("Expected a many active function"),
         }
