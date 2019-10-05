@@ -39,6 +39,7 @@ pub enum Function {
     FileRegex(PathBuf, Regex),
     ActivePath(PathBuf),
     ActiveRegex(Regex),
+    IsMaster(PathBuf),
     Many(PathBuf, Regex),
     ManyActive(Regex),
     Checksum(PathBuf, u32),
@@ -54,6 +55,7 @@ impl fmt::Display for Function {
             FileRegex(p, r) => write!(f, "file(\"{}/{}\")", p.display(), r),
             ActivePath(p) => write!(f, "active(\"{}\")", p.display()),
             ActiveRegex(r) => write!(f, "active(\"{}\")", r),
+            IsMaster(p) => write!(f, "is_master(\"{}\")", p.display()),
             Many(p, r) => write!(f, "many(\"{}/{}\")", p.display(), r),
             ManyActive(r) => write!(f, "many_active(\"{}\")", r),
             Checksum(p, c) => write!(f, "checksum(\"{}\", {:02X?})", p.display(), c),
@@ -75,6 +77,7 @@ impl PartialEq for Function {
             }
             (ActivePath(p1), ActivePath(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
             (ActiveRegex(r1), ActiveRegex(r2)) => eq(r1.as_str(), r2.as_str()),
+            (IsMaster(p1), IsMaster(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
             (Many(p1, r1), Many(p2, r2)) => {
                 eq(r1.as_str(), r2.as_str()) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
@@ -111,6 +114,9 @@ impl Hash for Function {
             }
             ActiveRegex(r) => {
                 r.as_str().to_lowercase().hash(state);
+            }
+            IsMaster(p) => {
+                p.to_string_lossy().to_lowercase().hash(state);
             }
             Many(p, r) => {
                 p.to_string_lossy().to_lowercase().hash(state);
@@ -176,6 +182,13 @@ mod tests {
             let function = Function::ActiveRegex(regex("Blank.*"));
 
             assert_eq!("active(\"Blank.*\")", &format!("{}", function));
+        }
+
+        #[test]
+        fn function_fmt_for_is_master_should_format_correctly() {
+            let function = Function::IsMaster("Blank.esm".into());
+
+            assert_eq!("is_master(\"Blank.esm\")", &format!("{}", function));
         }
 
         #[test]
@@ -327,6 +340,43 @@ mod tests {
             assert_eq!(
                 Function::ActiveRegex(regex("blank.*")),
                 Function::ActiveRegex(regex("Blank.*"))
+            );
+        }
+
+        #[test]
+        fn function_eq_for_is_master_should_check_pathbuf() {
+            assert_eq!(
+                Function::IsMaster("Blank.esm".into()),
+                Function::IsMaster("Blank.esm".into())
+            );
+
+            assert_ne!(
+                Function::IsMaster("Blank.esp".into()),
+                Function::IsMaster("Blank.esm".into())
+            );
+        }
+
+        #[test]
+        fn function_eq_for_is_master_should_be_case_insensitive_on_pathbuf() {
+            assert_eq!(
+                Function::IsMaster("Blank.esm".into()),
+                Function::IsMaster("blank.esm".into())
+            );
+        }
+
+        #[test]
+        fn function_eq_for_is_master_should_not_be_equal_to_file_path_with_same_pathbuf() {
+            assert_ne!(
+                Function::IsMaster("Blank.esm".into()),
+                Function::FilePath("Blank.esm".into())
+            );
+        }
+
+        #[test]
+        fn function_eq_for_active_path_should_not_be_equal_to_active_path_with_same_pathbuf() {
+            assert_ne!(
+                Function::IsMaster("Blank.esm".into()),
+                Function::ActivePath("Blank.esm".into())
             );
         }
 
@@ -586,6 +636,43 @@ mod tests {
             let function2 = Function::ActiveRegex(regex("blank.*"));
 
             assert_eq!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_is_master_should_hash_pathbuf() {
+            let function1 = Function::IsMaster("Blank.esm".into());
+            let function2 = Function::IsMaster("Blank.esm".into());
+
+            assert_eq!(hash(function1), hash(function2));
+
+            let function1 = Function::IsMaster("Blank.esm".into());
+            let function2 = Function::IsMaster("Blank.esp".into());
+
+            assert_ne!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_is_master_should_be_case_insensitive() {
+            let function1 = Function::IsMaster("Blank.esm".into());
+            let function2 = Function::IsMaster("blank.esm".into());
+
+            assert_eq!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_file_path_and_is_master_should_not_have_equal_hashes() {
+            let function1 = Function::FilePath("Blank.esm".into());
+            let function2 = Function::IsMaster("Blank.esm".into());
+
+            assert_ne!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_active_path_and_is_master_should_not_have_equal_hashes() {
+            let function1 = Function::FilePath("Blank.esm".into());
+            let function2 = Function::IsMaster("Blank.esm".into());
+
+            assert_ne!(hash(function1), hash(function2));
         }
 
         #[test]

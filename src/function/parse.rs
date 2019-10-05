@@ -188,6 +188,14 @@ impl Function {
             ),
             map(
                 delimited(
+                    map_err(tag("is_master(\"")),
+                    parse_non_regex_path,
+                    map_err(tag("\")")),
+                ),
+                Function::IsMaster,
+            ),
+            map(
+                delimited(
                     map_err(tag("many(\"")),
                     parse_regex_path,
                     map_err(tag("\")")),
@@ -333,6 +341,24 @@ mod tests {
             }
             _ => panic!("Expected an active regex function"),
         }
+    }
+
+    #[test]
+    fn function_parse_should_parse_an_is_master_function() {
+        let output = Function::parse("is_master(\"Blank.esm\")".into()).unwrap();
+
+        assert!(output.0.is_empty());
+        match output.1 {
+            Function::IsMaster(f) => assert_eq!(Path::new("Blank.esm"), f),
+            _ => panic!("Expected an is master function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_error_if_the_is_master_path_is_outside_the_game_directory() {
+        // Trying to check if a path that isn't a plugin in the data folder is
+        // active is pointless, but it's not worth having a more specific check.
+        assert!(Function::parse("is_master(\"../../Blank.esm\")".into()).is_err());
     }
 
     #[test]

@@ -99,6 +99,30 @@ fn evaluate_active_regex(state: &State, regex: &Regex) -> Result<bool, Error> {
     Ok(state.active_plugins.iter().any(|p| regex.is_match(p)))
 }
 
+fn evaluate_is_master(state: &State, file_path: &Path) -> Result<bool, Error> {
+    use crate::GameType;
+    use esplugin::GameId;
+
+    let game_id = match state.game_type {
+        GameType::Morrowind => GameId::Morrowind,
+        GameType::Oblivion => GameId::Oblivion,
+        GameType::Skyrim => GameId::Skyrim,
+        GameType::SkyrimSE | GameType::SkyrimVR => GameId::SkyrimSE,
+        GameType::Fallout3 => GameId::Fallout3,
+        GameType::FalloutNV => GameId::FalloutNV,
+        GameType::Fallout4 | GameType::Fallout4VR => GameId::Fallout4,
+    };
+
+    let path = resolve_path(state, file_path);
+
+    let mut plugin = esplugin::Plugin::new(game_id, &path);
+
+    plugin
+        .parse_file(true)
+        .map(|_| plugin.is_master_file())
+        .or(Ok(false))
+}
+
 fn evaluate_many_active(state: &State, regex: &Regex) -> Result<bool, Error> {
     let mut found_one = false;
     for active_plugin in &state.active_plugins {
@@ -231,6 +255,7 @@ impl Function {
             Function::FileRegex(p, r) => evaluate_file_regex(state, p, r),
             Function::ActivePath(p) => evaluate_active_path(state, p),
             Function::ActiveRegex(r) => evaluate_active_regex(state, r),
+            Function::IsMaster(p) => evaluate_is_master(state, p),
             Function::Many(p, r) => evaluate_many(state, p, r),
             Function::ManyActive(r) => evaluate_many_active(state, r),
             Function::Checksum(path, crc) => evaluate_checksum(state, path, *crc),
@@ -460,6 +485,38 @@ mod tests {
     fn function_active_regex_eval_should_be_false_if_the_regex_does_not_match_an_active_plugin() {
         let function = Function::ActiveRegex(regex("inactive\\.esp"));
         let state = state_with_active_plugins(".", &["Blank.esp"]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_is_master_eval_should_be_true_if_the_path_is_a_master_plugin() {
+        let function = Function::IsMaster(PathBuf::from("Blank.esm"));
+        let state = state("tests/testing-plugins/Oblivion/Data");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_is_master_eval_should_be_false_if_the_path_does_not_exist() {
+        let function = Function::IsMaster(PathBuf::from("missing.esp"));
+        let state = state("tests/testing-plugins/Oblivion/Data");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_is_master_eval_should_be_false_if_the_path_is_not_a_plugin() {
+        let function = Function::IsMaster(PathBuf::from("Cargo.toml"));
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_is_master_eval_should_be_false_if_the_path_is_a_non_master_plugin() {
+        let function = Function::IsMaster(PathBuf::from("Blank.esp"));
+        let state = state("tests/testing-plugins/Oblivion/Data");
 
         assert!(!function.eval(&state).unwrap());
     }
