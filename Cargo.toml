@@ -1,6 +1,6 @@
 [package]
 name = "loot-condition-interpreter"
-version = "2.0.1"
+version = "2.1.0"
 authors = ["Oliver Hamlet <oliver.hamlet@gmail.com>"]
 license = "MIT"
 edition = "2018"

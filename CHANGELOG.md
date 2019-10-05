@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0] - 2019-10-05
+
+### Added
+
+- Support for an `is_master(file path)` condition function that returns true if
+  the given file path is a master plugin, and false otherwise.
+
 ## [2.0.1] - 2019-07-23
 
 ### Fixed
