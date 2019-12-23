@@ -7,8 +7,6 @@ use pelite::FileMap;
 
 use crate::error::Error;
 
-const VERSION_INFO_RESOURCE_PATH: &str = "/16/1";
-
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 enum Identifier {
     Numeric(u32),
@@ -46,8 +44,9 @@ impl Version {
 
     pub fn read_product_version(file_path: &Path) -> Result<Option<Self>, Error> {
         Self::read_version(file_path, |v| {
-            v.query_value(&"ProductVersion")
-                .map(String::from_utf16_lossy)
+            v.translation()
+                .first()
+                .and_then(|language| v.value(*language, "ProductVersion"))
         })
     }
 
@@ -67,22 +66,7 @@ impl Version {
 }
 
 fn get_pe_version_info(bytes: &[u8]) -> Result<VersionInfo, FindError> {
-    let resources = get_pe_resources(bytes)?;
-
-    // Can't just call resources.version_info() because that only gets the
-    // version info for US English, which may not exist. Instead, get the first
-    // version info block, whatever the language.
-    let bytes = resources
-        .find_dir(Path::new(VERSION_INFO_RESOURCE_PATH))?
-        .entries()
-        .next()
-        .ok_or(FindError::NotFound)?
-        .entry()?
-        .data()
-        .ok_or(FindError::UnDirectory)?
-        .bytes()?;
-
-    VersionInfo::try_from(bytes).map_err(FindError::Pe)
+    get_pe_resources(bytes)?.version_info()
 }
 
 fn get_pe_resources(bytes: &[u8]) -> Result<Resources, pelite::Error> {
