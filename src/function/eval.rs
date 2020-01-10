@@ -153,7 +153,7 @@ fn evaluate_checksum(state: &State, file_path: &Path, crc: u32) -> Result<bool, 
 
     let path = resolve_path(state, file_path);
 
-    if !path.exists() {
+    if !path.is_file() {
         return Ok(false);
     }
 
@@ -183,7 +183,7 @@ fn lowercase_filename(path: &Path) -> Option<String> {
 }
 
 fn get_version(state: &State, file_path: &Path) -> Result<Option<Version>, Error> {
-    if !file_path.exists() {
+    if !file_path.is_file() {
         return Ok(None);
     }
 
@@ -201,7 +201,7 @@ fn get_version(state: &State, file_path: &Path) -> Result<Option<Version>, Error
 }
 
 fn get_product_version(file_path: &Path) -> Result<Option<Version>, Error> {
-    if file_path.exists() {
+    if file_path.is_file() {
         Version::read_product_version(file_path)
     } else {
         Ok(None)
@@ -667,6 +667,15 @@ mod tests {
     }
 
     #[test]
+    fn function_checksum_eval_should_be_false_if_given_a_directory_path() {
+        // The given CRC is the CRC-32 of the directory as calculated by 7-zip.
+        let function = Function::Checksum(PathBuf::from("tests/testing-plugins"), 0xC9CD16C3);
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
     fn function_checksum_eval_should_cache_and_use_cached_crcs() {
         let tmp_dir = tempdir().unwrap();
         let data_path = tmp_dir.path().join("Data");
@@ -765,6 +774,68 @@ mod tests {
     fn function_version_eval_should_be_false_if_the_path_does_not_exist_and_comparator_is_gteq() {
         let function = Function::Version(
             "missing".into(),
+            "1.0".into(),
+            ComparisonOperator::GreaterThanOrEqual,
+        );
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_the_path_is_not_a_file_and_comparator_is_ne() {
+        let function =
+            Function::Version("tests".into(), "1.0".into(), ComparisonOperator::NotEqual);
+        let state = state(".");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_the_path_is_not_a_file_and_comparator_is_lt() {
+        let function =
+            Function::Version("tests".into(), "1.0".into(), ComparisonOperator::LessThan);
+        let state = state(".");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_true_if_the_path_is_not_a_file_and_comparator_is_lteq() {
+        let function = Function::Version(
+            "tests".into(),
+            "1.0".into(),
+            ComparisonOperator::LessThanOrEqual,
+        );
+        let state = state(".");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_the_path_is_not_a_file_and_comparator_is_eq() {
+        let function = Function::Version("tests".into(), "1.0".into(), ComparisonOperator::Equal);
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_the_path_is_not_a_file_and_comparator_is_gt() {
+        let function = Function::Version(
+            "tests".into(),
+            "1.0".into(),
+            ComparisonOperator::GreaterThan,
+        );
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_version_eval_should_be_false_if_the_path_is_not_a_file_and_comparator_is_gteq() {
+        let function = Function::Version(
+            "tests".into(),
             "1.0".into(),
             ComparisonOperator::GreaterThanOrEqual,
         );
@@ -1004,6 +1075,11 @@ mod tests {
     #[test]
     fn get_product_version_should_return_ok_none_if_the_path_does_not_exist() {
         assert!(get_product_version(Path::new("missing")).unwrap().is_none());
+    }
+
+    #[test]
+    fn get_product_version_should_return_ok_none_if_the_path_is_not_a_file() {
+        assert!(get_product_version(Path::new("tests")).unwrap().is_none());
     }
 
     #[test]
