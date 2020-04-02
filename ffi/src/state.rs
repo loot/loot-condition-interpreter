@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::panic::catch_unwind;
 use std::path::PathBuf;
 use std::sync::RwLock;
@@ -100,7 +99,7 @@ pub unsafe extern "C" fn lci_state_set_active_plugins(
             };
 
             let mut state = match (*state).0.write() {
-                Err(e) => return error(LCI_ERROR_POISONED_THREAD_LOCK, e.description()),
+                Err(e) => return error(LCI_ERROR_POISONED_THREAD_LOCK, &e.to_string()),
                 Ok(h) => h,
             };
 
@@ -138,7 +137,7 @@ pub unsafe extern "C" fn lci_state_set_plugin_versions(
             };
 
             let mut state = match (*state).0.write() {
-                Err(e) => return error(LCI_ERROR_POISONED_THREAD_LOCK, e.description()),
+                Err(e) => return error(LCI_ERROR_POISONED_THREAD_LOCK, &e.to_string()),
                 Ok(h) => h,
             };
 
@@ -176,9 +175,9 @@ pub unsafe extern "C" fn lci_state_set_crc_cache(
             };
 
             match (*state).0.write() {
-                Err(e) => error(LCI_ERROR_POISONED_THREAD_LOCK, e.description()),
+                Err(e) => error(LCI_ERROR_POISONED_THREAD_LOCK, &e.to_string()),
                 Ok(mut s) => match s.set_cached_crcs(&plugin_crcs) {
-                    Err(e) => error(LCI_ERROR_POISONED_THREAD_LOCK, e.description()),
+                    Err(e) => error(LCI_ERROR_POISONED_THREAD_LOCK, &e.to_string()),
                     Ok(_) => LCI_OK,
                 },
             }
@@ -194,9 +193,9 @@ pub unsafe extern "C" fn lci_state_clear_condition_cache(state: *mut lci_state) 
             error(LCI_ERROR_INVALID_ARGS, "Null state pointer passed")
         } else {
             match (*state).0.write() {
-                Err(e) => error(LCI_ERROR_POISONED_THREAD_LOCK, e.description()),
+                Err(e) => error(LCI_ERROR_POISONED_THREAD_LOCK, &e.to_string()),
                 Ok(mut s) => match s.clear_condition_cache() {
-                    Err(e) => error(LCI_ERROR_POISONED_THREAD_LOCK, e.description()),
+                    Err(e) => error(LCI_ERROR_POISONED_THREAD_LOCK, &e.to_string()),
                     Ok(_) => LCI_OK,
                 },
             }

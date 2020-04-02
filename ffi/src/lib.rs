@@ -6,7 +6,6 @@ mod helpers;
 mod state;
 
 use std::cell::RefCell;
-use std::error::Error;
 use std::ffi::CString;
 use std::panic::catch_unwind;
 use std::ptr;
@@ -62,7 +61,7 @@ pub unsafe extern "C" fn lci_condition_eval(
             };
 
             let state = match (*state).0.read() {
-                Err(e) => return error(LCI_ERROR_POISONED_THREAD_LOCK, e.description()),
+                Err(e) => return error(LCI_ERROR_POISONED_THREAD_LOCK, &e.to_string()),
                 Ok(s) => s,
             };
 
