@@ -6,7 +6,6 @@ use std::path::PathBuf;
 
 use nom::error::ErrorKind;
 use nom::Err;
-use regex;
 
 #[derive(Debug)]
 pub enum Error {

@@ -163,10 +163,10 @@ fn pad_release_ids(ids1: &[Identifier], ids2: &[Identifier]) -> (Vec<Identifier>
     let mut ids1 = ids1.to_vec();
     let mut ids2 = ids2.to_vec();
 
-    if ids1.len() < ids2.len() {
-        ids1.resize(ids2.len(), Identifier::Numeric(0));
-    } else if ids2.len() < ids1.len() {
-        ids2.resize(ids1.len(), Identifier::Numeric(0));
+    match ids1.len().cmp(&ids2.len()) {
+        Ordering::Less => ids1.resize(ids2.len(), Identifier::Numeric(0)),
+        Ordering::Greater => ids2.resize(ids1.len(), Identifier::Numeric(0)),
+        _ => {}
     }
 
     (ids1, ids2)
