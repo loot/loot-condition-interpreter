@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.1.1] - 2020-06-13
+
+### Changed
+
+- Checksum calculations are now much faster for larger files.
+- Directory paths are now handled more gracefully in `checksum()`, `version()` and `product_version()` conditions.
+- Resolved some `rustc` deprecation warnings by replacing usage of `std::error::Error`'s `description()` function with `to_string()`.
+- Updated cbindgen to v0.14.
+- Updated pelite to v0.8.0.
+
 ## [2.1.0] - 2019-10-05
 
 ### Added
