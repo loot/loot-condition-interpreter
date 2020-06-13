@@ -1,10 +1,9 @@
 use std::ffi::OsStr;
 use std::fs::{read_dir, File};
 use std::hash::Hasher;
-use std::io::{BufReader, Read};
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use crc::{crc32, Hasher32};
 use regex::Regex;
 
 use super::{ComparisonOperator, Function};
@@ -157,16 +156,21 @@ fn evaluate_checksum(state: &State, file_path: &Path, crc: u32) -> Result<bool, 
         return Ok(false);
     }
 
-    let file = File::open(path).map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
-    let reader = BufReader::new(file);
-    let mut digest = crc32::Digest::new(crc32::IEEE);
+    let io_error_mapper = |e| Error::IoError(file_path.to_path_buf(), e);
+    let file = File::open(path).map_err(io_error_mapper)?;
+    let mut reader = BufReader::new(file);
+    let mut hasher = crc32fast::Hasher::new();
 
-    for byte in reader.bytes() {
-        let byte = byte.map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
-        digest.write_u8(byte);
+    let mut buffer = reader.fill_buf().map_err(io_error_mapper)?;
+    while !buffer.is_empty() {
+        hasher.write(buffer);
+        let length = buffer.len();
+        reader.consume(length);
+
+        buffer = reader.fill_buf().map_err(io_error_mapper)?;
     }
 
-    let calculated_crc = digest.sum32();
+    let calculated_crc = hasher.finalize();
     if let Ok(mut writer) = state.crc_cache.write() {
         if let Some(key) = lowercase(file_path) {
             writer.insert(key, calculated_crc);

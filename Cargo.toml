@@ -6,7 +6,7 @@ license = "MIT"
 edition = "2018"
 
 [dependencies]
-crc = "1.0.0"
+crc32fast = "1.2.0"
 esplugin = "3.0.0"
 nom = "5.0.0"
 pelite = "0.8.0"
