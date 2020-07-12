@@ -1,0 +1,141 @@
+name: CI
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rustfmt:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Rustfmt
+        run: |
+          rustup component add rustfmt
+          rustfmt --version
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  windows:
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Prepare test resources
+        run: |
+          cd tests
+
+          (New-Object Net.WebClient).DownloadFile('https://github.com/WrinklyNinja/testing-plugins/archive/1.4.0.zip', "$PWD/1.4.0.zip")
+          7z x 1.4.0.zip
+          mv testing-plugins-1.4.0 testing-plugins
+
+          (New-Object Net.WebClient).DownloadFile('https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win32.7z', "$PWD/loot_api_win32.7z")
+          7z x loot_api_win32.7z
+          mv loot_api-0.13.8-0-g47797cc_dev-win32 loot_api_win32
+
+          (New-Object Net.WebClient).DownloadFile('https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win64.7z', "$PWD/loot_api_win64.7z")
+          7z x loot_api_win64.7z
+          mv loot_api-0.13.8-0-g47797cc_dev-win64 loot_api_win64
+
+          (New-Object Net.WebClient).DownloadFile('https://github.com/loot/loot-api-python/releases/download/4.0.2/loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z', "$PWD/loot_api_python.7z")
+          7z x loot_api_python.7z
+          mv loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32 loot_api_python
+
+          (New-Object Net.WebClient).DownloadFile('https://7-zip.org/a/7z1805-extra.7z', "$PWD/7z.7z")
+          7z x "$PWD/7z.7z" -o7z
+
+          cd ..
+
+      - name: Build and run tests
+        run: cargo test --all --all-features
+
+      # Need to rebuild the FFI wrapper so that its binary is given a filename
+      # without a hash.
+      - name: Build FFI wrapper
+        run: cargo build --manifest-path ffi/Cargo.toml --features ffi-headers
+
+      # Use bash because PowerShell doesn't fail if one command fails.
+      - name: Build and run C++ tests
+        shell: bash
+        run: |
+          mkdir ffi/build
+          cd ffi/build
+          cmake ..
+          cmake --build .
+          ctest
+
+  linux:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Tarpaulin
+        run: curl -sL https://github.com/xd009642/tarpaulin/releases/download/0.14.2/cargo-tarpaulin-0.14.2-travis.tar.gz | tar xvz -C $HOME/.cargo/bin
+
+      - name: Prepare test resources
+        run: |
+          cd tests
+
+          wget https://github.com/WrinklyNinja/testing-plugins/archive/1.4.1.tar.gz
+          tar -xf 1.4.1.tar.gz
+          mv testing-plugins-1.4.1 testing-plugins
+
+          wget https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win32.7z
+          7z x loot_api-0.13.8-0-g47797cc_dev-win32.7z
+          mv loot_api-0.13.8-0-g47797cc_dev-win32 loot_api_win32
+
+          wget https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win64.7z
+          7z x loot_api-0.13.8-0-g47797cc_dev-win64.7z
+          mv loot_api-0.13.8-0-g47797cc_dev-win64 loot_api_win64
+
+          wget https://github.com/loot/loot-api-python/releases/download/4.0.2/loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z
+          7z x loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z
+          mv loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32 loot_api_python
+
+          wget https://7-zip.org/a/7z1805-extra.7z
+          7z x 7z1805-extra.7z -o7z
+
+          cd ..
+
+      - name: Build and run tests with code coverage
+        run: cargo tarpaulin --workspace --out Lcov
+
+      - name: Upload code coverage to Coveralls
+        uses: coverallsapp/github-action@v1.1.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: ./lcov.info
+
+      # Need to rebuild the FFI wrapper so that its binary is given a filename
+      # without a hash.
+      - name: Build FFI wrapper
+        run: cargo build --manifest-path ffi/Cargo.toml --features ffi-headers
+
+      # Use bash because PowerShell doesn't fail if one command fails.
+      - name: Build and run C++ tests
+        shell: bash
+        run: |
+          mkdir ffi/build
+          cd ffi/build
+          cmake ..
+          cmake --build .
+          ctest

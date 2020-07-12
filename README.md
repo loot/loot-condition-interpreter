@@ -1,8 +1,7 @@
 loot-condition-interpreter
 ==========================
 
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/loot/loot-condition-interpreter?branch=master&svg=true)](https://ci.appveyor.com/project/loot/loot-condition-interpreter)
-[![Travis Build Status](https://travis-ci.org/loot/loot-condition-interpreter.svg?branch=master)](https://travis-ci.org/loot/loot-condition-interpreter)
+![CI](https://github.com/loot/loot-condition-interpreter/workflows/CI/badge.svg?branch=master)
 [![Coverage Status](https://coveralls.io/repos/github/Ortham/libloadorder/badge.svg?branch=master)](https://coveralls.io/github/Ortham/libloadorder?branch=master)
 
 A library for parsing and evaluating LOOT's metadata condition strings. It
@@ -47,8 +46,8 @@ cbindgen ffi/ -o ffi/include/loot_condition_interpreter.h
 
 The tests and benchmarks need the [testing-plugins](https://github.com/WrinklyNinja/testing-plugins)
 and the [LOOT API v0.13.8](https://github.com/loot/loot-api/releases/tag/0.13.8)
-Windows archives to be extracted and present in the repo root. See the AppVeyor
-and Travis CI configurations for examples on what should be extracted where.
+Windows archives to be extracted and present in the repo root. See the GitHub
+Actions CI workflow for examples on what should be extracted where.
 
 To run the Rust tests:
 
