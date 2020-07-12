@@ -4,7 +4,6 @@ loot-condition-interpreter
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/loot/loot-condition-interpreter?branch=master&svg=true)](https://ci.appveyor.com/project/loot/loot-condition-interpreter)
 [![Travis Build Status](https://travis-ci.org/loot/loot-condition-interpreter.svg?branch=master)](https://travis-ci.org/loot/loot-condition-interpreter)
 [![Coverage Status](https://coveralls.io/repos/github/Ortham/libloadorder/badge.svg?branch=master)](https://coveralls.io/github/Ortham/libloadorder?branch=master)
-[![dependency status](https://deps.rs/repo/github/Ortham/libloadorder/status.svg)](https://deps.rs/repo/github/loot/loot-condition-interpreter)
 
 A library for parsing and evaluating LOOT's metadata condition strings. It
 provides:
