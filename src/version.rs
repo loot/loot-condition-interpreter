@@ -228,7 +228,7 @@ mod tests {
         fn version_read_file_version_should_error_with_path_if_the_file_is_not_an_executable() {
             let error = Version::read_file_version(Path::new("Cargo.toml")).unwrap_err();
 
-            assert_eq!("An error was encountered while reading the version fields of \"Cargo.toml\": bad magic", error.to_string());
+            assert_eq!("An error was encountered while reading the version fields of \"Cargo.toml\": unknown magic number", error.to_string());
         }
 
         #[test]
@@ -300,7 +300,7 @@ mod tests {
         fn version_read_product_version_should_error_with_path_if_the_file_is_not_an_executable() {
             let error = Version::read_product_version(Path::new("Cargo.toml")).unwrap_err();
 
-            assert_eq!("An error was encountered while reading the version fields of \"Cargo.toml\": bad magic", error.to_string());
+            assert_eq!("An error was encountered while reading the version fields of \"Cargo.toml\": unknown magic number", error.to_string());
         }
 
         #[test]
