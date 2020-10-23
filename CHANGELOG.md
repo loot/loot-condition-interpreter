@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.1.2] - 2020-10-23
+
+### Fixed
+
+- Version `0.1.1` of `pelite-macros` (a dependency of the `pelite` dependency)
+  broke the ability to build `pelite` v0.8.x without pinning the version of
+  `pelite-macros` used.
+
+### Changed
+
+- Updated pelite to v0.9.0.
+- Updated cbindgen to v0.15.
+
 ## [2.1.1] - 2020-06-13
 
 ### Changed
