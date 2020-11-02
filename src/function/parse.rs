@@ -93,7 +93,7 @@ fn parse_crc(input: &str) -> ParsingResult<u32> {
 }
 
 fn parse_checksum_args(input: &str) -> ParsingResult<(PathBuf, u32)> {
-    let parser = tuple((
+    let mut parser = tuple((
         map_err(parse_path),
         map_err(whitespace(tag(","))),
         map_parser(hex_digit1, parse_crc),

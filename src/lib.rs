@@ -14,7 +14,7 @@ use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::space0;
 use nom::combinator::map;
-use nom::multi::separated_list;
+use nom::multi::separated_list0;
 use nom::sequence::{delimited, preceded};
 use nom::IResult;
 
@@ -175,7 +175,7 @@ impl str::FromStr for Expression {
 
 fn parse_expression(input: &str) -> ParsingResult<Expression> {
     map(
-        separated_list(map_err(whitespace(tag("or"))), CompoundCondition::parse),
+        separated_list0(map_err(whitespace(tag("or"))), CompoundCondition::parse),
         Expression,
     )(input)
 }
@@ -203,7 +203,7 @@ impl CompoundCondition {
 
     fn parse(input: &str) -> ParsingResult<CompoundCondition> {
         map(
-            separated_list(map_err(whitespace(tag("and"))), Condition::parse),
+            separated_list0(map_err(whitespace(tag("and"))), Condition::parse),
             CompoundCondition,
         )(input)
     }
@@ -263,14 +263,14 @@ impl fmt::Display for Condition {
 }
 
 fn map_err<'a, O>(
-    parser: impl Fn(&'a str) -> IResult<&'a str, O, (&'a str, nom::error::ErrorKind)>,
-) -> impl Fn(&'a str) -> ParsingResult<'a, O> {
+    mut parser: impl FnMut(&'a str) -> IResult<&'a str, O, nom::error::Error<&'a str>>,
+) -> impl FnMut(&'a str) -> ParsingResult<'a, O> {
     move |i| parser(i).map_err(nom::Err::convert)
 }
 
 fn whitespace<'a, O>(
     parser: impl Fn(&'a str) -> IResult<&'a str, O>,
-) -> impl Fn(&'a str) -> IResult<&'a str, O> {
+) -> impl FnMut(&'a str) -> IResult<&'a str, O> {
     delimited(space0, parser, space0)
 }
 
@@ -454,7 +454,7 @@ mod tests {
         let error = Expression::from_str("file(\"Carg").unwrap_err();
 
         assert_eq!(
-            "An error was encountered while parsing the expression \"file(\\\"Carg\": Error in parser: Separated list",
+            "The parser did not consume the following input: \"file(\"Carg\"",
             error.to_string()
         );
     }
