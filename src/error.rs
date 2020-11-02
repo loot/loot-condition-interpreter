@@ -85,6 +85,13 @@ impl<I: fmt::Debug + fmt::Display> From<(I, ErrorKind)> for ParsingError<I> {
     }
 }
 
+impl<I: fmt::Debug + fmt::Display> From<nom::error::Error<I>> for ParsingError<I> {
+    fn from(error: nom::error::Error<I>) -> Self {
+        use nom::error::ParseError;
+        ParsingError::from_error_kind(error.input, error.code)
+    }
+}
+
 impl<I: fmt::Debug + fmt::Display> fmt::Display for ParsingError<I> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
