@@ -221,6 +221,7 @@ enum Condition {
     Function(Function),
     InvertedFunction(Function),
     Expression(Expression),
+    InvertedExpression(Expression),
 }
 
 impl Condition {
@@ -229,6 +230,7 @@ impl Condition {
             Condition::Function(f) => f.eval(state),
             Condition::InvertedFunction(f) => f.eval(state).map(|r| !r),
             Condition::Expression(e) => e.eval(state),
+            Condition::InvertedExpression(e) => e.eval(state).map(|r| !r),
         }
     }
 
@@ -247,6 +249,14 @@ impl Condition {
                 ),
                 Condition::Expression,
             ),
+            map(
+                delimited(
+                    map_err(preceded(whitespace(tag("not")), whitespace(tag("(")))),
+                    parse_expression,
+                    map_err(whitespace(tag(")"))),
+                ),
+                Condition::InvertedExpression,
+            ),
         ))(input)
     }
 }
@@ -258,6 +268,7 @@ impl fmt::Display for Condition {
             Function(function) => write!(f, "{}", function),
             InvertedFunction(function) => write!(f, "not {}", function),
             Expression(e) => write!(f, "({})", e),
+            InvertedExpression(e) => write!(f, "not ({})", e),
         }
     }
 }
@@ -585,7 +596,7 @@ mod tests {
     }
 
     #[test]
-    fn condition_parse_should_handle_a_inverted_function() {
+    fn condition_parse_should_handle_an_inverted_function() {
         let result = Condition::parse("not file(\"Cargo.toml\")".into())
             .unwrap()
             .1;
@@ -632,6 +643,36 @@ mod tests {
     }
 
     #[test]
+    fn condition_parse_should_handle_an_inverted_expression_in_parentheses() {
+        let result = Condition::parse("not(not file(\"Cargo.toml\"))".into())
+            .unwrap()
+            .1;
+
+        match result {
+            Condition::InvertedExpression(_) => {}
+            v => panic!(
+                "Expected an expression with two compound conditions, got {:?}",
+                v
+            ),
+        }
+    }
+
+    #[test]
+    fn condition_parse_should_handle_an_inverted_expression_in_parentheses_with_whitespace() {
+        let result = Condition::parse("not ( not file(\"Cargo.toml\") )".into())
+            .unwrap()
+            .1;
+
+        match result {
+            Condition::InvertedExpression(_) => {}
+            v => panic!(
+                "Expected an expression with two compound conditions, got {:?}",
+                v
+            ),
+        }
+    }
+
+    #[test]
     fn condition_eval_should_return_function_eval_for_a_function_condition() {
         let state = state(".");
 
@@ -670,6 +711,17 @@ mod tests {
     }
 
     #[test]
+    fn condition_eval_should_return_inverse_of_expression_eval_for_a_not_expression_condition() {
+        let state = state(".");
+
+        let condition = Condition::InvertedExpression(Expression(vec![CompoundCondition(vec![
+            Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml"))),
+        ])]));
+
+        assert!(!condition.eval(&state).unwrap());
+    }
+
+    #[test]
     fn condition_fmt_should_format_function_correctly() {
         let condition = Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml")));
 
@@ -691,6 +743,15 @@ mod tests {
         ])]));
 
         assert_eq!("(file(\"Cargo.toml\"))", &format!("{}", condition));
+    }
+
+    #[test]
+    fn condition_fmt_should_format_inverted_expression_correctly() {
+        let condition = Condition::InvertedExpression(Expression(vec![CompoundCondition(vec![
+            Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml"))),
+        ])]));
+
+        assert_eq!("not (file(\"Cargo.toml\"))", &format!("{}", condition));
     }
 
     #[test]
