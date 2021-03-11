@@ -11,11 +11,9 @@ use crate::helpers::{
 };
 
 #[allow(non_camel_case_types)]
-#[no_mangle]
 pub struct lci_state(pub RwLock<State>);
 
 #[allow(non_camel_case_types)]
-#[no_mangle]
 #[repr(C)]
 pub struct plugin_version {
     pub plugin_name: *const c_char,
@@ -23,7 +21,6 @@ pub struct plugin_version {
 }
 
 #[allow(non_camel_case_types)]
-#[no_mangle]
 #[repr(C)]
 pub struct plugin_crc {
     pub plugin_name: *const c_char,
