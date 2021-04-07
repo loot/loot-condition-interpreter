@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use regex::Regex;
 use unicase::eq;
 
+mod version;
 pub mod eval;
 pub mod parse;
 

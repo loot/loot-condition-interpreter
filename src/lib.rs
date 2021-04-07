@@ -1,6 +1,5 @@
 mod error;
 mod function;
-mod version;
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;

@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use regex::Regex;
 
 use super::{ComparisonOperator, Function};
-use crate::version::Version;
+use super::version::Version;
 use crate::{Error, State};
 
 fn add_extension(path: &Path, extension: &str) -> PathBuf {
