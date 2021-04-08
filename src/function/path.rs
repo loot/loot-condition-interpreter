@@ -45,6 +45,17 @@ fn add_ghost_extension(path: PathBuf) -> PathBuf {
     }
 }
 
+pub fn normalise_file_name<'a>(game_type: GameType, name: &'a str) -> &'a str {
+    if name.ends_with(GHOST_EXTENSION_WITH_PERIOD) {
+        let stem = &name[..name.len() - GHOST_EXTENSION_WITH_PERIOD.len()];
+        if has_unghosted_plugin_file_extension(game_type, Path::new(stem)) {
+            return stem;
+        }
+    }
+
+    name
+}
+
 pub fn resolve_path(state: &State, path: &Path) -> PathBuf {
     if path == Path::new("LOOT") {
         state.loot_path.clone()

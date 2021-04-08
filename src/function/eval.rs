@@ -6,19 +6,19 @@ use std::path::Path;
 
 use regex::Regex;
 
-use super::path::{has_plugin_file_extension, resolve_path};
+use super::path::{has_plugin_file_extension, normalise_file_name, resolve_path};
 use super::version::Version;
 use super::{ComparisonOperator, Function};
-use crate::{Error, State};
+use crate::{Error, GameType, State};
 
 fn evaluate_file_path(state: &State, file_path: &Path) -> Result<bool, Error> {
     Ok(resolve_path(state, file_path).exists())
 }
 
-fn is_match(regex: &Regex, file_name: &OsStr) -> bool {
+fn is_match(game_type: GameType, regex: &Regex, file_name: &OsStr) -> bool {
     file_name
         .to_str()
-        .map(|s| regex.is_match(s))
+        .map(|s| regex.is_match(normalise_file_name(game_type, s)))
         .unwrap_or(false)
 }
 
@@ -30,7 +30,7 @@ fn evaluate_file_regex(state: &State, parent_path: &Path, regex: &Regex) -> Resu
 
     for entry in dir_iterator {
         let entry = entry.map_err(|e| Error::IoError(parent_path.to_path_buf(), e))?;
-        if is_match(regex, &entry.file_name()) {
+        if is_match(state.game_type, regex, &entry.file_name()) {
             return Ok(true);
         }
     }
@@ -47,7 +47,7 @@ fn evaluate_many(state: &State, parent_path: &Path, regex: &Regex) -> Result<boo
     let mut found_one = false;
     for entry in dir_iterator {
         let entry = entry.map_err(|e| Error::IoError(parent_path.to_path_buf(), e))?;
-        if is_match(regex, &entry.file_name()) {
+        if is_match(state.game_type, regex, &entry.file_name()) {
             if found_one {
                 return Ok(true);
             } else {
@@ -71,7 +71,6 @@ fn evaluate_active_regex(state: &State, regex: &Regex) -> Result<bool, Error> {
 }
 
 fn evaluate_is_master(state: &State, file_path: &Path) -> Result<bool, Error> {
-    use crate::GameType;
     use esplugin::GameId;
 
     let game_id = match state.game_type {
@@ -427,6 +426,23 @@ mod tests {
     }
 
     #[test]
+    fn function_file_regex_eval_should_trim_ghost_plugin_extension_before_matching_against_regex() {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        copy(
+            Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
+            &state.data_path.join("Blank.esm.ghost"),
+        )
+        .unwrap();
+
+        let function = Function::FileRegex(PathBuf::from("."), regex("^Blank\\.esm$"));
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
     fn function_active_path_eval_should_be_true_if_the_path_is_an_active_plugin() {
         let function = Function::ActivePath(PathBuf::from("Blank.esp"));
         let state = state_with_active_plugins(".", &["Blank.esp"]);
@@ -532,6 +548,28 @@ mod tests {
             regex("Blank.*"),
         );
         let state = state(".");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_many_eval_should_trim_ghost_plugin_extension_before_matching_against_regex() {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        copy(
+            Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
+            &state.data_path.join("Blank.esm.ghost"),
+        )
+        .unwrap();
+        copy(
+            Path::new("tests/testing-plugins/Oblivion/Data/Blank.esp"),
+            &state.data_path.join("Blank.esp.ghost"),
+        )
+        .unwrap();
+
+        let function = Function::Many(PathBuf::from("."), regex("^Blank\\.es(m|p)$"));
 
         assert!(function.eval(&state).unwrap());
     }
