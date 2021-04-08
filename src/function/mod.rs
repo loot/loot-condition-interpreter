@@ -6,9 +6,10 @@ use std::path::PathBuf;
 use regex::Regex;
 use unicase::eq;
 
-mod version;
 pub mod eval;
 pub mod parse;
+mod path;
+mod version;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ComparisonOperator {

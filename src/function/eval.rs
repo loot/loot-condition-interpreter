@@ -2,42 +2,14 @@ use std::ffi::OsStr;
 use std::fs::{read_dir, File};
 use std::hash::Hasher;
 use std::io::{BufRead, BufReader};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use regex::Regex;
 
-use super::{ComparisonOperator, Function};
+use super::path::{has_plugin_file_extension, resolve_path};
 use super::version::Version;
+use super::{ComparisonOperator, Function};
 use crate::{Error, State};
-
-fn add_extension(path: &Path, extension: &str) -> PathBuf {
-    match path.extension() {
-        Some(e) => {
-            let mut new_extension = e.to_os_string();
-            new_extension.push(format!(".{}", extension));
-            path.with_extension(&new_extension)
-        }
-        None => path.with_extension(extension),
-    }
-}
-
-fn equals(path: &Path, test: &str) -> bool {
-    path.to_str().map(|s| s == test).unwrap_or(false)
-}
-
-fn resolve_path(state: &State, path: &Path) -> PathBuf {
-    if equals(path, "LOOT") {
-        state.loot_path.clone()
-    } else {
-        let path = state.data_path.join(path);
-
-        if !path.exists() && state.game_type.is_plugin_filename(&path) {
-            add_extension(&path, "ghost")
-        } else {
-            path
-        }
-    }
-}
 
 fn evaluate_file_path(state: &State, file_path: &Path) -> Result<bool, Error> {
     Ok(resolve_path(state, file_path).exists())
@@ -197,7 +169,7 @@ fn get_version(state: &State, file_path: &Path) -> Result<Option<Version>, Error
         }
     }
 
-    if state.game_type.is_plugin_filename(file_path) {
+    if has_plugin_file_extension(state.game_type, file_path) {
         Ok(None)
     } else {
         Version::read_file_version(file_path)
@@ -297,6 +269,7 @@ mod tests {
     use super::*;
 
     use std::fs::{copy, create_dir, remove_file};
+    use std::path::PathBuf;
     use std::sync::RwLock;
 
     use regex::RegexBuilder;
