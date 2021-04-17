@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.2.0] - 2021-04-17
+
+### Added
+
+- Support for inverting expressions using `not (<expression>)` syntax, e.g.
+  `not ( file("example1") or file("example2") )`.
+
+### Changed
+
+- When evaluating a regular expression, installed ghosted plugin filenames have
+  their `.ghost` file extension removed before they are matched against the
+  regex. This makes functions that take regexes behave the same as those that
+  take paths when handling ghosted plugins.
+- Updated nom to v6.0.0.
+- Updated cbindgen to v0.19.
+
+### Fixed
+
+- `.ghost` file extensions are no longer recursively trimmed when checking if a
+  file has a plugin file extension, as only a single `.ghost` extension is
+  valid.
+- When looking for a plugin file matching a path, only add a `.ghost` extension
+  to the path if one is not already present.
+
 ## [2.1.2] - 2020-10-23
 
 ### Fixed
