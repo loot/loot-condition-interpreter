@@ -7,24 +7,109 @@ use pelite::FileMap;
 
 use crate::error::Error;
 
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
-enum Identifier {
+#[derive(Clone, Debug)]
+enum ReleaseId {
     Numeric(u32),
     NonNumeric(String),
 }
 
-impl<'a> From<&'a str> for Identifier {
+impl<'a> From<&'a str> for ReleaseId {
     fn from(string: &'a str) -> Self {
         u32::from_str_radix(string.trim(), 10)
-            .map(Identifier::Numeric)
-            .unwrap_or_else(|_| Identifier::NonNumeric(string.to_lowercase()))
+            .map(ReleaseId::Numeric)
+            .unwrap_or_else(|_| ReleaseId::NonNumeric(string.to_lowercase()))
+    }
+}
+
+fn are_numeric_values_equal(n: u32, s: &str) -> bool {
+    // The values can only be equal if the trimmed string can be wholly
+    // converted to the same u32 value.
+    match u32::from_str_radix(s.trim(), 10) {
+        Ok(n2) => n == n2,
+        Err(_) => false,
+    }
+}
+
+impl PartialEq for ReleaseId {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Numeric(n1), Self::Numeric(n2)) => n1 == n2,
+            (Self::NonNumeric(s1), Self::NonNumeric(s2)) => s1 == s2,
+            (Self::Numeric(n), Self::NonNumeric(s)) => are_numeric_values_equal(*n, s),
+            (Self::NonNumeric(s), Self::Numeric(n)) => are_numeric_values_equal(*n, s),
+        }
+    }
+}
+
+// This is like u32::from_str_radix(), but stops instead of erroring when it
+// encounters a non-digit character. It also doesn't support signs.
+fn u32_from_str(id: &str) -> (Option<u32>, usize) {
+    // Find the index of the first non-digit character. All valid digits are
+    // ASCII so treat this as a byte slice.
+    let bytes = id.as_bytes();
+    let first_non_digit_index = bytes.iter().position(|byte| !byte.is_ascii_digit());
+
+    // Conversion can fail even with only ASCII digits because of overflow, so
+    // take that into account.
+    match first_non_digit_index {
+        // If the first byte is not a digit, there is no number to parse (this
+        // ignores + and - signs).
+        Some(0) => (None, id.len()),
+        Some(index) => (
+            u32::from_str_radix(id[..index].trim(), 10).ok(),
+            id.len() - index,
+        ),
+        None => (u32::from_str_radix(id.trim(), 10).ok(), 0),
+    }
+}
+
+fn compare_heterogeneous_ids(lhs_number: u32, rhs_string: &str) -> Option<Ordering> {
+    match u32_from_str(rhs_string) {
+        (Some(rhs_number), remaining_slice_length) => {
+            match lhs_number.partial_cmp(&rhs_number) {
+                // If not all bytes were digits, treat the non-numeric ID as
+                // greater.
+                Some(Ordering::Equal) if remaining_slice_length > 0 => Some(Ordering::Less),
+                order => order,
+            }
+        }
+        // If there are no digits to compare, numeric values are
+        // always less than non-numeric values.
+        (None, _) => Some(Ordering::Less),
+    }
+}
+
+impl PartialOrd for ReleaseId {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Self::Numeric(n1), Self::Numeric(n2)) => n1.partial_cmp(n2),
+            (Self::NonNumeric(s1), Self::NonNumeric(s2)) => s1.partial_cmp(s2),
+            (Self::Numeric(n), Self::NonNumeric(s)) => compare_heterogeneous_ids(*n, s),
+            (Self::NonNumeric(s), Self::Numeric(n)) => {
+                compare_heterogeneous_ids(*n, s).map(|o| o.reverse())
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+enum PreReleaseId {
+    Numeric(u32),
+    NonNumeric(String),
+}
+
+impl<'a> From<&'a str> for PreReleaseId {
+    fn from(string: &'a str) -> Self {
+        u32::from_str_radix(string.trim(), 10)
+            .map(PreReleaseId::Numeric)
+            .unwrap_or_else(|_| PreReleaseId::NonNumeric(string.to_lowercase()))
     }
 }
 
 #[derive(Debug)]
 pub struct Version {
-    release_ids: Vec<Identifier>,
-    pre_release_ids: Vec<Identifier>,
+    release_ids: Vec<ReleaseId>,
+    pre_release_ids: Vec<PreReleaseId>,
 }
 
 impl Version {
@@ -116,11 +201,11 @@ impl<T: AsRef<str>> From<T> for Version {
         Version {
             release_ids: release
                 .split(|c| c == '.' || c == ',')
-                .map(Identifier::from)
+                .map(ReleaseId::from)
                 .collect(),
             pre_release_ids: pre_release
                 .split_terminator(is_pre_release_separator)
-                .map(Identifier::from)
+                .map(PreReleaseId::from)
                 .collect(),
         }
     }
@@ -159,13 +244,13 @@ impl PartialEq for Version {
     }
 }
 
-fn pad_release_ids(ids1: &[Identifier], ids2: &[Identifier]) -> (Vec<Identifier>, Vec<Identifier>) {
+fn pad_release_ids(ids1: &[ReleaseId], ids2: &[ReleaseId]) -> (Vec<ReleaseId>, Vec<ReleaseId>) {
     let mut ids1 = ids1.to_vec();
     let mut ids2 = ids2.to_vec();
 
     match ids1.len().cmp(&ids2.len()) {
-        Ordering::Less => ids1.resize(ids2.len(), Identifier::Numeric(0)),
-        Ordering::Greater => ids2.resize(ids1.len(), Identifier::Numeric(0)),
+        Ordering::Less => ids1.resize(ids2.len(), ReleaseId::Numeric(0)),
+        Ordering::Greater => ids2.resize(ids1.len(), ReleaseId::Numeric(0)),
         _ => {}
     }
 
@@ -174,6 +259,119 @@ fn pad_release_ids(ids1: &[Identifier], ids2: &[Identifier]) -> (Vec<Identifier>
 
 #[cfg(test)]
 mod tests {
+    mod release_ids {
+        use super::super::*;
+
+        #[test]
+        fn eq_should_compare_equality_of_u32_values() {
+            assert_eq!(ReleaseId::Numeric(1), ReleaseId::Numeric(1));
+            assert_ne!(ReleaseId::Numeric(1), ReleaseId::Numeric(0));
+        }
+
+        #[test]
+        fn eq_should_compare_equality_of_string_values() {
+            assert_eq!(
+                ReleaseId::NonNumeric("abcd".into()),
+                ReleaseId::NonNumeric("abcd".into())
+            );
+            assert_ne!(
+                ReleaseId::NonNumeric("abcd".into()),
+                ReleaseId::NonNumeric("abce".into())
+            );
+        }
+
+        #[test]
+        fn eq_should_convert_string_values_to_u32_before_comparing_against_a_u32_value() {
+            assert_eq!(ReleaseId::Numeric(123), ReleaseId::NonNumeric("123".into()));
+            assert_eq!(
+                ReleaseId::Numeric(123),
+                ReleaseId::NonNumeric(" 123 ".into())
+            );
+
+            assert_ne!(
+                ReleaseId::Numeric(123),
+                ReleaseId::NonNumeric("1two3".into())
+            );
+
+            assert_eq!(ReleaseId::NonNumeric("123".into()), ReleaseId::Numeric(123));
+            assert_eq!(
+                ReleaseId::NonNumeric(" 123 ".into()),
+                ReleaseId::Numeric(123)
+            );
+
+            assert_ne!(
+                ReleaseId::NonNumeric("1two3".into()),
+                ReleaseId::Numeric(123)
+            );
+        }
+
+        #[test]
+        fn cmp_should_compare_u32_values() {
+            let cmp = ReleaseId::Numeric(1).partial_cmp(&ReleaseId::Numeric(1));
+            assert_eq!(Some(Ordering::Equal), cmp);
+
+            let cmp = ReleaseId::Numeric(1).partial_cmp(&ReleaseId::Numeric(2));
+            assert_eq!(Some(Ordering::Less), cmp);
+
+            let cmp = ReleaseId::Numeric(2).partial_cmp(&ReleaseId::Numeric(1));
+            assert_eq!(Some(Ordering::Greater), cmp);
+        }
+
+        #[test]
+        fn cmp_should_compare_string_values() {
+            let cmp = ReleaseId::NonNumeric("alpha".into())
+                .partial_cmp(&ReleaseId::NonNumeric("alpha".into()));
+            assert_eq!(Some(Ordering::Equal), cmp);
+
+            let cmp = ReleaseId::NonNumeric("alpha".into())
+                .partial_cmp(&ReleaseId::NonNumeric("beta".into()));
+            assert_eq!(Some(Ordering::Less), cmp);
+
+            let cmp = ReleaseId::NonNumeric("beta".into())
+                .partial_cmp(&ReleaseId::NonNumeric("alpha".into()));
+            assert_eq!(Some(Ordering::Greater), cmp);
+        }
+
+        #[test]
+        fn cmp_should_treat_strings_with_no_leading_digits_as_always_greater_than_u32s() {
+            let cmp = ReleaseId::Numeric(123).partial_cmp(&ReleaseId::NonNumeric("one23".into()));
+            assert_eq!(Some(Ordering::Less), cmp);
+
+            let cmp = ReleaseId::NonNumeric("one23".into()).partial_cmp(&ReleaseId::Numeric(123));
+            assert_eq!(Some(Ordering::Greater), cmp);
+        }
+
+        #[test]
+        fn cmp_should_compare_leading_digits_in_strings_against_u32s_and_use_the_result_if_it_is_not_equal(
+        ) {
+            let cmp = ReleaseId::Numeric(86).partial_cmp(&ReleaseId::NonNumeric("78b".into()));
+            assert_eq!(Some(Ordering::Greater), cmp);
+
+            let cmp = ReleaseId::NonNumeric("78b".into()).partial_cmp(&ReleaseId::Numeric(86));
+            assert_eq!(Some(Ordering::Less), cmp);
+        }
+
+        #[test]
+        fn cmp_should_compare_leading_digits_in_strings_against_u32s_and_use_the_result_if_it_is_equal_and_there_are_no_non_digit_characters(
+        ) {
+            let cmp = ReleaseId::Numeric(86).partial_cmp(&ReleaseId::NonNumeric("86".into()));
+            assert_eq!(Some(Ordering::Equal), cmp);
+
+            let cmp = ReleaseId::NonNumeric("86".into()).partial_cmp(&ReleaseId::Numeric(86));
+            assert_eq!(Some(Ordering::Equal), cmp);
+        }
+
+        #[test]
+        fn cmp_should_compare_leading_digits_in_strings_against_u32s_and_treat_the_u32_as_less_if_the_result_is_equal_and_there_are_non_digit_characters(
+        ) {
+            let cmp = ReleaseId::Numeric(86).partial_cmp(&ReleaseId::NonNumeric("86b".into()));
+            assert_eq!(Some(Ordering::Less), cmp);
+
+            let cmp = ReleaseId::NonNumeric("86b".into()).partial_cmp(&ReleaseId::Numeric(86));
+            assert_eq!(Some(Ordering::Greater), cmp);
+        }
+    }
+
     mod constructors {
         use super::super::*;
 
@@ -187,10 +385,10 @@ mod tests {
             assert_eq!(
                 version.release_ids,
                 vec![
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(13),
-                    Identifier::Numeric(8),
-                    Identifier::Numeric(0),
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(13),
+                    ReleaseId::Numeric(8),
+                    ReleaseId::Numeric(0),
                 ]
             );
             assert!(version.pre_release_ids.is_empty());
@@ -206,10 +404,10 @@ mod tests {
             assert_eq!(
                 version.release_ids,
                 vec![
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(13),
-                    Identifier::Numeric(8),
-                    Identifier::Numeric(0),
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(13),
+                    ReleaseId::Numeric(8),
+                    ReleaseId::Numeric(0),
                 ]
             );
             assert!(version.pre_release_ids.is_empty());
@@ -249,7 +447,7 @@ mod tests {
 
             assert_eq!(
                 version.release_ids,
-                vec![Identifier::Numeric(18), Identifier::Numeric(5),]
+                vec![ReleaseId::Numeric(18), ReleaseId::Numeric(5),]
             );
             assert!(version.pre_release_ids.is_empty());
         }
@@ -263,7 +461,7 @@ mod tests {
 
             assert_eq!(
                 version.release_ids,
-                vec![Identifier::Numeric(18), Identifier::Numeric(5),]
+                vec![ReleaseId::Numeric(18), ReleaseId::Numeric(5),]
             );
             assert!(version.pre_release_ids.is_empty());
         }
@@ -282,7 +480,7 @@ mod tests {
 
             assert_eq!(
                 version.release_ids,
-                vec![Identifier::Numeric(18), Identifier::Numeric(5)]
+                vec![ReleaseId::Numeric(18), ReleaseId::Numeric(5)]
             );
             assert!(version.pre_release_ids.is_empty());
         }
@@ -470,6 +668,9 @@ mod tests {
         fn version_partial_cmp_numeric_pre_release_ids_should_be_less_than_than_non_numeric_ids() {
             assert!(Version::from("0.0.5-9") < Version::from("0.0.5-a"));
             assert!(Version::from("0.0.5-a") > Version::from("0.0.5-9"));
+
+            assert!(Version::from("0.0.5-86") < Version::from("0.0.5-78b"));
+            assert!(Version::from("0.0.5-78b") > Version::from("0.0.5-86"));
         }
 
         #[test]
@@ -516,10 +717,10 @@ mod tests {
             assert_eq!(
                 version.release_ids,
                 vec![
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(2),
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(12),
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(2),
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(12),
                 ]
             );
             assert!(version.pre_release_ids.is_empty());
@@ -604,6 +805,13 @@ mod tests {
         }
 
         #[test]
+        fn version_partial_cmp_numeric_and_non_numeric_release_ids_should_be_compared_by_leading_numeric_values_first(
+        ) {
+            assert!(Version::from("0.78b") < Version::from("0.86"));
+            assert!(Version::from("0.86") > Version::from("0.78b"));
+        }
+
+        #[test]
         fn version_partial_cmp_non_numeric_release_ids_should_be_greater_than_release_ids() {
             assert!(Version::from("1.0.0") < Version::from("1.0.0a"));
             assert!(Version::from("1.0.0a") > Version::from("1.0.0"));
@@ -669,14 +877,14 @@ mod tests {
             assert_eq!(
                 version.release_ids,
                 vec![
-                    Identifier::Numeric(1),
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(0)
+                    ReleaseId::Numeric(1),
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(0)
                 ]
             );
             assert_eq!(
                 version.pre_release_ids,
-                vec![Identifier::NonNumeric("alpha".into())]
+                vec![PreReleaseId::NonNumeric("alpha".into())]
             );
         }
 
@@ -686,14 +894,14 @@ mod tests {
             assert_eq!(
                 version.release_ids,
                 vec![
-                    Identifier::Numeric(1),
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(0)
+                    ReleaseId::Numeric(1),
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(0)
                 ]
             );
             assert_eq!(
                 version.pre_release_ids,
-                vec![Identifier::NonNumeric("alpha".into())]
+                vec![PreReleaseId::NonNumeric("alpha".into())]
             );
         }
 
@@ -703,14 +911,14 @@ mod tests {
             assert_eq!(
                 version.release_ids,
                 vec![
-                    Identifier::Numeric(1),
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(0)
+                    ReleaseId::Numeric(1),
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(0)
                 ]
             );
             assert_eq!(
                 version.pre_release_ids,
-                vec![Identifier::NonNumeric("alpha".into())]
+                vec![PreReleaseId::NonNumeric("alpha".into())]
             );
         }
 
@@ -720,16 +928,16 @@ mod tests {
             assert_eq!(
                 version.release_ids,
                 vec![
-                    Identifier::Numeric(1),
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(0)
+                    ReleaseId::Numeric(1),
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(0)
                 ]
             );
             assert_eq!(
                 version.pre_release_ids,
                 vec![
-                    Identifier::NonNumeric("alpha".into()),
-                    Identifier::Numeric(1)
+                    PreReleaseId::NonNumeric("alpha".into()),
+                    PreReleaseId::Numeric(1)
                 ]
             );
         }
@@ -740,16 +948,16 @@ mod tests {
             assert_eq!(
                 version.release_ids,
                 vec![
-                    Identifier::Numeric(1),
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(0)
+                    ReleaseId::Numeric(1),
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(0)
                 ]
             );
             assert_eq!(
                 version.pre_release_ids,
                 vec![
-                    Identifier::NonNumeric("alpha".into()),
-                    Identifier::Numeric(1)
+                    PreReleaseId::NonNumeric("alpha".into()),
+                    PreReleaseId::Numeric(1)
                 ]
             );
         }
@@ -760,16 +968,16 @@ mod tests {
             assert_eq!(
                 version.release_ids,
                 vec![
-                    Identifier::Numeric(1),
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(0)
+                    ReleaseId::Numeric(1),
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(0)
                 ]
             );
             assert_eq!(
                 version.pre_release_ids,
                 vec![
-                    Identifier::NonNumeric("alpha".into()),
-                    Identifier::Numeric(1)
+                    PreReleaseId::NonNumeric("alpha".into()),
+                    PreReleaseId::Numeric(1)
                 ]
             );
         }
@@ -780,16 +988,16 @@ mod tests {
             assert_eq!(
                 version.release_ids,
                 vec![
-                    Identifier::Numeric(1),
-                    Identifier::Numeric(0),
-                    Identifier::Numeric(0)
+                    ReleaseId::Numeric(1),
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(0)
                 ]
             );
             assert_eq!(
                 version.pre_release_ids,
                 vec![
-                    Identifier::NonNumeric("alpha".into()),
-                    Identifier::Numeric(1)
+                    PreReleaseId::NonNumeric("alpha".into()),
+                    PreReleaseId::Numeric(1)
                 ]
             );
         }
