@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.2.1] - 2021-04-25
+
+### Changed
+
+- Version comparison now compares numeric against non-numeric release
+  identifiers (and vice versa) by comparing the numeric value against the
+  numeric value of leading digits in the non-numeric value, and treating the
+  latter as greater if the two numeric values are equal. The numeric value as
+  treated as less than the non-numeric value if the latter has no leading
+  digits. Previously all non-numeric identifiers were always greater than any
+  numeric identifier. For example, `78b` was previously considered to be greater
+  than `86`, but is now considered to be less than `86`.
+
 ## [2.2.0] - 2021-04-17
 
 ### Added
