@@ -64,7 +64,7 @@ where
     } else {
         slice::from_raw_parts(array, array_size)
             .iter()
-            .map(|c| mapper(c))
+            .map(mapper)
             .collect()
     }
 }

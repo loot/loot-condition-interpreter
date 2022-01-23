@@ -96,7 +96,7 @@ fn evaluate_is_master(state: &State, file_path: &Path) -> Result<bool, Error> {
 fn evaluate_many_active(state: &State, regex: &Regex) -> Result<bool, Error> {
     let mut found_one = false;
     for active_plugin in &state.active_plugins {
-        if regex.is_match(&active_plugin) {
+        if regex.is_match(active_plugin) {
             if found_one {
                 return Ok(true);
             } else {
@@ -256,10 +256,10 @@ impl Function {
     /// the operation is simple.
     fn is_slow(&self) -> bool {
         use Function::*;
-        match self {
-            ActivePath(_) | ActiveRegex(_) | ManyActive(_) | Checksum(_, _) => false,
-            _ => true,
-        }
+        !matches!(
+            self,
+            ActivePath(_) | ActiveRegex(_) | ManyActive(_) | Checksum(_, _)
+        )
     }
 }
 

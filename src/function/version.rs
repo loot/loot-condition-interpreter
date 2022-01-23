@@ -15,7 +15,9 @@ enum ReleaseId {
 
 impl<'a> From<&'a str> for ReleaseId {
     fn from(string: &'a str) -> Self {
-        u32::from_str_radix(string.trim(), 10)
+        string
+            .trim()
+            .parse()
             .map(ReleaseId::Numeric)
             .unwrap_or_else(|_| ReleaseId::NonNumeric(string.to_lowercase()))
     }
@@ -24,7 +26,7 @@ impl<'a> From<&'a str> for ReleaseId {
 fn are_numeric_values_equal(n: u32, s: &str) -> bool {
     // The values can only be equal if the trimmed string can be wholly
     // converted to the same u32 value.
-    match u32::from_str_radix(s.trim(), 10) {
+    match s.trim().parse() {
         Ok(n2) => n == n2,
         Err(_) => false,
     }
@@ -55,11 +57,8 @@ fn u32_from_str(id: &str) -> (Option<u32>, usize) {
         // If the first byte is not a digit, there is no number to parse (this
         // ignores + and - signs).
         Some(0) => (None, id.len()),
-        Some(index) => (
-            u32::from_str_radix(id[..index].trim(), 10).ok(),
-            id.len() - index,
-        ),
-        None => (u32::from_str_radix(id.trim(), 10).ok(), 0),
+        Some(index) => (id[..index].trim().parse().ok(), id.len() - index),
+        None => (id.trim().parse().ok(), 0),
     }
 }
 
@@ -100,7 +99,9 @@ enum PreReleaseId {
 
 impl<'a> From<&'a str> for PreReleaseId {
     fn from(string: &'a str) -> Self {
-        u32::from_str_radix(string.trim(), 10)
+        string
+            .trim()
+            .parse()
             .map(PreReleaseId::Numeric)
             .unwrap_or_else(|_| PreReleaseId::NonNumeric(string.to_lowercase()))
     }

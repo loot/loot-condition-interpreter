@@ -134,7 +134,7 @@ fn parse_regex_path(input: &str) -> ParsingResult<(PathBuf, Regex)> {
     let (parent_path_slice, regex_slice) = string
         .rfind('/')
         .map(|i| (&string[..i], &string[i + 1..]))
-        .unwrap_or_else(|| (".", &string));
+        .unwrap_or_else(|| (".", string));
 
     let parent_path = PathBuf::from(parent_path_slice);
 

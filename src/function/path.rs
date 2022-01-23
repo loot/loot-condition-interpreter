@@ -45,9 +45,8 @@ fn add_ghost_extension(path: PathBuf) -> PathBuf {
     }
 }
 
-pub fn normalise_file_name<'a>(game_type: GameType, name: &'a str) -> &'a str {
-    if name.ends_with(GHOST_EXTENSION_WITH_PERIOD) {
-        let stem = &name[..name.len() - GHOST_EXTENSION_WITH_PERIOD.len()];
+pub fn normalise_file_name(game_type: GameType, name: &str) -> &str {
+    if let Some(stem) = name.strip_suffix(GHOST_EXTENSION_WITH_PERIOD) {
         if has_unghosted_plugin_file_extension(game_type, Path::new(stem)) {
             return stem;
         }
