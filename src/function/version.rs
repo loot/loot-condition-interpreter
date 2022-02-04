@@ -229,7 +229,14 @@ impl PartialOrd for Version {
 
         match self_release_ids.partial_cmp(&other_release_ids) {
             Some(Ordering::Equal) | None => {
-                self.pre_release_ids.partial_cmp(&other.pre_release_ids)
+                match (
+                    self.pre_release_ids.is_empty(),
+                    other.pre_release_ids.is_empty(),
+                ) {
+                    (true, false) => Some(Ordering::Greater),
+                    (false, true) => Some(Ordering::Less),
+                    _ => self.pre_release_ids.partial_cmp(&other.pre_release_ids),
+                }
             }
             r => r,
         }
@@ -634,6 +641,19 @@ mod tests {
         fn version_partial_cmp_major_numbers_should_take_precedence_over_patch_numbers() {
             assert!(Version::from("5.0.10") < Version::from("10.0.5"));
             assert!(Version::from("10.0.5") > Version::from("5.0.10"));
+        }
+
+        #[test]
+        fn version_eq_should_consider_versions_that_differ_by_the_presence_of_a_pre_release_id_to_be_not_equal(
+        ) {
+            assert_ne!(Version::from("1.0.0"), Version::from("1.0.0-alpha"));
+        }
+
+        #[test]
+        fn version_partial_cmp_should_treat_the_absence_of_a_pre_release_id_as_greater_than_its_presence(
+        ) {
+            assert!(Version::from("1.0.0-alpha") < Version::from("1.0.0"));
+            assert!(Version::from("1.0.0") > Version::from("1.0.0-alpha"));
         }
 
         #[test]
