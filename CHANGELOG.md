@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.2.2] - 2022-02-04
+
+### Changed
+
+- Updated nom to v7.0.0.
+- Updated cbindgen to v0.20.
+
+### Fixed
+
+- Two versions that only differ by the presence and absence of pre-release
+  identifiers were not correctly compared according to Semantic Versioning,
+  which states that `1.0.0-alpha` is less than `1.0.0`.
+
 ## [2.2.1] - 2021-04-25
 
 ### Changed
