@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0] - 2022-02-26
+
+### Added
+
+- Support for a `readable(path)` condition function that returns true if
+  the given path is a readable file or directory and false otherwise.
+
 ## [2.2.2] - 2022-02-04
 
 ### Changed
