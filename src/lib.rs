@@ -273,6 +273,8 @@ fn whitespace<'a, O>(
 
 #[cfg(test)]
 mod tests {
+    use crate::function::ComparisonOperator;
+
     use super::*;
 
     use std::fs::create_dir;
@@ -625,6 +627,24 @@ mod tests {
         let compound_condition = CompoundCondition(vec![
             Condition::Function(Function::FilePath(PathBuf::from("Cargo.toml"))),
             Condition::Function(Function::FilePath(PathBuf::from("missing"))),
+        ]);
+
+        assert!(!compound_condition.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn compound_condition_eval_should_return_false_on_first_false_condition() {
+        let state = state(".");
+        let path = "Cargo.toml";
+
+        // If the second function is evaluated, it will result in an error.
+        let compound_condition = CompoundCondition(vec![
+            Condition::InvertedFunction(Function::Readable(PathBuf::from(path))),
+            Condition::Function(Function::ProductVersion(
+                PathBuf::from(path),
+                "1.0.0".into(),
+                ComparisonOperator::Equal,
+            )),
         ]);
 
         assert!(!compound_condition.eval(&state).unwrap());

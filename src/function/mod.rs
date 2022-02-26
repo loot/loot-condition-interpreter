@@ -39,6 +39,7 @@ impl fmt::Display for ComparisonOperator {
 pub enum Function {
     FilePath(PathBuf),
     FileRegex(PathBuf, Regex),
+    Readable(PathBuf),
     ActivePath(PathBuf),
     ActiveRegex(Regex),
     IsMaster(PathBuf),
@@ -55,6 +56,7 @@ impl fmt::Display for Function {
         match self {
             FilePath(p) => write!(f, "file(\"{}\")", p.display()),
             FileRegex(p, r) => write!(f, "file(\"{}/{}\")", p.display(), r),
+            Readable(p) => write!(f, "readable(\"{}\")", p.display()),
             ActivePath(p) => write!(f, "active(\"{}\")", p.display()),
             ActiveRegex(r) => write!(f, "active(\"{}\")", r),
             IsMaster(p) => write!(f, "is_master(\"{}\")", p.display()),
@@ -77,6 +79,7 @@ impl PartialEq for Function {
             (FileRegex(p1, r1), FileRegex(p2, r2)) => {
                 eq(r1.as_str(), r2.as_str()) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
+            (Readable(p1), Readable(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
             (ActivePath(p1), ActivePath(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
             (ActiveRegex(r1), ActiveRegex(r2)) => eq(r1.as_str(), r2.as_str()),
             (IsMaster(p1), IsMaster(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
@@ -110,6 +113,9 @@ impl Hash for Function {
             FileRegex(p, r) => {
                 p.to_string_lossy().to_lowercase().hash(state);
                 r.as_str().to_lowercase().hash(state);
+            }
+            Readable(p) => {
+                p.to_string_lossy().to_lowercase().hash(state);
             }
             ActivePath(p) => {
                 p.to_string_lossy().to_lowercase().hash(state);
@@ -170,6 +176,13 @@ mod tests {
             let function = Function::FileRegex("subdir".into(), regex("Blank.*"));
 
             assert_eq!("file(\"subdir/Blank.*\")", &format!("{}", function));
+        }
+
+        #[test]
+        fn function_fmt_for_readable_should_format_correctly() {
+            let function = Function::Readable("subdir/Blank.esm".into());
+
+            assert_eq!("readable(\"subdir/Blank.esm\")", &format!("{}", function));
         }
 
         #[test]
@@ -296,6 +309,35 @@ mod tests {
         }
 
         #[test]
+        fn function_eq_for_readable_should_check_pathbuf() {
+            assert_eq!(
+                Function::Readable("Blank.esm".into()),
+                Function::Readable("Blank.esm".into())
+            );
+
+            assert_ne!(
+                Function::Readable("Blank.esp".into()),
+                Function::Readable("Blank.esm".into())
+            );
+        }
+
+        #[test]
+        fn function_eq_for_readable_should_be_case_insensitive_on_pathbuf() {
+            assert_eq!(
+                Function::Readable("Blank.esm".into()),
+                Function::Readable("blank.esm".into())
+            );
+        }
+
+        #[test]
+        fn function_eq_for_readable_should_not_be_equal_to_file_path_with_same_pathbuf() {
+            assert_ne!(
+                Function::Readable("Blank.esm".into()),
+                Function::FilePath("Blank.esm".into())
+            );
+        }
+
+        #[test]
         fn function_eq_for_active_path_should_check_pathbuf() {
             assert_eq!(
                 Function::ActivePath("Blank.esm".into()),
@@ -317,10 +359,18 @@ mod tests {
         }
 
         #[test]
-        fn function_eq_active_path_should_not_be_equal_to_file_path_with_same_pathbuf() {
+        fn function_eq_for_active_path_should_not_be_equal_to_file_path_with_same_pathbuf() {
             assert_ne!(
                 Function::ActivePath("Blank.esm".into()),
                 Function::FilePath("Blank.esm".into())
+            );
+        }
+
+        #[test]
+        fn function_eq_for_active_path_should_not_be_equal_to_readable_with_same_pathbuf() {
+            assert_ne!(
+                Function::ActivePath("Blank.esm".into()),
+                Function::Readable("Blank.esm".into())
             );
         }
 
@@ -375,7 +425,15 @@ mod tests {
         }
 
         #[test]
-        fn function_eq_for_active_path_should_not_be_equal_to_active_path_with_same_pathbuf() {
+        fn function_eq_for_is_master_should_not_be_equal_to_readable_with_same_pathbuf() {
+            assert_ne!(
+                Function::IsMaster("Blank.esm".into()),
+                Function::Readable("Blank.esm".into())
+            );
+        }
+
+        #[test]
+        fn function_eq_for_is_master_should_not_be_equal_to_active_path_with_same_pathbuf() {
             assert_ne!(
                 Function::IsMaster("Blank.esm".into()),
                 Function::ActivePath("Blank.esm".into())
@@ -591,6 +649,35 @@ mod tests {
         }
 
         #[test]
+        fn function_hash_readable_should_hash_pathbuf() {
+            let function1 = Function::Readable("Blank.esm".into());
+            let function2 = Function::Readable("Blank.esm".into());
+
+            assert_eq!(hash(function1), hash(function2));
+
+            let function1 = Function::Readable("Blank.esm".into());
+            let function2 = Function::Readable("Blank.esp".into());
+
+            assert_ne!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_readable_should_be_case_insensitive() {
+            let function1 = Function::Readable("Blank.esm".into());
+            let function2 = Function::Readable("blank.esm".into());
+
+            assert_eq!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_file_path_and_readable_should_not_have_equal_hashes() {
+            let function1 = Function::FilePath("Blank.esm".into());
+            let function2 = Function::Readable("Blank.esm".into());
+
+            assert_ne!(hash(function1), hash(function2));
+        }
+
+        #[test]
         fn function_hash_active_path_should_hash_pathbuf() {
             let function1 = Function::ActivePath("Blank.esm".into());
             let function2 = Function::ActivePath("Blank.esm".into());
@@ -614,6 +701,14 @@ mod tests {
         #[test]
         fn function_hash_file_path_and_active_path_should_not_have_equal_hashes() {
             let function1 = Function::FilePath("Blank.esm".into());
+            let function2 = Function::ActivePath("Blank.esm".into());
+
+            assert_ne!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_readable_and_active_path_should_not_have_equal_hashes() {
+            let function1 = Function::Readable("Blank.esm".into());
             let function2 = Function::ActivePath("Blank.esm".into());
 
             assert_ne!(hash(function1), hash(function2));
@@ -670,8 +765,16 @@ mod tests {
         }
 
         #[test]
+        fn function_hash_readable_and_is_master_should_not_have_equal_hashes() {
+            let function1 = Function::Readable("Blank.esm".into());
+            let function2 = Function::IsMaster("Blank.esm".into());
+
+            assert_ne!(hash(function1), hash(function2));
+        }
+
+        #[test]
         fn function_hash_active_path_and_is_master_should_not_have_equal_hashes() {
-            let function1 = Function::FilePath("Blank.esm".into());
+            let function1 = Function::ActivePath("Blank.esm".into());
             let function2 = Function::IsMaster("Blank.esm".into());
 
             assert_ne!(hash(function1), hash(function2));

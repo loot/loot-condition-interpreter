@@ -38,6 +38,14 @@ fn evaluate_file_regex(state: &State, parent_path: &Path, regex: &Regex) -> Resu
     Ok(false)
 }
 
+fn evaluate_readable(state: &State, path: &Path) -> Result<bool, Error> {
+    if path.is_dir() {
+        Ok(read_dir(resolve_path(state, path)).is_ok())
+    } else {
+        Ok(File::open(resolve_path(state, path)).is_ok())
+    }
+}
+
 fn evaluate_many(state: &State, parent_path: &Path, regex: &Regex) -> Result<bool, Error> {
     let dir_iterator = match read_dir(state.data_path.join(parent_path)) {
         Ok(i) => i,
@@ -228,6 +236,7 @@ impl Function {
         let result = match self {
             Function::FilePath(f) => evaluate_file_path(state, f),
             Function::FileRegex(p, r) => evaluate_file_regex(state, p, r),
+            Function::Readable(p) => evaluate_readable(state, p),
             Function::ActivePath(p) => evaluate_active_path(state, p),
             Function::ActiveRegex(r) => evaluate_active_regex(state, r),
             Function::IsMaster(p) => evaluate_is_master(state, p),
@@ -328,6 +337,15 @@ mod tests {
             .case_insensitive(true)
             .build()
             .unwrap()
+    }
+
+    #[cfg(not(windows))]
+    fn make_path_unreadable(path: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+        permissions.set_mode(0o200);
+        std::fs::set_permissions(&path, permissions).unwrap();
     }
 
     #[test]
@@ -440,6 +458,123 @@ mod tests {
         let function = Function::FileRegex(PathBuf::from("."), regex("^Blank\\.esm$"));
 
         assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_readable_eval_should_be_true_for_a_file_that_can_be_opened_as_read_only() {
+        let function = Function::Readable(PathBuf::from("Cargo.toml"));
+        let state = state(".");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_readable_eval_should_be_true_for_a_folder_that_can_be_read() {
+        let function = Function::Readable(PathBuf::from("tests"));
+        let state = state(".");
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_readable_eval_should_be_false_for_a_file_that_does_not_exist() {
+        let function = Function::Readable(PathBuf::from("missing"));
+        let state = state(".");
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn function_readable_eval_should_be_false_for_a_file_that_is_not_readable() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        let relative_path = "unreadable";
+        let file_path = state.data_path.join(relative_path);
+
+        // Create a file and open it with exclusive access so that the readable
+        // function eval isn't able to open the file in read-only mode.
+        let _file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .share_mode(0)
+            .open(&file_path);
+
+        assert!(file_path.exists());
+
+        let function = Function::Readable(PathBuf::from(relative_path));
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn function_readable_eval_should_be_false_for_a_file_that_is_not_readable() {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        let relative_path = "unreadable";
+        let file_path = state.data_path.join(relative_path);
+
+        std::fs::write(&file_path, "").unwrap();
+        make_path_unreadable(&file_path);
+
+        assert!(file_path.exists());
+
+        let function = Function::Readable(PathBuf::from(relative_path));
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn function_readable_eval_should_be_false_for_a_folder_that_is_not_readable() {
+        let data_path = Path::new(r"C:\Program Files");
+        let state = state(data_path);
+
+        let relative_path = "WindowsApps";
+
+        // The WindowsApps directory is so locked down that trying to read its
+        // metadata fails, but its existence can still be observed by iterating
+        // over its parent directory's entries.
+        let entry_exists = state
+            .data_path
+            .read_dir()
+            .unwrap()
+            .flat_map(|res| res.map(|e| e.file_name()).into_iter())
+            .find(|name| name == relative_path)
+            .is_some();
+
+        assert!(entry_exists);
+
+        let function = Function::Readable(PathBuf::from(relative_path));
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn function_readable_eval_should_be_false_for_a_folder_that_is_not_readable() {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        let relative_path = "unreadable";
+        let folder_path = state.data_path.join(relative_path);
+
+        std::fs::create_dir(&folder_path).unwrap();
+        make_path_unreadable(&folder_path);
+
+        assert!(folder_path.exists());
+
+        let function = Function::Readable(PathBuf::from(relative_path));
+
+        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]
@@ -1081,7 +1216,7 @@ mod tests {
     #[test]
     fn function_product_version_eval_should_read_executable_product_version() {
         let function =
-            Function::Version("7za.exe".into(), "18.05".into(), ComparisonOperator::Equal);
+            Function::ProductVersion("7za.exe".into(), "18.05".into(), ComparisonOperator::Equal);
         let state = state("tests/7z");
 
         assert!(function.eval(&state).unwrap());

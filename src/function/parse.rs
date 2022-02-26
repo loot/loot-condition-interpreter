@@ -172,6 +172,14 @@ impl Function {
             ),
             map(
                 delimited(
+                    map_err(tag("readable(\"")),
+                    parse_non_regex_path,
+                    map_err(tag("\")")),
+                ),
+                Function::Readable,
+            ),
+            map(
+                delimited(
                     map_err(tag("active(\"")),
                     parse_non_regex_path,
                     map_err(tag("\")")),
@@ -310,6 +318,22 @@ mod tests {
     #[test]
     fn function_parse_should_error_if_the_file_regex_parent_path_is_outside_the_game_directory() {
         assert!(Function::parse("file(\"../../Cargo.*\")".into()).is_err());
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_readable_function() {
+        let output = Function::parse("readable(\"Cargo.toml\")".into()).unwrap();
+
+        assert!(output.0.is_empty());
+        match output.1 {
+            Function::Readable(f) => assert_eq!(Path::new("Cargo.toml"), f),
+            _ => panic!("Expected a file path function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_error_if_the_readable_path_is_outside_the_game_directory() {
+        assert!(Function::parse("readable(\"../../Cargo.toml\")".into()).is_err());
     }
 
     #[test]
