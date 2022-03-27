@@ -4,7 +4,7 @@ version = "2.3.1"
 authors = ["Oliver Hamlet <oliver@ortham.io>"]
 license = "MIT"
 build = "build.rs"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 loot-condition-interpreter = { path = ".." }
