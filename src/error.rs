@@ -19,7 +19,7 @@ pub enum Error {
 }
 
 fn escape<I: fmt::Display>(input: I) -> String {
-    input.to_string().replace("\"", "\\\"")
+    input.to_string().replace('"', "\\\"")
 }
 
 impl<I: fmt::Debug + fmt::Display> From<Err<ParsingError<I>>> for Error {
