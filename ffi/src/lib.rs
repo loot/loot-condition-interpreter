@@ -85,7 +85,7 @@ pub unsafe extern "C" fn lci_get_error_message(message: *mut *const c_char) -> c
                 if f.borrow().as_bytes().is_empty() {
                     *message = ptr::null();
                 } else {
-                    *message = f.borrow().as_ptr() as *const i8;
+                    *message = f.borrow().as_ptr();
                 }
             });
 
