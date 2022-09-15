@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.3.1] - 2022-09-15
+
+### Changed
+
+- Updated esplugin to v4.0.0.
+
 ## [2.3.0] - 2022-02-26
 
 ### Added
