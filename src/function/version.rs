@@ -385,17 +385,16 @@ mod tests {
 
         #[test]
         fn version_read_file_version_should_read_the_file_version_field_of_a_32_bit_executable() {
-            let version =
-                Version::read_file_version(Path::new("tests/loot_api_win32/loot_api.dll"))
-                    .unwrap()
-                    .unwrap();
+            let version = Version::read_file_version(Path::new("tests/libloot_win32/loot.dll"))
+                .unwrap()
+                .unwrap();
 
             assert_eq!(
                 version.release_ids,
                 vec![
                     ReleaseId::Numeric(0),
-                    ReleaseId::Numeric(13),
-                    ReleaseId::Numeric(8),
+                    ReleaseId::Numeric(18),
+                    ReleaseId::Numeric(2),
                     ReleaseId::Numeric(0),
                 ]
             );
@@ -404,17 +403,16 @@ mod tests {
 
         #[test]
         fn version_read_file_version_should_read_the_file_version_field_of_a_64_bit_executable() {
-            let version =
-                Version::read_file_version(Path::new("tests/loot_api_win64/loot_api.dll"))
-                    .unwrap()
-                    .unwrap();
+            let version = Version::read_file_version(Path::new("tests/libloot_win64/loot.dll"))
+                .unwrap()
+                .unwrap();
 
             assert_eq!(
                 version.release_ids,
                 vec![
                     ReleaseId::Numeric(0),
-                    ReleaseId::Numeric(13),
-                    ReleaseId::Numeric(8),
+                    ReleaseId::Numeric(18),
+                    ReleaseId::Numeric(2),
                     ReleaseId::Numeric(0),
                 ]
             );
@@ -449,13 +447,17 @@ mod tests {
         #[test]
         fn version_read_product_version_should_read_the_file_version_field_of_a_32_bit_executable()
         {
-            let version = Version::read_product_version(Path::new("tests/7z/7za.exe"))
+            let version = Version::read_product_version(Path::new("tests/libloot_win32/loot.dll"))
                 .unwrap()
                 .unwrap();
 
             assert_eq!(
                 version.release_ids,
-                vec![ReleaseId::Numeric(18), ReleaseId::Numeric(5),]
+                vec![
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(18),
+                    ReleaseId::Numeric(2)
+                ]
             );
             assert!(version.pre_release_ids.is_empty());
         }
@@ -463,32 +465,43 @@ mod tests {
         #[test]
         fn version_read_product_version_should_read_the_file_version_field_of_a_64_bit_executable()
         {
-            let version = Version::read_product_version(Path::new("tests/7z/x64/7za.exe"))
+            let version = Version::read_product_version(Path::new("tests/libloot_win64/loot.dll"))
                 .unwrap()
                 .unwrap();
 
             assert_eq!(
                 version.release_ids,
-                vec![ReleaseId::Numeric(18), ReleaseId::Numeric(5),]
+                vec![
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(18),
+                    ReleaseId::Numeric(2),
+                ]
             );
             assert!(version.pre_release_ids.is_empty());
         }
 
         #[test]
-        fn version_read_file_version_should_find_non_us_english_version_strings() {
+        fn version_read_product_version_should_find_non_us_english_version_strings() {
             let tmp_dir = tempfile::tempdir().unwrap();
-            let dll_path = tmp_dir.path().join("7zxa.ru.dll");
+            let dll_path = tmp_dir.path().join("loot.ru.dll");
+
+            let mut dll_bytes = std::fs::read("tests/libloot_win32/loot.dll").unwrap();
 
             // Set the version info block's language code to 1049 (Russian).
-            let mut dll_bytes = std::fs::read("tests/7z/7zxa.dll").unwrap();
-            dll_bytes[0x23B10] = 0x19;
+            dll_bytes[0x53204A] = b'1'; // This changes VersionInfo.strings.Language.lang_id
+            dll_bytes[0x53216C] = 0x19; // This changes VersionInfo.langs.Language.lang_id
+
             std::fs::write(&dll_path, dll_bytes).unwrap();
 
             let version = Version::read_product_version(&dll_path).unwrap().unwrap();
 
             assert_eq!(
                 version.release_ids,
-                vec![ReleaseId::Numeric(18), ReleaseId::Numeric(5)]
+                vec![
+                    ReleaseId::Numeric(0),
+                    ReleaseId::Numeric(18),
+                    ReleaseId::Numeric(2)
+                ]
             );
             assert!(version.pre_release_ids.is_empty());
         }

@@ -42,20 +42,17 @@ jobs:
           7z x 1.4.0.zip
           mv testing-plugins-1.4.0 testing-plugins
 
-          (New-Object Net.WebClient).DownloadFile('https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win32.7z', "$PWD/loot_api_win32.7z")
-          7z x loot_api_win32.7z
-          mv loot_api-0.13.8-0-g47797cc_dev-win32 loot_api_win32
+          (New-Object Net.WebClient).DownloadFile('https://github.com/loot/libloot/releases/download/0.18.2/libloot-0.18.2-0-gb1a9e31_0.18.2-win32.7z', "$PWD/libloot_win32.7z")
+          7z x libloot_win32.7z
+          mv libloot-0.18.2-0-gb1a9e31_0.18.2-win32 libloot_win32
 
-          (New-Object Net.WebClient).DownloadFile('https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win64.7z', "$PWD/loot_api_win64.7z")
-          7z x loot_api_win64.7z
-          mv loot_api-0.13.8-0-g47797cc_dev-win64 loot_api_win64
+          (New-Object Net.WebClient).DownloadFile('https://github.com/loot/libloot/releases/download/0.18.2/libloot-0.18.2-0-gb1a9e31_0.18.2-win64.7z', "$PWD/libloot_win64.7z")
+          7z x libloot_win64.7z
+          mv libloot-0.18.2-0-gb1a9e31_0.18.2-win64 libloot_win64
 
           (New-Object Net.WebClient).DownloadFile('https://github.com/loot/loot-api-python/releases/download/4.0.2/loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z', "$PWD/loot_api_python.7z")
           7z x loot_api_python.7z
           mv loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32 loot_api_python
-
-          (New-Object Net.WebClient).DownloadFile('https://7-zip.org/a/7z1805-extra.7z', "$PWD/7z.7z")
-          7z x "$PWD/7z.7z" -o7z
 
           cd ..
 
@@ -103,20 +100,17 @@ jobs:
           tar -xf 1.4.1.tar.gz
           mv testing-plugins-1.4.1 testing-plugins
 
-          wget https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win32.7z
-          7z x loot_api-0.13.8-0-g47797cc_dev-win32.7z
-          mv loot_api-0.13.8-0-g47797cc_dev-win32 loot_api_win32
+          wget https://github.com/loot/libloot/releases/download/0.18.2/libloot-0.18.2-0-gb1a9e31_0.18.2-win32.7z
+          7z x libloot-0.18.2-0-gb1a9e31_0.18.2-win32.7z
+          mv libloot-0.18.2-0-gb1a9e31_0.18.2-win32 libloot_win32
 
-          wget https://github.com/loot/loot-api/releases/download/0.13.8/loot_api-0.13.8-0-g47797cc_dev-win64.7z
-          7z x loot_api-0.13.8-0-g47797cc_dev-win64.7z
-          mv loot_api-0.13.8-0-g47797cc_dev-win64 loot_api_win64
+          wget https://github.com/loot/libloot/releases/download/0.18.2/libloot-0.18.2-0-gb1a9e31_0.18.2-win64.7z
+          7z x libloot-0.18.2-0-gb1a9e31_0.18.2-win64.7z
+          mv libloot-0.18.2-0-gb1a9e31_0.18.2-win64 libloot_win64
 
           wget https://github.com/loot/loot-api-python/releases/download/4.0.2/loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z
           7z x loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z
           mv loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32 loot_api_python
-
-          wget https://7-zip.org/a/7z1805-extra.7z
-          7z x 7z1805-extra.7z -o7z
 
           cd ..
 

@@ -124,10 +124,9 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("Expression.eval() version(executable)", |b| {
         let state = State::new(GameType::Oblivion, ".".into(), ".".into());
-        let expression = Expression::from_str(
-            "version(\"tests/loot_api_win32/loot_api.dll\", \"0.13.8.0\", ==)",
-        )
-        .unwrap();
+        let expression =
+            Expression::from_str("version(\"tests/libloot_win32/loot.dll\", \"0.18.2.0\", ==)")
+                .unwrap();
 
         b.iter(|| {
             assert!(expression.eval(&state).unwrap());

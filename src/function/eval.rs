@@ -1204,20 +1204,23 @@ mod tests {
     #[test]
     fn function_version_eval_should_read_executable_file_version() {
         let function = Function::Version(
-            "loot_api.dll".into(),
-            "0.13.8.0".into(),
+            "loot.dll".into(),
+            "0.18.2.0".into(),
             ComparisonOperator::Equal,
         );
-        let state = state("tests/loot_api_win32");
+        let state = state("tests/libloot_win32");
 
         assert!(function.eval(&state).unwrap());
     }
 
     #[test]
     fn function_product_version_eval_should_read_executable_product_version() {
-        let function =
-            Function::ProductVersion("7za.exe".into(), "18.05".into(), ComparisonOperator::Equal);
-        let state = state("tests/7z");
+        let function = Function::ProductVersion(
+            "loot.dll".into(),
+            "0.18.2".into(),
+            ComparisonOperator::Equal,
+        );
+        let state = state("tests/libloot_win32");
 
         assert!(function.eval(&state).unwrap());
     }
@@ -1234,11 +1237,11 @@ mod tests {
 
     #[test]
     fn get_product_version_should_return_ok_some_if_the_path_is_an_executable() {
-        let version = get_product_version(Path::new("tests/7z/7za.exe"))
+        let version = get_product_version(Path::new("tests/libloot_win32/loot.dll"))
             .unwrap()
             .unwrap();
 
-        assert_eq!(Version::from("18.05"), version);
+        assert_eq!(Version::from("0.18.2"), version);
     }
 
     #[test]

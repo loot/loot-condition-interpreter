@@ -2,9 +2,9 @@
 /target/
 **/*.rs.bk
 Cargo.lock
-/tests/7z
 /tests/testing-plugins
-/tests/loot_api*
+/tests/libloot*
+/tests/loot_api_python
 /ffi/include/
 /ffi/build/
 .vscode
