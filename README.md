@@ -2,7 +2,7 @@ loot-condition-interpreter
 ==========================
 
 ![CI](https://github.com/loot/loot-condition-interpreter/workflows/CI/badge.svg?branch=master)
-[![Coverage Status](https://coveralls.io/repos/github/Ortham/libloadorder/badge.svg?branch=master)](https://coveralls.io/github/Ortham/libloadorder?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/loot/loot-condition-interpreter/badge.svg?branch=master)](https://coveralls.io/github/loot/loot-condition-interpreter?branch=master)
 
 A library for parsing and evaluating LOOT's metadata condition strings. It
 provides:
