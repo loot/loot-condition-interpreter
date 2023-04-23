@@ -39,12 +39,10 @@ pub enum GameType {
 
 impl GameType {
     fn supports_light_plugins(self) -> bool {
-        match self {
-            GameType::SkyrimSE | GameType::SkyrimVR | GameType::Fallout4 | GameType::Fallout4VR => {
-                true
-            }
-            _ => false,
-        }
+        matches!(
+            self,
+            GameType::SkyrimSE | GameType::SkyrimVR | GameType::Fallout4 | GameType::Fallout4VR
+        )
     }
 }
 

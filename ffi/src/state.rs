@@ -66,7 +66,7 @@ pub unsafe extern "C" fn lci_state_create(
 #[no_mangle]
 pub unsafe extern "C" fn lci_state_destroy(state: *mut lci_state) {
     if !state.is_null() {
-        Box::from_raw(state);
+        drop(Box::from_raw(state));
     }
 }
 
