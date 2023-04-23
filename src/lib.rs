@@ -51,6 +51,9 @@ pub struct State {
     game_type: GameType,
     /// Game Data folder path.
     data_path: PathBuf,
+    /// Other directories that may contain plugins and other game files, used before data_path and
+    /// in the order they're listed.
+    additional_data_paths: Vec<PathBuf>,
     /// Path to the LOOT executable, used to resolve conditions that use the "LOOT" path.
     loot_path: PathBuf,
     /// Lowercased plugin filenames.
@@ -68,6 +71,7 @@ impl State {
         State {
             game_type,
             data_path,
+            additional_data_paths: Vec::default(),
             loot_path,
             active_plugins: HashSet::default(),
             crc_cache: RwLock::default(),
@@ -123,6 +127,10 @@ impl State {
         &mut self,
     ) -> Result<(), PoisonError<RwLockWriteGuard<HashMap<Function, bool>>>> {
         self.condition_cache.write().map(|mut c| c.clear())
+    }
+
+    pub fn set_additional_data_paths(&mut self, additional_data_paths: Vec<PathBuf>) {
+        self.additional_data_paths = additional_data_paths;
     }
 }
 
@@ -287,6 +295,7 @@ mod tests {
         State {
             game_type: GameType::Oblivion,
             data_path,
+            additional_data_paths: Vec::default(),
             loot_path: PathBuf::new(),
             active_plugins: HashSet::new(),
             crc_cache: RwLock::default(),

@@ -1,4 +1,5 @@
 use std::ffi::{CStr, CString};
+use std::path::PathBuf;
 use std::slice;
 
 use libc::{c_char, c_int, size_t};
@@ -74,6 +75,13 @@ pub unsafe fn to_str_vec<'a>(
     array_size: size_t,
 ) -> Result<Vec<&'a str>, i32> {
     to_vec(array, array_size, |c| to_str(*c))
+}
+
+pub unsafe fn to_path_buf_vec(
+    array: *const *const c_char,
+    array_size: size_t,
+) -> Result<Vec<PathBuf>, i32> {
+    to_vec(array, array_size, |c| to_str(*c).map(PathBuf::from))
 }
 
 unsafe fn map_plugin_version(c_object: &plugin_version) -> Result<(String, String), i32> {

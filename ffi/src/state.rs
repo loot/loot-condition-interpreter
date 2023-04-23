@@ -7,7 +7,7 @@ use loot_condition_interpreter::State;
 
 use crate::constants::*;
 use crate::helpers::{
-    error, map_game_type, map_plugin_crcs, map_plugin_versions, to_str, to_str_vec,
+    error, map_game_type, map_plugin_crcs, map_plugin_versions, to_path_buf_vec, to_str, to_str_vec,
 };
 
 #[allow(non_camel_case_types)]
@@ -197,6 +197,42 @@ pub unsafe extern "C" fn lci_state_clear_condition_cache(state: *mut lci_state) 
                 },
             }
         }
+    })
+    .unwrap_or(LCI_ERROR_PANICKED)
+}
+
+/// Sets the external data paths for the given state.
+///
+/// If the operating environment contains multiple directories containing relevant plugins and other
+/// data files, this function can be used to provide those directory paths that are not the game's
+/// main data directory so that files in those directories are taken into account when evaluating
+/// conditions.
+///
+/// Returns `LCI_OK` if successful, otherwise a `LCI_ERROR_*` code is returned.
+#[no_mangle]
+pub unsafe extern "C" fn lci_state_set_additional_data_paths(
+    state: *mut lci_state,
+    paths: *const *const c_char,
+    num_paths: size_t,
+) -> c_int {
+    catch_unwind(|| {
+        if state.is_null() || (paths.is_null() && num_paths != 0) {
+            return error(LCI_ERROR_INVALID_ARGS, "Null pointer passed");
+        }
+
+        let mut state = match (*state).0.write() {
+            Err(e) => return error(LCI_ERROR_POISONED_THREAD_LOCK, &e.to_string()),
+            Ok(h) => h,
+        };
+
+        let additional_data_paths = match to_path_buf_vec(paths, num_paths) {
+            Ok(x) => x,
+            Err(x) => return error(x, "An external data path contained a null byte"),
+        };
+
+        state.set_additional_data_paths(additional_data_paths);
+
+        LCI_OK
     })
     .unwrap_or(LCI_ERROR_PANICKED)
 }

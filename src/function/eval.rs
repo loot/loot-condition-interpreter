@@ -22,20 +22,44 @@ fn is_match(game_type: GameType, regex: &Regex, file_name: &OsStr) -> bool {
         .unwrap_or(false)
 }
 
-fn evaluate_file_regex(state: &State, parent_path: &Path, regex: &Regex) -> Result<bool, Error> {
-    let dir_iterator = match read_dir(state.data_path.join(parent_path)) {
+fn evaluate_regex(
+    game_type: GameType,
+    data_path: &Path,
+    parent_path: &Path,
+    regex: &Regex,
+    mut condition: impl FnMut() -> bool,
+) -> Result<bool, Error> {
+    let dir_iterator = match read_dir(data_path.join(parent_path)) {
         Ok(i) => i,
         Err(_) => return Ok(false),
     };
 
     for entry in dir_iterator {
         let entry = entry.map_err(|e| Error::IoError(parent_path.to_path_buf(), e))?;
-        if is_match(state.game_type, regex, &entry.file_name()) {
+        if is_match(game_type, regex, &entry.file_name()) && condition() {
             return Ok(true);
         }
     }
 
     Ok(false)
+}
+
+fn evaluate_file_regex(state: &State, parent_path: &Path, regex: &Regex) -> Result<bool, Error> {
+    for data_path in &state.additional_data_paths {
+        let result = evaluate_regex(state.game_type, data_path, parent_path, regex, || true)?;
+
+        if result {
+            return Ok(true);
+        }
+    }
+
+    evaluate_regex(
+        state.game_type,
+        &state.data_path,
+        parent_path,
+        regex,
+        || true,
+    )
 }
 
 fn evaluate_readable(state: &State, path: &Path) -> Result<bool, Error> {
@@ -47,24 +71,39 @@ fn evaluate_readable(state: &State, path: &Path) -> Result<bool, Error> {
 }
 
 fn evaluate_many(state: &State, parent_path: &Path, regex: &Regex) -> Result<bool, Error> {
-    let dir_iterator = match read_dir(state.data_path.join(parent_path)) {
-        Ok(i) => i,
-        Err(_) => return Ok(false),
+    // Share the found_one state across all data paths because they're all
+    // treated as if they were merged into one directory.
+    let mut found_one = false;
+    let mut condition = || {
+        if found_one {
+            true
+        } else {
+            found_one = true;
+            false
+        }
     };
 
-    let mut found_one = false;
-    for entry in dir_iterator {
-        let entry = entry.map_err(|e| Error::IoError(parent_path.to_path_buf(), e))?;
-        if is_match(state.game_type, regex, &entry.file_name()) {
-            if found_one {
-                return Ok(true);
-            } else {
-                found_one = true;
-            }
+    for data_path in &state.additional_data_paths {
+        let result = evaluate_regex(
+            state.game_type,
+            data_path,
+            parent_path,
+            regex,
+            &mut condition,
+        )?;
+
+        if result {
+            return Ok(true);
         }
     }
 
-    Ok(false)
+    evaluate_regex(
+        state.game_type,
+        &state.data_path,
+        parent_path,
+        regex,
+        &mut condition,
+    )
 }
 
 fn evaluate_active_path(state: &State, path: &Path) -> Result<bool, Error> {
@@ -290,22 +329,23 @@ mod tests {
     }
 
     fn state_with_active_plugins<T: Into<PathBuf>>(data_path: T, active_plugins: &[&str]) -> State {
-        state_with_data(data_path, "", active_plugins, &[])
+        state_with_data(data_path, Vec::default(), "", active_plugins, &[])
     }
 
     fn state_with_loot_path<T: Into<PathBuf>>(data_path: T, loot_path: &str) -> State {
-        state_with_data(data_path, loot_path, &[], &[])
+        state_with_data(data_path, Vec::default(), loot_path, &[], &[])
     }
 
     fn state_with_versions<T: Into<PathBuf>>(
         data_path: T,
         plugin_versions: &[(&str, &str)],
     ) -> State {
-        state_with_data(data_path, "", &[], plugin_versions)
+        state_with_data(data_path, Vec::default(), "", &[], plugin_versions)
     }
 
     fn state_with_data<T: Into<PathBuf>>(
         data_path: T,
+        additional_data_paths: Vec<T>,
         loot_path: &str,
         active_plugins: &[&str],
         plugin_versions: &[(&str, &str)],
@@ -315,9 +355,21 @@ mod tests {
             create_dir(&data_path).unwrap();
         }
 
+        let additional_data_paths = additional_data_paths
+            .into_iter()
+            .map(|data_path| {
+                let data_path: PathBuf = data_path.into();
+                if !data_path.exists() {
+                    create_dir(&data_path).unwrap();
+                }
+                data_path
+            })
+            .collect();
+
         State {
             game_type: GameType::Oblivion,
             data_path,
+            additional_data_paths,
             loot_path: loot_path.into(),
             active_plugins: active_plugins
                 .into_iter()
@@ -456,6 +508,20 @@ mod tests {
         .unwrap();
 
         let function = Function::FileRegex(PathBuf::from("."), regex("^Blank\\.esm$"));
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_file_regex_eval_should_check_all_configured_data_paths() {
+        let function = Function::FileRegex(PathBuf::from("Data"), regex("Blank\\.esp"));
+        let state = state_with_data(
+            "./src",
+            vec!["./tests/testing-plugins/Oblivion"],
+            ".",
+            &[],
+            &[],
+        );
 
         assert!(function.eval(&state).unwrap());
     }
@@ -705,6 +771,20 @@ mod tests {
         .unwrap();
 
         let function = Function::Many(PathBuf::from("."), regex("^Blank\\.es(m|p)$"));
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_many_eval_should_check_across_all_configured_data_paths() {
+        let function = Function::Many(PathBuf::from("Data"), regex("Blank\\.esp"));
+        let state = state_with_data(
+            "./tests/testing-plugins/Skyrim",
+            vec!["./tests/testing-plugins/Oblivion"],
+            ".",
+            &[],
+            &[],
+        );
 
         assert!(function.eval(&state).unwrap());
     }

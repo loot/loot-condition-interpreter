@@ -59,6 +59,24 @@ pub fn resolve_path(state: &State, path: &Path) -> PathBuf {
     if path == Path::new("LOOT") {
         state.loot_path.clone()
     } else {
+        // First check external data paths, as files there may override files in the main data path.
+        for data_path in &state.additional_data_paths {
+            let mut path = data_path.join(path);
+
+            if path.exists() {
+                return path;
+            }
+
+            if has_unghosted_plugin_file_extension(state.game_type, &path) {
+                path = add_ghost_extension(path);
+            }
+
+            if path.exists() {
+                return path;
+            }
+        }
+
+        // Now check the main data path.
         let path = state.data_path.join(path);
 
         if !path.exists() && has_unghosted_plugin_file_extension(state.game_type, &path) {
@@ -434,5 +452,34 @@ mod tests {
             data_path.join(input_path.with_extension("esp.ghost")),
             resolved_path
         );
+    }
+
+    #[test]
+    fn resolve_path_should_check_external_data_paths_in_order_before_data_path() {
+        use std::fs::copy;
+        use std::fs::create_dir;
+
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let external_data_path_1 = tmp_dir.path().join("Data1");
+        let external_data_path_2 = tmp_dir.path().join("Data2");
+        let data_path = tmp_dir.path().join("Data3");
+
+        create_dir(&external_data_path_1).unwrap();
+        create_dir(&external_data_path_2).unwrap();
+        create_dir(&data_path).unwrap();
+        copy(
+            Path::new("Cargo.toml"),
+            external_data_path_2.join("Cargo.toml"),
+        )
+        .unwrap();
+        copy(Path::new("Cargo.toml"), data_path.join("Cargo.toml")).unwrap();
+
+        let mut state = State::new(GameType::Skyrim, data_path, "loot.exe".into());
+        state.set_additional_data_paths(vec![external_data_path_1, external_data_path_2.clone()]);
+
+        let input_path = Path::new("Cargo.toml");
+        let resolved_path = resolve_path(&state, input_path);
+
+        assert_eq!(external_data_path_2.join(input_path), resolved_path);
     }
 }

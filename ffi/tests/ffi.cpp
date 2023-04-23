@@ -181,6 +181,37 @@ void test_lci_state_set_crc_cache() {
     lci_state_destroy(state);
 }
 
+void test_lci_state_set_additional_data_paths() {
+    printf("testing lci_state_set_additional_data_paths()...\n");
+
+    lci_state * state = nullptr;
+    int return_code = lci_state_create(&state, LCI_GAME_OBLIVION, ".", ".");
+
+    assert(return_code == LCI_OK);
+    assert(state != nullptr);
+
+    return_code = lci_condition_eval("file(\"Blank.esm\")", state);
+
+    assert(return_code == LCI_RESULT_FALSE);
+
+    const char * data_paths[] = { "../../tests/testing-plugins/Oblivion/Data" };
+
+    return_code = lci_state_set_additional_data_paths(state, data_paths, 1);
+    assert(return_code == LCI_OK);
+
+    return_code = lci_state_clear_condition_cache(state);
+    assert(return_code == LCI_OK);
+
+    return_code = lci_condition_eval("file(\"Blank.esm\")", state);
+
+    assert(return_code == LCI_RESULT_TRUE);
+
+    return_code = lci_state_set_additional_data_paths(state, nullptr, 0);
+    assert(return_code == LCI_OK);
+
+    lci_state_destroy(state);
+}
+
 int main(void) {
     test_game_id_values();
 
@@ -192,6 +223,7 @@ int main(void) {
     test_lci_state_set_active_plugins();
     test_lci_state_set_plugin_versions();
     test_lci_state_set_crc_cache();
+    test_lci_state_set_additional_data_paths();
 
     printf("SUCCESS\n");
     return 0;
