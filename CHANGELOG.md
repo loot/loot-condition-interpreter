@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.4.0] - 2023-04-24
+
+### Added
+
+- Support for additional data paths that take precedence over the game's main
+  data path. Additional data paths can be specified using
+  `State::set_additional_data_paths()` or
+  `lci_state_set_additional_data_paths()`. This is intended to support the
+  Microsoft Store's Fallout 4 DLCs, which are installed outside of the base
+  game install path, but may also be useful in other situations.
+
 ## [2.3.1] - 2022-09-15
 
 ### Changed
