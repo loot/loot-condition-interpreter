@@ -44,7 +44,7 @@ cbindgen ffi/ -o ffi/include/loot_condition_interpreter.h
 
 ## Tests & Benchmarks
 
-The tests and benchmarks need the [testing-plugins](https://github.com/WrinklyNinja/testing-plugins)
+The tests and benchmarks need the [testing-plugins](https://github.com/Ortham/testing-plugins)
 and the [LOOT API v0.13.8](https://github.com/loot/loot-api/releases/tag/0.13.8)
 Windows archives to be extracted and present in the repo root. See the GitHub
 Actions CI workflow for examples on what should be extracted where.
