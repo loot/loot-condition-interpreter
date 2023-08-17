@@ -56,34 +56,30 @@ pub fn normalise_file_name(game_type: GameType, name: &str) -> &str {
 }
 
 pub fn resolve_path(state: &State, path: &Path) -> PathBuf {
-    if path == Path::new("LOOT") {
-        state.loot_path.clone()
+    // First check external data paths, as files there may override files in the main data path.
+    for data_path in &state.additional_data_paths {
+        let mut path = data_path.join(path);
+
+        if path.exists() {
+            return path;
+        }
+
+        if has_unghosted_plugin_file_extension(state.game_type, &path) {
+            path = add_ghost_extension(path);
+        }
+
+        if path.exists() {
+            return path;
+        }
+    }
+
+    // Now check the main data path.
+    let path = state.data_path.join(path);
+
+    if !path.exists() && has_unghosted_plugin_file_extension(state.game_type, &path) {
+        add_ghost_extension(path)
     } else {
-        // First check external data paths, as files there may override files in the main data path.
-        for data_path in &state.additional_data_paths {
-            let mut path = data_path.join(path);
-
-            if path.exists() {
-                return path;
-            }
-
-            if has_unghosted_plugin_file_extension(state.game_type, &path) {
-                path = add_ghost_extension(path);
-            }
-
-            if path.exists() {
-                return path;
-            }
-        }
-
-        // Now check the main data path.
-        let path = state.data_path.join(path);
-
-        if !path.exists() && has_unghosted_plugin_file_extension(state.game_type, &path) {
-            add_ghost_extension(path)
-        } else {
-            path
-        }
+        path
     }
 }
 
@@ -405,19 +401,9 @@ mod tests {
     }
 
     #[test]
-    #[allow(non_snake_case)]
-    fn resolve_path_should_return_loot_path_if_given_LOOT() {
-        let loot_path = PathBuf::from("loot.exe");
-        let state = State::new(GameType::Skyrim, "data".into(), loot_path.clone());
-        let path = resolve_path(&state, Path::new("LOOT"));
-
-        assert_eq!(loot_path, path);
-    }
-
-    #[test]
     fn resolve_path_should_return_the_data_path_prefixed_path_if_it_exists() {
         let data_path = PathBuf::from(".");
-        let state = State::new(GameType::Skyrim, data_path.clone(), "loot.exe".into());
+        let state = State::new(GameType::Skyrim, data_path.clone());
         let input_path = Path::new("README.md");
         let resolved_path = resolve_path(&state, input_path);
 
@@ -428,7 +414,7 @@ mod tests {
     fn resolve_path_should_return_the_data_path_prefixed_path_if_it_does_not_exist_and_is_not_an_unghosted_plugin_filename(
     ) {
         let data_path = PathBuf::from(".");
-        let state = State::new(GameType::Skyrim, data_path.clone(), "loot.exe".into());
+        let state = State::new(GameType::Skyrim, data_path.clone());
         let input_path = Path::new("plugin.esp.ghost");
         let resolved_path = resolve_path(&state, input_path);
 
@@ -444,7 +430,7 @@ mod tests {
     fn resolve_path_should_return_the_given_data_relative_path_plus_a_ghost_extension_if_the_plugin_path_does_not_exist(
     ) {
         let data_path = PathBuf::from(".");
-        let state = State::new(GameType::Skyrim, data_path.clone(), "loot.exe".into());
+        let state = State::new(GameType::Skyrim, data_path.clone());
         let input_path = Path::new("plugin.esp");
         let resolved_path = resolve_path(&state, input_path);
 
@@ -474,7 +460,7 @@ mod tests {
         .unwrap();
         copy(Path::new("Cargo.toml"), data_path.join("Cargo.toml")).unwrap();
 
-        let mut state = State::new(GameType::Skyrim, data_path, "loot.exe".into());
+        let mut state = State::new(GameType::Skyrim, data_path);
         state.set_additional_data_paths(vec![external_data_path_1, external_data_path_2.clone()]);
 
         let input_path = Path::new("Cargo.toml");

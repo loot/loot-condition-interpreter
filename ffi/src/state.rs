@@ -32,10 +32,9 @@ pub unsafe extern "C" fn lci_state_create(
     state: *mut *mut lci_state,
     game_type: c_int,
     data_path: *const c_char,
-    loot_path: *const c_char,
 ) -> c_int {
     catch_unwind(|| {
-        if state.is_null() || data_path.is_null() || loot_path.is_null() {
+        if state.is_null() || data_path.is_null() {
             error(LCI_ERROR_INVALID_ARGS, "Null pointer passed")
         } else {
             let game_type = match map_game_type(game_type) {
@@ -48,13 +47,8 @@ pub unsafe extern "C" fn lci_state_create(
                 Err(e) => return e,
             };
 
-            let loot_path = match to_str(loot_path) {
-                Ok(x) => PathBuf::from(x),
-                Err(e) => return e,
-            };
-
             *state = Box::into_raw(Box::new(lci_state(RwLock::new(State::new(
-                game_type, data_path, loot_path,
+                game_type, data_path,
             )))));
 
             LCI_OK

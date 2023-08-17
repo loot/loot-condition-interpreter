@@ -329,24 +329,19 @@ mod tests {
     }
 
     fn state_with_active_plugins<T: Into<PathBuf>>(data_path: T, active_plugins: &[&str]) -> State {
-        state_with_data(data_path, Vec::default(), "", active_plugins, &[])
-    }
-
-    fn state_with_loot_path<T: Into<PathBuf>>(data_path: T, loot_path: &str) -> State {
-        state_with_data(data_path, Vec::default(), loot_path, &[], &[])
+        state_with_data(data_path, Vec::default(), active_plugins, &[])
     }
 
     fn state_with_versions<T: Into<PathBuf>>(
         data_path: T,
         plugin_versions: &[(&str, &str)],
     ) -> State {
-        state_with_data(data_path, Vec::default(), "", &[], plugin_versions)
+        state_with_data(data_path, Vec::default(), &[], plugin_versions)
     }
 
     fn state_with_data<T: Into<PathBuf>>(
         data_path: T,
         additional_data_paths: Vec<T>,
-        loot_path: &str,
         active_plugins: &[&str],
         plugin_versions: &[(&str, &str)],
     ) -> State {
@@ -370,7 +365,6 @@ mod tests {
             game_type: GameType::Oblivion,
             data_path,
             additional_data_paths,
-            loot_path: loot_path.into(),
             active_plugins: active_plugins
                 .into_iter()
                 .map(|s| s.to_lowercase())
@@ -423,24 +417,6 @@ mod tests {
         let function = Function::FilePath(PathBuf::from("Blank.esp"));
 
         assert!(function.eval(&state).unwrap());
-    }
-
-    #[test]
-    #[allow(non_snake_case)]
-    fn function_file_path_eval_should_be_true_if_given_LOOT_and_loot_path_exists() {
-        let function = Function::FilePath(PathBuf::from("LOOT"));
-        let state = state_with_loot_path(".", "Cargo.toml");
-
-        assert!(function.eval(&state).unwrap());
-    }
-
-    #[test]
-    #[allow(non_snake_case)]
-    fn function_file_path_eval_should_be_false_if_given_LOOT_and_loot_path_does_not_exist() {
-        let function = Function::FilePath(PathBuf::from("LOOT"));
-        let state = state_with_loot_path(".", "missing");
-
-        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]
@@ -515,13 +491,7 @@ mod tests {
     #[test]
     fn function_file_regex_eval_should_check_all_configured_data_paths() {
         let function = Function::FileRegex(PathBuf::from("Data"), regex("Blank\\.esp"));
-        let state = state_with_data(
-            "./src",
-            vec!["./tests/testing-plugins/Oblivion"],
-            ".",
-            &[],
-            &[],
-        );
+        let state = state_with_data("./src", vec!["./tests/testing-plugins/Oblivion"], &[], &[]);
 
         assert!(function.eval(&state).unwrap());
     }
@@ -781,7 +751,6 @@ mod tests {
         let state = state_with_data(
             "./tests/testing-plugins/Skyrim",
             vec!["./tests/testing-plugins/Oblivion"],
-            ".",
             &[],
             &[],
         );
@@ -874,24 +843,6 @@ mod tests {
         .unwrap();
 
         let function = Function::Checksum(PathBuf::from("Blank.bsa"), 0x22AB79D9);
-
-        assert!(!function.eval(&state).unwrap());
-    }
-
-    #[test]
-    #[allow(non_snake_case)]
-    fn function_checksum_eval_should_be_true_if_given_LOOT_crc_matches() {
-        let function = Function::Checksum(PathBuf::from("LOOT"), 0x374E2A6F);
-        let state = state_with_loot_path(".", "tests/testing-plugins/Oblivion/Data/Blank.esm");
-
-        assert!(function.eval(&state).unwrap());
-    }
-
-    #[test]
-    #[allow(non_snake_case)]
-    fn function_checksum_eval_should_be_false_if_given_LOOT_crc_does_not_match() {
-        let function = Function::Checksum(PathBuf::from("LOOT"), 0xDEADBEEF);
-        let state = state_with_loot_path(".", "tests/testing-plugins/Oblivion/Data/Blank.esm");
 
         assert!(!function.eval(&state).unwrap());
     }

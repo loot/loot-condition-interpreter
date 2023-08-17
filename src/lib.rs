@@ -54,8 +54,6 @@ pub struct State {
     /// Other directories that may contain plugins and other game files, used before data_path and
     /// in the order they're listed.
     additional_data_paths: Vec<PathBuf>,
-    /// Path to the LOOT executable, used to resolve conditions that use the "LOOT" path.
-    loot_path: PathBuf,
     /// Lowercased plugin filenames.
     active_plugins: HashSet<String>,
     /// Lowercased paths.
@@ -67,12 +65,11 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(game_type: GameType, data_path: PathBuf, loot_path: PathBuf) -> Self {
+    pub fn new(game_type: GameType, data_path: PathBuf) -> Self {
         State {
             game_type,
             data_path,
             additional_data_paths: Vec::default(),
-            loot_path,
             active_plugins: HashSet::default(),
             crc_cache: RwLock::default(),
             plugin_versions: HashMap::default(),
@@ -296,7 +293,6 @@ mod tests {
             game_type: GameType::Oblivion,
             data_path,
             additional_data_paths: Vec::default(),
-            loot_path: PathBuf::new(),
             active_plugins: HashSet::new(),
             crc_cache: RwLock::default(),
             plugin_versions: HashMap::default(),
