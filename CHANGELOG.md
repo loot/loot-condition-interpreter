@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.0.0] - 2023-08-18
+
+### Removed
+
+- Support for the `"LOOT"` file path alias in conditions.
+- The `State::new()` and `lci_state_create()` functions no longer take a
+  `loot_path` argument.
+
 ## [2.4.0] - 2023-04-24
 
 ### Added
