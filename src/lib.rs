@@ -2,9 +2,10 @@ mod error;
 mod function;
 
 use std::collections::{HashMap, HashSet};
+use std::ffi::OsString;
 use std::fmt;
 use std::ops::DerefMut;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str;
 use std::sync::{PoisonError, RwLock, RwLockWriteGuard};
 
@@ -18,6 +19,7 @@ use nom::IResult;
 
 use error::ParsingError;
 pub use error::{Error, ParsingErrorKind};
+use function::path::has_ghosted_plugin_file_extension;
 use function::Function;
 
 type ParsingResult<'a, T> = IResult<&'a str, T, ParsingError<&'a str>>;
@@ -62,10 +64,47 @@ pub struct State {
     plugin_versions: HashMap<String, String>,
     /// Conditions that have already been evaluated, and their results.
     condition_cache: RwLock<HashMap<Function, bool>>,
+    /// Ghosted plugin filenames that have been found in data paths, organised by data path.
+    ghosted_plugins: HashMap<PathBuf, Vec<OsString>>,
+}
+
+fn find_ghosted_plugins(game_type: GameType, data_path: &Path) -> Vec<OsString> {
+    std::fs::read_dir(data_path)
+        .into_iter()
+        .flatten()
+        .flat_map(|e| e.ok())
+        .filter(|e| e.metadata().map(|m| m.is_file()).unwrap_or(false))
+        .map(|e| e.file_name())
+        .filter(|p| has_ghosted_plugin_file_extension(game_type, Path::new(p)))
+        .collect()
+}
+
+fn build_ghosted_plugins_cache(
+    game_type: GameType,
+    data_path: &Path,
+    additional_data_paths: &[PathBuf],
+) -> HashMap<PathBuf, Vec<OsString>> {
+    let mut map: HashMap<PathBuf, Vec<OsString>> = HashMap::new();
+
+    map.insert(
+        data_path.to_path_buf(),
+        find_ghosted_plugins(game_type, data_path),
+    );
+
+    for additional_data_path in additional_data_paths {
+        map.insert(
+            additional_data_path.clone(),
+            find_ghosted_plugins(game_type, &additional_data_path),
+        );
+    }
+
+    map
 }
 
 impl State {
     pub fn new(game_type: GameType, data_path: PathBuf) -> Self {
+        let ghosted_plugins = build_ghosted_plugins_cache(game_type, &data_path, &[]);
+
         State {
             game_type,
             data_path,
@@ -74,6 +113,7 @@ impl State {
             crc_cache: RwLock::default(),
             plugin_versions: HashMap::default(),
             condition_cache: RwLock::default(),
+            ghosted_plugins,
         }
     }
 
@@ -123,11 +163,23 @@ impl State {
     pub fn clear_condition_cache(
         &mut self,
     ) -> Result<(), PoisonError<RwLockWriteGuard<HashMap<Function, bool>>>> {
+        self.refresh_ghosted_plugins();
+
         self.condition_cache.write().map(|mut c| c.clear())
     }
 
     pub fn set_additional_data_paths(&mut self, additional_data_paths: Vec<PathBuf>) {
         self.additional_data_paths = additional_data_paths;
+
+        self.refresh_ghosted_plugins()
+    }
+
+    fn refresh_ghosted_plugins(&mut self) {
+        self.ghosted_plugins = build_ghosted_plugins_cache(
+            self.game_type,
+            &self.data_path,
+            &self.additional_data_paths,
+        );
     }
 }
 
@@ -297,6 +349,7 @@ mod tests {
             crc_cache: RwLock::default(),
             plugin_versions: HashMap::default(),
             condition_cache: RwLock::default(),
+            ghosted_plugins: HashMap::default(),
         }
     }
 

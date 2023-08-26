@@ -8,7 +8,7 @@ use unicase::eq;
 
 pub mod eval;
 pub mod parse;
-mod path;
+pub mod path;
 mod version;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

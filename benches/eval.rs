@@ -23,11 +23,44 @@ fn generate_plugin_versions() -> Vec<(String, String)> {
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("Expression.eval() file(path)", |b| {
-        let state = State::new(GameType::Oblivion, ".".into());
-        let expression = Expression::from_str("file(\"Cargo.toml\")").unwrap();
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        std::fs::create_dir(&data_path).unwrap();
+        let mut state = State::new(GameType::Oblivion, data_path.clone());
+
+        for entry in std::fs::read_dir("tests/testing-plugins/Oblivion/Data").unwrap() {
+            let entry = entry.unwrap();
+            std::fs::copy(entry.path(), data_path.join(entry.file_name())).unwrap();
+        }
+
+        state.clear_condition_cache().unwrap();
+
+        let expression = Expression::from_str("file(\"Blank.esp\")").unwrap();
 
         b.iter(|| {
             assert!(expression.eval(&state).unwrap());
+        });
+    });
+
+    c.bench_function("Expression.eval() file(path) with missing plugin", |b| {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        std::fs::create_dir(&data_path).unwrap();
+        let mut state = State::new(GameType::Oblivion, data_path.clone());
+
+        for entry in std::fs::read_dir("tests/testing-plugins/Oblivion/Data").unwrap() {
+            let entry = entry.unwrap();
+            let mut ghosted = entry.file_name();
+            ghosted.push(".ghost");
+            std::fs::copy(entry.path(), data_path.join(ghosted)).unwrap();
+        }
+
+        state.clear_condition_cache().unwrap();
+
+        let expression = Expression::from_str("file(\"plugin.esp\")").unwrap();
+
+        b.iter(|| {
+            assert!(!expression.eval(&state).unwrap());
         });
     });
 

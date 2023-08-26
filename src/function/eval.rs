@@ -316,6 +316,8 @@ impl Function {
 mod tests {
     use super::*;
 
+    use std::collections::HashMap;
+    use std::ffi::OsString;
     use std::fs::{copy, create_dir, remove_file};
     use std::path::PathBuf;
     use std::sync::RwLock;
@@ -376,6 +378,7 @@ mod tests {
                 .map(|(p, v)| (p.to_lowercase(), v.to_string()))
                 .collect(),
             condition_cache: RwLock::default(),
+            ghosted_plugins: HashMap::default(),
         }
     }
 
@@ -407,7 +410,10 @@ mod tests {
     fn function_file_path_eval_should_return_true_if_given_a_plugin_that_is_ghosted() {
         let tmp_dir = tempdir().unwrap();
         let data_path = tmp_dir.path().join("Data");
-        let state = state(data_path);
+        let mut state = state(&data_path);
+        state
+            .ghosted_plugins
+            .insert(data_path.clone(), vec![OsString::from("Blank.esp.ghost")]);
 
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.esp"),
@@ -818,11 +824,14 @@ mod tests {
     fn function_checksum_eval_should_support_checking_the_crc_of_a_ghosted_plugin() {
         let tmp_dir = tempdir().unwrap();
         let data_path = tmp_dir.path().join("Data");
-        let state = state(data_path);
+        let mut state = state(&data_path);
+        state
+            .ghosted_plugins
+            .insert(data_path.clone(), vec![OsString::from("blank.esm.ghost")]);
 
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
-            &state.data_path.join("Blank.esm.ghost"),
+            &state.data_path.join("blank.esm.ghost"),
         )
         .unwrap();
 

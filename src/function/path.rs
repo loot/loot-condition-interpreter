@@ -1,5 +1,6 @@
 use std::{
-    ffi::OsStr,
+    collections::HashMap,
+    ffi::{OsStr, OsString},
     path::{Path, PathBuf},
 };
 
@@ -21,6 +22,16 @@ fn has_unghosted_plugin_file_extension(game_type: GameType, path: &Path) -> bool
     }
 }
 
+pub fn has_ghosted_plugin_file_extension(game_type: GameType, path: &Path) -> bool {
+    match path.extension() {
+        Some(ext) if ext.eq_ignore_ascii_case(GHOST_EXTENSION) => path
+            .file_stem()
+            .map(|s| has_unghosted_plugin_file_extension(game_type, Path::new(s)))
+            .unwrap_or(false),
+        _ => false,
+    }
+}
+
 pub fn has_plugin_file_extension(game_type: GameType, path: &Path) -> bool {
     match path.extension() {
         Some(ext) if ext.eq_ignore_ascii_case(GHOST_EXTENSION) => path
@@ -29,17 +40,6 @@ pub fn has_plugin_file_extension(game_type: GameType, path: &Path) -> bool {
             .unwrap_or(false),
         Some(ext) => is_unghosted_plugin_file_extension(game_type, ext),
         _ => false,
-    }
-}
-
-fn add_ghost_extension(path: PathBuf) -> PathBuf {
-    match path.extension() {
-        Some(e) => {
-            let mut new_extension = e.to_os_string();
-            new_extension.push(GHOST_EXTENSION_WITH_PERIOD);
-            path.with_extension(&new_extension)
-        }
-        None => path.with_extension(GHOST_EXTENSION),
     }
 }
 
@@ -61,6 +61,36 @@ pub fn normalise_file_name(game_type: GameType, name: &OsStr) -> &OsStr {
     name
 }
 
+fn get_ghosted_filename(path: &Path) -> Option<OsString> {
+    let mut filename = path.file_name()?.to_os_string();
+    filename.push(GHOST_EXTENSION_WITH_PERIOD);
+    Some(filename)
+}
+
+fn add_ghost_extension(
+    path: &Path,
+    ghosted_plugins: &HashMap<PathBuf, Vec<OsString>>,
+) -> Option<PathBuf> {
+    // Can't just append a .ghost extension as the filesystem may be case-sensitive and the ghosted
+    // file may have a .GHOST extension (for example). Instead loop through the other files in the
+    // same parent directory and look for one that's unicode-case-insensitively-equal.
+    let expected_filename = get_ghosted_filename(&path)?;
+    let expected_filename = expected_filename.to_str()?;
+    let parent_path = path.parent()?;
+
+    let ghosted_plugins = ghosted_plugins.get(&parent_path.to_path_buf())?;
+
+    for ghosted_plugin in ghosted_plugins {
+        let ghosted_plugin_str = ghosted_plugin.to_str()?;
+
+        if unicase::eq(expected_filename, ghosted_plugin_str) {
+            return Some(parent_path.join(ghosted_plugin));
+        }
+    }
+
+    None
+}
+
 pub fn resolve_path(state: &State, path: &Path) -> PathBuf {
     // First check external data paths, as files there may override files in the main data path.
     for data_path in &state.additional_data_paths {
@@ -71,7 +101,9 @@ pub fn resolve_path(state: &State, path: &Path) -> PathBuf {
         }
 
         if has_unghosted_plugin_file_extension(state.game_type, &path) {
-            path = add_ghost_extension(path);
+            if let Some(ghosted_path) = add_ghost_extension(&path, &state.ghosted_plugins) {
+                path = ghosted_path
+            }
         }
 
         if path.exists() {
@@ -83,7 +115,7 @@ pub fn resolve_path(state: &State, path: &Path) -> PathBuf {
     let path = state.data_path.join(path);
 
     if !path.exists() && has_unghosted_plugin_file_extension(state.game_type, &path) {
-        add_ghost_extension(path)
+        add_ghost_extension(&path, &state.ghosted_plugins).unwrap_or(path)
     } else {
         path
     }
@@ -395,15 +427,52 @@ mod tests {
     }
 
     #[test]
-    fn add_ghost_extension_should_add_dot_ghost_to_an_existing_extension() {
-        let path = add_ghost_extension("plugin.esp".into());
-        assert_eq!(PathBuf::from("plugin.esp.ghost"), path);
+    fn add_ghost_extension_should_return_none_if_the_given_parent_path_is_not_in_hashmap() {
+        let path = Path::new("subdir/plugin.esp");
+        let result = add_ghost_extension(path, &HashMap::new());
+
+        assert!(result.is_none());
     }
 
     #[test]
-    fn add_ghost_extension_should_add_dot_ghost_to_an_a_path_with_no_extension() {
-        let path = add_ghost_extension("plugin".into());
-        assert_eq!(PathBuf::from("plugin.ghost"), path);
+    fn add_ghost_extension_should_return_none_if_the_given_parent_path_has_no_ghosted_plugins() {
+        let path = Path::new("subdir/plugin.esp");
+        let mut map = HashMap::new();
+        map.insert(PathBuf::from("subdir"), Vec::new());
+
+        let result = add_ghost_extension(path, &map);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn add_ghost_extension_should_return_none_if_the_given_parent_path_has_no_matching_ghosted_plugins(
+    ) {
+        let path = Path::new("subdir/plugin.esp");
+        let mut map = HashMap::new();
+        map.insert(
+            PathBuf::from("subdir"),
+            vec![OsString::from("plugin.esm.ghost")],
+        );
+        let result = add_ghost_extension(path, &map);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn add_ghost_extension_should_return_some_if_the_given_parent_path_has_a_case_insensitively_equal_ghosted_plugin(
+    ) {
+        let path = Path::new("subdir/plugin.esp");
+        let ghosted_plugin = "Plugin.ESp.GHoST";
+        let mut map = HashMap::new();
+        map.insert(
+            PathBuf::from("subdir"),
+            vec![OsString::from(ghosted_plugin)],
+        );
+        let result = add_ghost_extension(path, &map);
+
+        assert!(result.is_some());
+        assert_eq!(Path::new("subdir").join(ghosted_plugin), result.unwrap());
     }
 
     #[test]
@@ -436,7 +505,11 @@ mod tests {
     fn resolve_path_should_return_the_given_data_relative_path_plus_a_ghost_extension_if_the_plugin_path_does_not_exist(
     ) {
         let data_path = PathBuf::from(".");
-        let state = State::new(GameType::Skyrim, data_path.clone());
+        let mut state = State::new(GameType::Skyrim, data_path.clone());
+        state
+            .ghosted_plugins
+            .insert(data_path.clone(), vec![OsString::from("plugin.esp.ghost")]);
+
         let input_path = Path::new("plugin.esp");
         let resolved_path = resolve_path(&state, input_path);
 
