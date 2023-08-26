@@ -8,24 +8,22 @@ use crate::{GameType, State};
 const GHOST_EXTENSION: &str = "ghost";
 const GHOST_EXTENSION_WITH_PERIOD: &str = ".ghost";
 
-fn is_unghosted_plugin_file_extension(game_type: GameType, extension: &str) -> bool {
-    match extension {
-        "esp" | "esm" => true,
-        "esl" if game_type.supports_light_plugins() => true,
-        _ => false,
-    }
+fn is_unghosted_plugin_file_extension(game_type: GameType, extension: &OsStr) -> bool {
+    extension.eq_ignore_ascii_case("esp")
+        || extension.eq_ignore_ascii_case("esm")
+        || (game_type.supports_light_plugins() && extension.eq_ignore_ascii_case("esl"))
 }
 
 fn has_unghosted_plugin_file_extension(game_type: GameType, path: &Path) -> bool {
-    match path.extension().and_then(OsStr::to_str) {
+    match path.extension() {
         Some(ext) => is_unghosted_plugin_file_extension(game_type, ext),
         _ => false,
     }
 }
 
 pub fn has_plugin_file_extension(game_type: GameType, path: &Path) -> bool {
-    match path.extension().and_then(OsStr::to_str) {
-        Some(GHOST_EXTENSION) => path
+    match path.extension() {
+        Some(ext) if ext.eq_ignore_ascii_case(GHOST_EXTENSION) => path
             .file_stem()
             .map(|s| has_unghosted_plugin_file_extension(game_type, Path::new(s)))
             .unwrap_or(false),
@@ -45,10 +43,18 @@ fn add_ghost_extension(path: PathBuf) -> PathBuf {
     }
 }
 
-pub fn normalise_file_name(game_type: GameType, name: &str) -> &str {
-    if let Some(stem) = name.strip_suffix(GHOST_EXTENSION_WITH_PERIOD) {
-        if has_unghosted_plugin_file_extension(game_type, Path::new(stem)) {
-            return stem;
+pub fn normalise_file_name(game_type: GameType, name: &OsStr) -> &OsStr {
+    let path = Path::new(name);
+    if path
+        .extension()
+        .map(|s| s.eq_ignore_ascii_case(GHOST_EXTENSION))
+        .unwrap_or(false)
+    {
+        // name ends in .ghost, trim it and then check the file extension.
+        if let Some(stem) = path.file_stem() {
+            if has_unghosted_plugin_file_extension(game_type, Path::new(stem)) {
+                return stem;
+            }
         }
     }
 
@@ -89,7 +95,7 @@ mod tests {
 
     #[test]
     fn is_unghosted_plugin_file_extension_should_be_true_for_esp_for_all_game_types() {
-        let extension = "esp";
+        let extension = OsStr::new("Esp");
 
         assert!(is_unghosted_plugin_file_extension(
             GameType::Morrowind,
@@ -131,7 +137,7 @@ mod tests {
 
     #[test]
     fn is_unghosted_plugin_file_extension_should_be_true_for_esm_for_all_game_types() {
-        let extension = "esm";
+        let extension = OsStr::new("Esm");
 
         assert!(is_unghosted_plugin_file_extension(
             GameType::Morrowind,
@@ -173,7 +179,7 @@ mod tests {
 
     #[test]
     fn is_unghosted_plugin_file_extension_should_be_true_for_esl_for_tes5se_tes5vr_fo4_and_fo4vr() {
-        let extension = "esl";
+        let extension = OsStr::new("Esl");
 
         assert!(is_unghosted_plugin_file_extension(
             GameType::SkyrimSE,
@@ -195,7 +201,7 @@ mod tests {
 
     #[test]
     fn is_unghosted_plugin_file_extension_should_be_false_for_esl_for_tes3_to_5_fo3_and_fonv() {
-        let extension = "esl";
+        let extension = OsStr::new("Esl");
 
         assert!(!is_unghosted_plugin_file_extension(
             GameType::Morrowind,
@@ -221,7 +227,7 @@ mod tests {
 
     #[test]
     fn is_unghosted_plugin_file_extension_should_be_false_for_ghost_for_all_game_types() {
-        let extension = "ghost";
+        let extension = OsStr::new("Ghost");
 
         assert!(!is_unghosted_plugin_file_extension(
             GameType::Morrowind,
@@ -263,7 +269,7 @@ mod tests {
 
     #[test]
     fn is_unghosted_plugin_file_extension_should_be_false_for_non_esp_esm_esl_for_all_game_types() {
-        let extension = "txt";
+        let extension = OsStr::new("txt");
 
         assert!(!is_unghosted_plugin_file_extension(
             GameType::Morrowind,
@@ -351,7 +357,7 @@ mod tests {
     fn has_plugin_file_extension_should_return_true_if_the_path_has_a_ghosted_plugin_extension() {
         assert!(has_plugin_file_extension(
             GameType::Skyrim,
-            Path::new("plugin.esp.ghost")
+            Path::new("plugin.esp.Ghost")
         ));
     }
 
@@ -368,7 +374,7 @@ mod tests {
     ) {
         assert!(!has_plugin_file_extension(
             GameType::Skyrim,
-            Path::new("plugin.bsa.ghost")
+            Path::new("plugin.bsa.Ghost")
         ));
     }
 
@@ -376,7 +382,7 @@ mod tests {
     fn has_plugin_file_extension_should_return_false_if_the_path_has_only_ghost_extension() {
         assert!(!has_plugin_file_extension(
             GameType::Skyrim,
-            Path::new("plugin.ghost")
+            Path::new("plugin.Ghost")
         ));
     }
 

@@ -16,9 +16,9 @@ fn evaluate_file_path(state: &State, file_path: &Path) -> Result<bool, Error> {
 }
 
 fn is_match(game_type: GameType, regex: &Regex, file_name: &OsStr) -> bool {
-    file_name
+    normalise_file_name(game_type, file_name)
         .to_str()
-        .map(|s| regex.is_match(normalise_file_name(game_type, s)))
+        .map(|s| regex.is_match(s))
         .unwrap_or(false)
 }
 
@@ -29,7 +29,8 @@ fn evaluate_regex(
     regex: &Regex,
     mut condition: impl FnMut() -> bool,
 ) -> Result<bool, Error> {
-    let dir_iterator = match read_dir(data_path.join(parent_path)) {
+    let parent_path = data_path.join(parent_path);
+    let dir_iterator = match read_dir(&parent_path) {
         Ok(i) => i,
         Err(_) => return Ok(false),
     };
