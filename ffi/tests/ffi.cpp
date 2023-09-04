@@ -21,6 +21,7 @@ void test_game_id_values() {
   assert(LCI_GAME_FALLOUT_NV == 5);
   assert(LCI_GAME_FALLOUT_4 == 6);
   assert(LCI_GAME_FALLOUT_4_VR == 7);
+  assert(LCI_GAME_STARFIELD == 9);
 }
 
 void test_lci_condition_parse() {

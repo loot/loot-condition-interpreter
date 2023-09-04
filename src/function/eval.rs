@@ -129,6 +129,7 @@ fn evaluate_is_master(state: &State, file_path: &Path) -> Result<bool, Error> {
         GameType::Fallout3 => GameId::Fallout3,
         GameType::FalloutNV => GameId::FalloutNV,
         GameType::Fallout4 | GameType::Fallout4VR => GameId::Fallout4,
+        GameType::Starfield => GameId::Starfield,
     };
 
     let path = resolve_path(state, file_path);

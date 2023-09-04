@@ -35,13 +35,18 @@ pub enum GameType {
     Fallout4,
     Fallout4VR,
     Morrowind,
+    Starfield,
 }
 
 impl GameType {
     fn supports_light_plugins(self) -> bool {
         matches!(
             self,
-            GameType::SkyrimSE | GameType::SkyrimVR | GameType::Fallout4 | GameType::Fallout4VR
+            GameType::SkyrimSE
+                | GameType::SkyrimVR
+                | GameType::Fallout4
+                | GameType::Fallout4VR
+                | GameType::Starfield
         )
     }
 }
@@ -301,11 +306,12 @@ mod tests {
     }
 
     #[test]
-    fn game_type_supports_light_plugins_should_be_true_for_tes5se_tes5vr_fo4_and_fo4vr() {
+    fn game_type_supports_light_plugins_should_be_true_for_tes5se_tes5vr_fo4_fo4vr_and_starfield() {
         assert!(GameType::SkyrimSE.supports_light_plugins());
         assert!(GameType::SkyrimVR.supports_light_plugins());
         assert!(GameType::Fallout4.supports_light_plugins());
         assert!(GameType::Fallout4VR.supports_light_plugins());
+        assert!(GameType::Starfield.supports_light_plugins());
     }
 
     #[test]

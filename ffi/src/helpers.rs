@@ -42,6 +42,7 @@ pub fn map_game_type(game_type: c_int) -> Result<GameType, c_int> {
         x if x == LCI_GAME_FALLOUT_NV => Ok(GameType::FalloutNV),
         x if x == LCI_GAME_FALLOUT_4 => Ok(GameType::Fallout4),
         x if x == LCI_GAME_FALLOUT_4_VR => Ok(GameType::Fallout4VR),
+        x if x == LCI_GAME_STARFIELD => Ok(GameType::Starfield),
         _ => Err(LCI_ERROR_INVALID_ARGS),
     }
 }

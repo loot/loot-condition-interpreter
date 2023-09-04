@@ -72,3 +72,7 @@ pub static LCI_GAME_SKYRIM_VR: c_int = 3;
 /// Game code for Fallout 4 VR.
 #[no_mangle]
 pub static LCI_GAME_FALLOUT_4_VR: c_int = 7;
+
+/// Game code for Starfield.
+#[no_mangle]
+pub static LCI_GAME_STARFIELD: c_int = 9;
