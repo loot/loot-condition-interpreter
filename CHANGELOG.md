@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.1.0] - 2023-09-05
+
+### Added
+
+- `GameType::Starfield` and `LCI_GAME_STARFIELD` as the game code to use for
+  Starfield.
+
+### Fixed
+
+- Only lowercase plugin file extensions were recognised as plugin file
+  extensions.
+
 ## [3.0.0] - 2023-08-18
 
 ### Removed
