@@ -3,7 +3,6 @@ name = "loot-condition-interpreter-ffi"
 version = "3.1.0"
 authors = ["Oliver Hamlet <oliver@ortham.io>"]
 license = "MIT"
-build = "build.rs"
 edition = "2018"
 
 [dependencies]
@@ -13,10 +12,3 @@ libc = "0.2"
 [lib]
 name = "loot_condition_interpreter_ffi"
 crate-type = ["staticlib"]
-
-[features]
-default = []
-ffi-headers = ["cbindgen"]
-
-[build-dependencies]
-cbindgen = { version = "0.26", optional = true }
