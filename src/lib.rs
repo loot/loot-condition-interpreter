@@ -17,7 +17,7 @@ use nom::sequence::{delimited, preceded};
 use nom::IResult;
 
 use error::ParsingError;
-pub use error::{Error, ParsingErrorKind};
+pub use error::{Error, MoreDataNeeded, ParsingErrorKind};
 use function::Function;
 
 type ParsingResult<'a, T> = IResult<&'a str, T, ParsingError<&'a str>>;

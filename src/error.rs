@@ -1,6 +1,7 @@
 use std::error;
 use std::fmt;
 use std::io;
+use std::num::NonZeroUsize;
 use std::num::ParseIntError;
 use std::path::PathBuf;
 
@@ -9,7 +10,7 @@ use nom::Err;
 
 #[derive(Debug)]
 pub enum Error {
-    ParsingIncomplete,
+    ParsingIncomplete(MoreDataNeeded),
     // The string is the input that was not parsed.
     UnconsumedInput(String),
     /// The string is the input at which the error was encountered.
@@ -25,7 +26,12 @@ fn escape<I: fmt::Display>(input: I) -> String {
 impl<I: fmt::Debug + fmt::Display> From<Err<ParsingError<I>>> for Error {
     fn from(error: Err<ParsingError<I>>) -> Self {
         match error {
-            Err::Incomplete(_) => Error::ParsingIncomplete,
+            Err::Incomplete(nom::Needed::Unknown) => {
+                Error::ParsingIncomplete(MoreDataNeeded::UnknownSize)
+            }
+            Err::Incomplete(nom::Needed::Size(size)) => {
+                Error::ParsingIncomplete(MoreDataNeeded::Size(size))
+            }
             Err::Error(e) | Err::Failure(e) => Error::ParsingError(escape(e.input), e.kind),
         }
     }
@@ -34,7 +40,14 @@ impl<I: fmt::Debug + fmt::Display> From<Err<ParsingError<I>>> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::ParsingIncomplete => write!(f, "More input was expected by the parser"),
+            Error::ParsingIncomplete(MoreDataNeeded::UnknownSize) => write!(
+                f,
+                "An unknown number of bytes of additional input was expected by the parser"
+            ),
+            Error::ParsingIncomplete(MoreDataNeeded::Size(size)) => write!(
+                f,
+                "{size} bytes of additional input was expected by the parser"
+            ),
             Error::UnconsumedInput(i) => write!(
                 f,
                 "The parser did not consume the following input: \"{}\"",
@@ -70,6 +83,14 @@ impl error::Error for Error {
             _ => None,
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum MoreDataNeeded {
+    /// It's not known how much more data are needed
+    UnknownSize,
+    /// Contains the number of bytes of data that are needed
+    Size(NonZeroUsize),
 }
 
 #[derive(Debug)]
