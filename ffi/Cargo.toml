@@ -3,7 +3,7 @@ name = "loot-condition-interpreter-ffi"
 version = "3.1.0"
 authors = ["Oliver Hamlet <oliver@ortham.io>"]
 license = "MIT"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 loot-condition-interpreter = { path = ".." }
