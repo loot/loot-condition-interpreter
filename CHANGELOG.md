@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.0.0] - 2024-05-02
+
+### Added
+
+- `Cargo.lock` is no longer ignored by Git.
+
+### Changed
+
+- `Error::ParsingIncomplete` now holds contextual data.
+- Updated to Rust's 2021 edition.
+- Updated esplugin to v5.0.1.
+
+### Removed
+
+- The `ffi-headers` build feature: if you want to generate C or C++ headers,
+  install and run cbindgen separately.
+
 ## [3.1.0] - 2023-09-05
 
 ### Added
