@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.0.1] - 2024-06-28
+
+### Changed
+
+- Updated crc32fast to v1.4.2.
+- Updated esplugin to v6.0.0.
+- Updated libc to v0.2.155.
+- Updated regex to v1.10.5.
+
 ## [4.0.0] - 2024-05-02
 
 ### Added
