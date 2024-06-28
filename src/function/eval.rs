@@ -4,6 +4,7 @@ use std::hash::Hasher;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
+use esplugin::ParseOptions;
 use regex::Regex;
 
 use super::path::{has_plugin_file_extension, normalise_file_name, resolve_path};
@@ -137,7 +138,7 @@ fn evaluate_is_master(state: &State, file_path: &Path) -> Result<bool, Error> {
     let mut plugin = esplugin::Plugin::new(game_id, &path);
 
     plugin
-        .parse_file(true)
+        .parse_file(ParseOptions::header_only())
         .map(|_| plugin.is_master_file())
         .or(Ok(false))
 }

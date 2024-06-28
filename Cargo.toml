@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 crc32fast = "1.4.2"
-esplugin = "5.0.0"
+esplugin = "6.0.0"
 nom = "7.0.0"
 pelite = "0.10.0"
 regex = "1.10.5"
