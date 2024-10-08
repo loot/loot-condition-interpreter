@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.0.2] - 2024-10-08
+
+### Changed
+
+- Updated esplugin to v6.1.1.
+- Updated libc to v0.2.159.
+- Updated regex to v1.11.0.
+
 ## [4.0.1] - 2024-06-28
 
 ### Changed
