@@ -11,7 +11,7 @@ esplugin = "6.1.1"
 nom = "7.0.0"
 pelite = "0.10.0"
 regex = "1.11.1"
-unicase = "2.8.0"
+unicase = "2.8.1"
 
 [dev-dependencies]
 criterion = "0.5.0"
