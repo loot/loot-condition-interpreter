@@ -200,10 +200,7 @@ impl<T: AsRef<str>> From<T> for Version {
         let (release, pre_release) = split_version_string(trim_metadata(string.as_ref()));
 
         Version {
-            release_ids: release
-                .split(|c| c == '.' || c == ',')
-                .map(ReleaseId::from)
-                .collect(),
+            release_ids: release.split(['.', ',']).map(ReleaseId::from).collect(),
             pre_release_ids: pre_release
                 .split_terminator(is_pre_release_separator)
                 .map(PreReleaseId::from)
