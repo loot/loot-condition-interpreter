@@ -33,6 +33,7 @@ fn map_error(err: &Error) -> c_int {
 
 pub fn map_game_type(game_type: c_int) -> Result<GameType, c_int> {
     match game_type {
+        x if x == LCI_GAME_OPENMW => Ok(GameType::OpenMW),
         x if x == LCI_GAME_MORROWIND => Ok(GameType::Morrowind),
         x if x == LCI_GAME_OBLIVION => Ok(GameType::Oblivion),
         x if x == LCI_GAME_SKYRIM => Ok(GameType::Skyrim),

@@ -127,7 +127,7 @@ fn evaluate_is_master(state: &State, file_path: &Path) -> Result<bool, Error> {
     use esplugin::GameId;
 
     let game_id = match state.game_type {
-        GameType::Morrowind => GameId::Morrowind,
+        GameType::Morrowind | GameType::OpenMW => GameId::Morrowind,
         GameType::Oblivion => GameId::Oblivion,
         GameType::Skyrim => GameId::Skyrim,
         GameType::SkyrimSE | GameType::SkyrimVR => GameId::SkyrimSE,

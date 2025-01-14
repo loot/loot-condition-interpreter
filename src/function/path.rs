@@ -12,6 +12,9 @@ fn is_unghosted_plugin_file_extension(game_type: GameType, extension: &OsStr) ->
     extension.eq_ignore_ascii_case("esp")
         || extension.eq_ignore_ascii_case("esm")
         || (game_type.supports_light_plugins() && extension.eq_ignore_ascii_case("esl"))
+        || (game_type == GameType::OpenMW
+            && (extension.eq_ignore_ascii_case("omwaddon")
+                || extension.eq_ignore_ascii_case("omwgame")))
 }
 
 fn has_unghosted_plugin_file_extension(game_type: GameType, path: &Path) -> bool {
@@ -98,6 +101,10 @@ mod tests {
         let extension = OsStr::new("Esp");
 
         assert!(is_unghosted_plugin_file_extension(
+            GameType::OpenMW,
+            extension
+        ));
+        assert!(is_unghosted_plugin_file_extension(
             GameType::Morrowind,
             extension
         ));
@@ -139,6 +146,10 @@ mod tests {
     fn is_unghosted_plugin_file_extension_should_be_true_for_esm_for_all_game_types() {
         let extension = OsStr::new("Esm");
 
+        assert!(is_unghosted_plugin_file_extension(
+            GameType::OpenMW,
+            extension
+        ));
         assert!(is_unghosted_plugin_file_extension(
             GameType::Morrowind,
             extension
@@ -204,6 +215,10 @@ mod tests {
         let extension = OsStr::new("Esl");
 
         assert!(!is_unghosted_plugin_file_extension(
+            GameType::OpenMW,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
             GameType::Morrowind,
             extension
         ));
@@ -226,9 +241,107 @@ mod tests {
     }
 
     #[test]
+    fn is_unghosted_plugin_file_extension_should_be_true_for_omwaddon_and_only_openmw() {
+        let extension = OsStr::new("omwaddon");
+
+        assert!(is_unghosted_plugin_file_extension(
+            GameType::OpenMW,
+            extension
+        ));
+
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Morrowind,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Oblivion,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Skyrim,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::SkyrimSE,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::SkyrimVR,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Fallout3,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::FalloutNV,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Fallout4,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Fallout4VR,
+            extension
+        ));
+    }
+
+    #[test]
+    fn is_unghosted_plugin_file_extension_should_be_true_for_omwgame_and_only_openmw() {
+        let extension = OsStr::new("omwgame");
+
+        assert!(is_unghosted_plugin_file_extension(
+            GameType::OpenMW,
+            extension
+        ));
+
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Morrowind,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Oblivion,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Skyrim,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::SkyrimSE,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::SkyrimVR,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Fallout3,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::FalloutNV,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Fallout4,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Fallout4VR,
+            extension
+        ));
+    }
+
+    #[test]
     fn is_unghosted_plugin_file_extension_should_be_false_for_ghost_for_all_game_types() {
         let extension = OsStr::new("Ghost");
 
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::OpenMW,
+            extension
+        ));
         assert!(!is_unghosted_plugin_file_extension(
             GameType::Morrowind,
             extension
@@ -271,6 +384,10 @@ mod tests {
     fn is_unghosted_plugin_file_extension_should_be_false_for_non_esp_esm_esl_for_all_game_types() {
         let extension = OsStr::new("txt");
 
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::OpenMW,
+            extension
+        ));
         assert!(!is_unghosted_plugin_file_extension(
             GameType::Morrowind,
             extension

@@ -76,3 +76,7 @@ pub static LCI_GAME_FALLOUT_4_VR: c_int = 7;
 /// Game code for Starfield.
 #[no_mangle]
 pub static LCI_GAME_STARFIELD: c_int = 9;
+
+/// Game code for OpenMW.
+#[no_mangle]
+pub static LCI_GAME_OPENMW: c_int = 10;

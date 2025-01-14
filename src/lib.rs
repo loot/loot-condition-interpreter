@@ -36,6 +36,7 @@ pub enum GameType {
     Fallout4VR,
     Morrowind,
     Starfield,
+    OpenMW,
 }
 
 impl GameType {
@@ -319,6 +320,7 @@ mod tests {
 
     #[test]
     fn game_type_supports_light_master_should_be_false_for_tes3_to_5_fo3_and_fonv() {
+        assert!(!GameType::OpenMW.supports_light_plugins());
         assert!(!GameType::Morrowind.supports_light_plugins());
         assert!(!GameType::Oblivion.supports_light_plugins());
         assert!(!GameType::Skyrim.supports_light_plugins());
