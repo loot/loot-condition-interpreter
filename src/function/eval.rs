@@ -537,6 +537,7 @@ mod tests {
         let _file = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(false)
             .share_mode(0)
             .open(&file_path);
 
@@ -583,7 +584,7 @@ mod tests {
             .read_dir()
             .unwrap()
             .flat_map(|res| res.map(|e| e.file_name()).into_iter())
-            .any(|name| &name == relative_path);
+            .any(|name| name == relative_path);
 
         assert!(entry_exists);
 

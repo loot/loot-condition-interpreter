@@ -264,6 +264,10 @@ fn pad_release_ids(ids1: &[ReleaseId], ids2: &[ReleaseId]) -> (Vec<ReleaseId>, V
 
 #[cfg(test)]
 mod tests {
+    fn is_cmp_eq(lhs: super::Version, rhs: super::Version) -> bool {
+        lhs.partial_cmp(&rhs).unwrap().is_eq()
+    }
+
     mod release_ids {
         use super::super::*;
 
@@ -592,6 +596,7 @@ mod tests {
 
     mod semver {
         use super::super::*;
+        use super::is_cmp_eq;
 
         #[test]
         fn version_eq_should_compare_patch_numbers() {
@@ -729,16 +734,29 @@ mod tests {
 
         #[test]
         fn version_partial_cmp_should_ignore_metadata() {
-            assert!(!(Version::from("0.0.1+alpha") < Version::from("0.0.1+1")));
-            assert!(!(Version::from("0.0.1+1") < Version::from("0.0.1+alpha")));
+            assert!(is_cmp_eq(
+                Version::from("0.0.1+alpha"),
+                Version::from("0.0.1+1")
+            ));
+            assert!(is_cmp_eq(
+                Version::from("0.0.1+1"),
+                Version::from("0.0.1+alpha")
+            ));
 
-            assert!(!(Version::from("0.0.1+2") < Version::from("0.0.1+1")));
-            assert!(!(Version::from("0.0.1+1") < Version::from("0.0.1+2")));
+            assert!(is_cmp_eq(
+                Version::from("0.0.1+2"),
+                Version::from("0.0.1+1")
+            ));
+            assert!(is_cmp_eq(
+                Version::from("0.0.1+1"),
+                Version::from("0.0.1+2")
+            ));
         }
     }
 
     mod extensions {
         use super::super::*;
+        use super::is_cmp_eq;
 
         #[test]
         fn version_from_should_parse_comma_separated_versions() {
@@ -765,8 +783,8 @@ mod tests {
 
         #[test]
         fn version_partial_cmp_should_ignore_leading_zeroes_in_major_version_numbers() {
-            assert!(!(Version::from("05.0.0") < Version::from("5.0.0")));
-            assert!(!(Version::from("5.0.0") < Version::from("05.0.0")));
+            assert!(is_cmp_eq(Version::from("05.0.0"), Version::from("5.0.0")));
+            assert!(is_cmp_eq(Version::from("5.0.0"), Version::from("05.0.0")));
         }
 
         #[test]
@@ -777,8 +795,8 @@ mod tests {
 
         #[test]
         fn version_partial_cmp_should_ignore_leading_zeroes_in_minor_version_numbers() {
-            assert!(!(Version::from("0.05.0") < Version::from("0.5.0")));
-            assert!(!(Version::from("0.5.0") < Version::from("0.05.0")));
+            assert!(is_cmp_eq(Version::from("0.05.0"), Version::from("0.5.0")));
+            assert!(is_cmp_eq(Version::from("0.5.0"), Version::from("0.05.0")));
         }
 
         #[test]
@@ -789,8 +807,8 @@ mod tests {
 
         #[test]
         fn version_partial_cmp_should_ignore_leading_zeroes_in_patch_version_numbers() {
-            assert!(!(Version::from("0.0.05") < Version::from("0.0.5")));
-            assert!(!(Version::from("0.0.5") < Version::from("0.0.05")));
+            assert!(is_cmp_eq(Version::from("0.0.05"), Version::from("0.0.5")));
+            assert!(is_cmp_eq(Version::from("0.0.5"), Version::from("0.0.05")));
         }
 
         #[test]
@@ -801,8 +819,14 @@ mod tests {
 
         #[test]
         fn version_partial_cmp_should_ignore_leading_zeroes_in_numeric_pre_release_ids() {
-            assert!(!(Version::from("0.0.5-05") < Version::from("0.0.5-5")));
-            assert!(!(Version::from("0.0.5-5") < Version::from("0.0.5-05")));
+            assert!(is_cmp_eq(
+                Version::from("0.0.5-05"),
+                Version::from("0.0.5-5")
+            ));
+            assert!(is_cmp_eq(
+                Version::from("0.0.5-5"),
+                Version::from("0.0.5-05")
+            ));
         }
 
         #[test]
@@ -815,7 +839,10 @@ mod tests {
 
         #[test]
         fn version_partial_cmp_should_compare_an_equal_but_arbitrary_number_of_version_numbers() {
-            assert!(!(Version::from("1.0.0.1.0.0") > Version::from("1.0.0.1.0.0")));
+            assert!(is_cmp_eq(
+                Version::from("1.0.0.1.0.0"),
+                Version::from("1.0.0.1.0.0")
+            ));
 
             assert!(Version::from("1.0.0.0.0.0") < Version::from("1.0.0.0.0.1"));
             assert!(Version::from("1.0.0.0.0.1") > Version::from("1.0.0.0.0.0"));
@@ -898,8 +925,14 @@ mod tests {
             assert!(Version::from("1.0.0.0") < Version::from("1.0.0.0.0.1"));
             assert!(Version::from("1.0.0.0.0.1") > Version::from("1.0.0.0"));
 
-            assert!(!(Version::from("1.0.0.0.0.0") < Version::from("1.0.0.0")));
-            assert!(!(Version::from("1.0.0.0") < Version::from("1.0.0.0.0.0")));
+            assert!(is_cmp_eq(
+                Version::from("1.0.0.0.0.0"),
+                Version::from("1.0.0.0")
+            ));
+            assert!(is_cmp_eq(
+                Version::from("1.0.0.0"),
+                Version::from("1.0.0.0.0.0")
+            ));
         }
 
         #[test]
