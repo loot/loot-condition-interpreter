@@ -408,9 +408,7 @@ mod tests {
 
     #[test]
     fn compound_condition_parse_should_handle_a_single_condition() {
-        let result = CompoundCondition::parse("file(\"Cargo.toml\")".into())
-            .unwrap()
-            .1;
+        let result = CompoundCondition::parse("file(\"Cargo.toml\")").unwrap().1;
 
         match result.0.as_slice() {
             [Condition::Function(Function::FilePath(f))] => {
@@ -425,10 +423,9 @@ mod tests {
 
     #[test]
     fn compound_condition_parse_should_handle_multiple_conditions() {
-        let result =
-            CompoundCondition::parse("file(\"Cargo.toml\") and file(\"README.md\")".into())
-                .unwrap()
-                .1;
+        let result = CompoundCondition::parse("file(\"Cargo.toml\") and file(\"README.md\")")
+            .unwrap()
+            .1;
 
         match result.0.as_slice() {
             [Condition::Function(Function::FilePath(f1)), Condition::Function(Function::FilePath(f2))] =>
@@ -445,7 +442,7 @@ mod tests {
 
     #[test]
     fn condition_parse_should_handle_a_function() {
-        let result = Condition::parse("file(\"Cargo.toml\")".into()).unwrap().1;
+        let result = Condition::parse("file(\"Cargo.toml\")").unwrap().1;
 
         match result {
             Condition::Function(Function::FilePath(f)) => {
@@ -460,9 +457,7 @@ mod tests {
 
     #[test]
     fn condition_parse_should_handle_an_inverted_function() {
-        let result = Condition::parse("not file(\"Cargo.toml\")".into())
-            .unwrap()
-            .1;
+        let result = Condition::parse("not file(\"Cargo.toml\")").unwrap().1;
 
         match result {
             Condition::InvertedFunction(Function::FilePath(f)) => {
@@ -477,9 +472,7 @@ mod tests {
 
     #[test]
     fn condition_parse_should_handle_an_expression_in_parentheses() {
-        let result = Condition::parse("(not file(\"Cargo.toml\"))".into())
-            .unwrap()
-            .1;
+        let result = Condition::parse("(not file(\"Cargo.toml\"))").unwrap().1;
 
         match result {
             Condition::Expression(_) => {}
@@ -492,9 +485,7 @@ mod tests {
 
     #[test]
     fn condition_parse_should_handle_an_expression_in_parentheses_with_whitespace() {
-        let result = Condition::parse("( not file(\"Cargo.toml\") )".into())
-            .unwrap()
-            .1;
+        let result = Condition::parse("( not file(\"Cargo.toml\") )").unwrap().1;
 
         match result {
             Condition::Expression(_) => {}
@@ -507,9 +498,7 @@ mod tests {
 
     #[test]
     fn condition_parse_should_handle_an_inverted_expression_in_parentheses() {
-        let result = Condition::parse("not(not file(\"Cargo.toml\"))".into())
-            .unwrap()
-            .1;
+        let result = Condition::parse("not(not file(\"Cargo.toml\"))").unwrap().1;
 
         match result {
             Condition::InvertedExpression(_) => {}
@@ -522,7 +511,7 @@ mod tests {
 
     #[test]
     fn condition_parse_should_handle_an_inverted_expression_in_parentheses_with_whitespace() {
-        let result = Condition::parse("not ( not file(\"Cargo.toml\") )".into())
+        let result = Condition::parse("not ( not file(\"Cargo.toml\") )")
             .unwrap()
             .1;
 

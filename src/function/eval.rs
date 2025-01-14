@@ -368,10 +368,7 @@ mod tests {
             game_type: GameType::Oblivion,
             data_path,
             additional_data_paths,
-            active_plugins: active_plugins
-                .into_iter()
-                .map(|s| s.to_lowercase())
-                .collect(),
+            active_plugins: active_plugins.iter().map(|s| s.to_lowercase()).collect(),
             crc_cache: RwLock::default(),
             plugin_versions: plugin_versions
                 .iter()
@@ -413,7 +410,7 @@ mod tests {
 
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.esp"),
-            &state.data_path.join("Blank.esp.ghost"),
+            state.data_path.join("Blank.esp.ghost"),
         )
         .unwrap();
 
@@ -430,7 +427,7 @@ mod tests {
 
         copy(
             Path::new("Cargo.toml"),
-            &state.data_path.join("Cargo.toml.ghost"),
+            state.data_path.join("Cargo.toml.ghost"),
         )
         .unwrap();
 
@@ -482,7 +479,7 @@ mod tests {
 
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
-            &state.data_path.join("Blank.esm.ghost"),
+            state.data_path.join("Blank.esm.ghost"),
         )
         .unwrap();
 
@@ -586,8 +583,7 @@ mod tests {
             .read_dir()
             .unwrap()
             .flat_map(|res| res.map(|e| e.file_name()).into_iter())
-            .find(|name| name == relative_path)
-            .is_some();
+            .any(|name| &name == relative_path);
 
         assert!(entry_exists);
 
@@ -734,12 +730,12 @@ mod tests {
 
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
-            &state.data_path.join("Blank.esm.ghost"),
+            state.data_path.join("Blank.esm.ghost"),
         )
         .unwrap();
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.esp"),
-            &state.data_path.join("Blank.esp.ghost"),
+            state.data_path.join("Blank.esp.ghost"),
         )
         .unwrap();
 
@@ -824,7 +820,7 @@ mod tests {
 
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
-            &state.data_path.join("Blank.esm.ghost"),
+            state.data_path.join("Blank.esm.ghost"),
         )
         .unwrap();
 
@@ -841,7 +837,7 @@ mod tests {
 
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.bsa"),
-            &state.data_path.join("Blank.bsa.ghost"),
+            state.data_path.join("Blank.bsa.ghost"),
         )
         .unwrap();
 
@@ -867,7 +863,7 @@ mod tests {
 
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
-            &state.data_path.join("Blank.esm"),
+            state.data_path.join("Blank.esm"),
         )
         .unwrap();
 
@@ -878,7 +874,7 @@ mod tests {
         // Change the CRC of the file to test that the cached value is used.
         copy(
             Path::new("tests/testing-plugins/Oblivion/Data/Blank.bsa"),
-            &state.data_path.join("Blank.esm"),
+            state.data_path.join("Blank.esm"),
         )
         .unwrap();
 
@@ -893,13 +889,13 @@ mod tests {
         let data_path = tmp_dir.path().join("Data");
         let state = state(data_path);
 
-        copy(Path::new("Cargo.toml"), &state.data_path.join("Cargo.toml")).unwrap();
+        copy(Path::new("Cargo.toml"), state.data_path.join("Cargo.toml")).unwrap();
 
         let function = Function::FilePath(PathBuf::from("Cargo.toml"));
 
         assert!(function.eval(&state).unwrap());
 
-        remove_file(&state.data_path.join("Cargo.toml")).unwrap();
+        remove_file(state.data_path.join("Cargo.toml")).unwrap();
 
         assert!(function.eval(&state).unwrap());
     }

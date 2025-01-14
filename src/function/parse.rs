@@ -254,21 +254,21 @@ mod tests {
 
     #[test]
     fn parse_regex_should_produce_case_insensitive_regex() {
-        let (_, regex) = parse_regex("cargo.*".into()).unwrap();
+        let (_, regex) = parse_regex("cargo.*").unwrap();
 
         assert!(regex.is_match("Cargo.toml"));
     }
 
     #[test]
     fn parse_regex_should_produce_a_regex_that_does_not_partially_match() {
-        let (_, regex) = parse_regex("cargo.".into()).unwrap();
+        let (_, regex) = parse_regex("cargo.").unwrap();
 
         assert!(!regex.is_match("Cargo.toml"));
     }
 
     #[test]
     fn function_parse_should_parse_a_file_path_function() {
-        let output = Function::parse("file(\"Cargo.toml\")".into()).unwrap();
+        let output = Function::parse("file(\"Cargo.toml\")").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -279,12 +279,12 @@ mod tests {
 
     #[test]
     fn function_parse_should_error_if_the_file_path_is_outside_the_game_directory() {
-        assert!(Function::parse("file(\"../../Cargo.toml\")".into()).is_err());
+        assert!(Function::parse("file(\"../../Cargo.toml\")").is_err());
     }
 
     #[test]
     fn function_parse_should_parse_a_file_regex_function_with_no_parent_path() {
-        let output = Function::parse("file(\"Cargo.*\")".into()).unwrap();
+        let output = Function::parse("file(\"Cargo.*\")").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -298,7 +298,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_file_regex_function_with_a_parent_path() {
-        let output = Function::parse("file(\"subdir/Cargo.*\")".into()).unwrap();
+        let output = Function::parse("file(\"subdir/Cargo.*\")").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -312,17 +312,17 @@ mod tests {
 
     #[test]
     fn function_parse_should_error_if_given_a_file_regex_function_ending_in_a_forward_slash() {
-        assert!(Function::parse("file(\"sub\\dir/\")".into()).is_err());
+        assert!(Function::parse("file(\"sub\\dir/\")").is_err());
     }
 
     #[test]
     fn function_parse_should_error_if_the_file_regex_parent_path_is_outside_the_game_directory() {
-        assert!(Function::parse("file(\"../../Cargo.*\")".into()).is_err());
+        assert!(Function::parse("file(\"../../Cargo.*\")").is_err());
     }
 
     #[test]
     fn function_parse_should_parse_a_readable_function() {
-        let output = Function::parse("readable(\"Cargo.toml\")".into()).unwrap();
+        let output = Function::parse("readable(\"Cargo.toml\")").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -333,12 +333,12 @@ mod tests {
 
     #[test]
     fn function_parse_should_error_if_the_readable_path_is_outside_the_game_directory() {
-        assert!(Function::parse("readable(\"../../Cargo.toml\")".into()).is_err());
+        assert!(Function::parse("readable(\"../../Cargo.toml\")").is_err());
     }
 
     #[test]
     fn function_parse_should_parse_an_active_path_function() {
-        let output = Function::parse("active(\"Cargo.toml\")".into()).unwrap();
+        let output = Function::parse("active(\"Cargo.toml\")").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -351,12 +351,12 @@ mod tests {
     fn function_parse_should_error_if_the_active_path_is_outside_the_game_directory() {
         // Trying to check if a path that isn't a plugin in the data folder is
         // active is pointless, but it's not worth having a more specific check.
-        assert!(Function::parse("active(\"../../Cargo.toml\")".into()).is_err());
+        assert!(Function::parse("active(\"../../Cargo.toml\")").is_err());
     }
 
     #[test]
     fn function_parse_should_parse_an_active_regex_function() {
-        let output = Function::parse("active(\"Cargo.*\")".into()).unwrap();
+        let output = Function::parse("active(\"Cargo.*\")").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_an_is_master_function() {
-        let output = Function::parse("is_master(\"Blank.esm\")".into()).unwrap();
+        let output = Function::parse("is_master(\"Blank.esm\")").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -382,12 +382,12 @@ mod tests {
     fn function_parse_should_error_if_the_is_master_path_is_outside_the_game_directory() {
         // Trying to check if a path that isn't a plugin in the data folder is
         // active is pointless, but it's not worth having a more specific check.
-        assert!(Function::parse("is_master(\"../../Blank.esm\")".into()).is_err());
+        assert!(Function::parse("is_master(\"../../Blank.esm\")").is_err());
     }
 
     #[test]
     fn function_parse_should_parse_a_many_function_with_no_parent_path() {
-        let output = Function::parse("many(\"Cargo.*\")".into()).unwrap();
+        let output = Function::parse("many(\"Cargo.*\")").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -401,7 +401,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_many_function_with_a_parent_path() {
-        let output = Function::parse("many(\"subdir/Cargo.*\")".into()).unwrap();
+        let output = Function::parse("many(\"subdir/Cargo.*\")").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -415,17 +415,17 @@ mod tests {
 
     #[test]
     fn function_parse_should_error_if_given_a_many_function_ending_in_a_forward_slash() {
-        assert!(Function::parse("many(\"subdir/\")".into()).is_err());
+        assert!(Function::parse("many(\"subdir/\")").is_err());
     }
 
     #[test]
     fn function_parse_should_error_if_the_many_parent_path_is_outside_the_game_directory() {
-        assert!(Function::parse("file(\"../../Cargo.*\")".into()).is_err());
+        assert!(Function::parse("file(\"../../Cargo.*\")").is_err());
     }
 
     #[test]
     fn function_parse_should_parse_a_many_active_function() {
-        let output = Function::parse("many_active(\"Cargo.*\")".into()).unwrap();
+        let output = Function::parse("many_active(\"Cargo.*\")").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -438,7 +438,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_checksum_function() {
-        let output = Function::parse("checksum(\"Cargo.toml\", DEADBEEF)".into()).unwrap();
+        let output = Function::parse("checksum(\"Cargo.toml\", DEADBEEF)").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -452,12 +452,12 @@ mod tests {
 
     #[test]
     fn function_parse_should_error_if_the_checksum_path_is_outside_the_game_directory() {
-        assert!(Function::parse("checksum(\"../../Cargo.toml\", DEADBEEF)".into()).is_err());
+        assert!(Function::parse("checksum(\"../../Cargo.toml\", DEADBEEF)").is_err());
     }
 
     #[test]
     fn function_parse_should_parse_a_version_equals_function() {
-        let output = Function::parse("version(\"Cargo.toml\", \"1.2\", ==)".into()).unwrap();
+        let output = Function::parse("version(\"Cargo.toml\", \"1.2\", ==)").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -472,7 +472,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_version_not_equals_function() {
-        let output = Function::parse("version(\"Cargo.toml\", \"1.2\", !=)".into()).unwrap();
+        let output = Function::parse("version(\"Cargo.toml\", \"1.2\", !=)").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -487,7 +487,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_version_less_than_function() {
-        let output = Function::parse("version(\"Cargo.toml\", \"1.2\", <)".into()).unwrap();
+        let output = Function::parse("version(\"Cargo.toml\", \"1.2\", <)").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -502,7 +502,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_version_greater_than_function() {
-        let output = Function::parse("version(\"Cargo.toml\", \"1.2\", >)".into()).unwrap();
+        let output = Function::parse("version(\"Cargo.toml\", \"1.2\", >)").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -517,7 +517,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_version_less_than_or_equal_to_function() {
-        let output = Function::parse("version(\"Cargo.toml\", \"1.2\", <=)".into()).unwrap();
+        let output = Function::parse("version(\"Cargo.toml\", \"1.2\", <=)").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -532,7 +532,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_version_greater_than_or_equal_to_function() {
-        let output = Function::parse("version(\"Cargo.toml\", \"1.2\", >=)".into()).unwrap();
+        let output = Function::parse("version(\"Cargo.toml\", \"1.2\", >=)").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -547,7 +547,7 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_version_with_a_path_containing_backslashes() {
-        let output = Function::parse("version(\"..\\Cargo.toml\", \"1.2\", ==)".into()).unwrap();
+        let output = Function::parse("version(\"..\\Cargo.toml\", \"1.2\", ==)").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -562,13 +562,12 @@ mod tests {
 
     #[test]
     fn function_parse_should_error_if_the_version_path_is_outside_the_game_directory() {
-        assert!(Function::parse("version(\"../../Cargo.toml\", \"1.2\", ==)".into()).is_err());
+        assert!(Function::parse("version(\"../../Cargo.toml\", \"1.2\", ==)").is_err());
     }
 
     #[test]
     fn function_parse_should_parse_a_product_version_equals_function() {
-        let output =
-            Function::parse("product_version(\"Cargo.toml\", \"1.2\", ==)".into()).unwrap();
+        let output = Function::parse("product_version(\"Cargo.toml\", \"1.2\", ==)").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -583,8 +582,6 @@ mod tests {
 
     #[test]
     fn function_parse_should_error_if_the_product_version_path_is_outside_the_game_directory() {
-        assert!(
-            Function::parse("product_version(\"../../Cargo.toml\", \"1.2\", ==)".into()).is_err()
-        );
+        assert!(Function::parse("product_version(\"../../Cargo.toml\", \"1.2\", ==)").is_err());
     }
 }
