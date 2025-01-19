@@ -407,6 +407,32 @@ mod tests {
     }
 
     #[test]
+    fn expression_parsing_should_ignore_whitespace_between_function_arguments() {
+        let is_ok = |s: &str| Expression::from_str(s).is_ok();
+
+        assert!(is_ok("version(\"Cargo.toml\", \"1.2\", ==)"));
+        assert!(is_ok(
+            "version(\"Unofficial Oblivion Patch.esp\",\"3.4.0\",>=)"
+        ));
+        assert!(is_ok(
+            "version(\"Unofficial Skyrim Patch.esp\", \"2.0\", >=)"
+        ));
+        assert!(is_ok("version(\"..\\TESV.exe\", \"1.8\", >) and not checksum(\"EternalShineArmorAndWeapons.esp\",3E85A943)"));
+        assert!(is_ok("version(\"..\\TESV.exe\",\"1.8\",>) and not checksum(\"EternalShineArmorAndWeapons.esp\",3E85A943)"));
+        assert!(is_ok("checksum(\"HM_HotkeyMod.esp\",374C564C)"));
+        assert!(is_ok("checksum(\"HM_HotkeyMod.esp\",CF00AFFD)"));
+        assert!(is_ok(
+            "checksum(\"HM_HotkeyMod.esp\",374C564C) or checksum(\"HM_HotkeyMod.esp\",CF00AFFD)"
+        ));
+        assert!(is_ok("( checksum(\"HM_HotkeyMod.esp\",374C564C) or checksum(\"HM_HotkeyMod.esp\",CF00AFFD) )"));
+        assert!(is_ok("file(\"UFO - Ultimate Follower Overhaul.esp\")"));
+        assert!(is_ok("( checksum(\"HM_HotkeyMod.esp\",374C564C) or checksum(\"HM_HotkeyMod.esp\",CF00AFFD) ) and file(\"UFO - Ultimate Follower Overhaul.esp\")"));
+        assert!(is_ok(
+            "many(\"Deeper Thoughts (\\(Curie\\)|- (Expressive )?Curie)\\.esp\")"
+        ));
+    }
+
+    #[test]
     fn compound_condition_parse_should_handle_a_single_condition() {
         let result = CompoundCondition::parse("file(\"Cargo.toml\")").unwrap().1;
 

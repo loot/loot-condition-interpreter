@@ -48,25 +48,23 @@ jobs:
       - name: Prepare test resources
         shell: bash
         run: |
-          cd tests
+          mkdir tests
 
           curl -sSfLO 'https://github.com/Ortham/testing-plugins/archive/1.4.0.zip'
           7z x 1.4.0.zip
-          mv testing-plugins-1.4.0 testing-plugins
+          mv testing-plugins-1.4.0 tests/testing-plugins
 
           curl -sSfLO 'https://github.com/loot/libloot/releases/download/0.18.2/libloot-0.18.2-0-gb1a9e31_0.18.2-win32.7z'
           7z x libloot-0.18.2-0-gb1a9e31_0.18.2-win32.7z
-          mv libloot-0.18.2-0-gb1a9e31_0.18.2-win32 libloot_win32
+          mv libloot-0.18.2-0-gb1a9e31_0.18.2-win32 tests/libloot_win32
 
           curl -sSfLO 'https://github.com/loot/libloot/releases/download/0.18.2/libloot-0.18.2-0-gb1a9e31_0.18.2-win64.7z'
           7z x libloot-0.18.2-0-gb1a9e31_0.18.2-win64.7z
-          mv libloot-0.18.2-0-gb1a9e31_0.18.2-win64 libloot_win64
+          mv libloot-0.18.2-0-gb1a9e31_0.18.2-win64 tests/libloot_win64
 
           curl -sSfLO 'https://github.com/loot/loot-api-python/releases/download/4.0.2/loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z'
           7z x loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z
-          mv loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32 loot_api_python
-
-          cd ..
+          mv loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32 tests/loot_api_python
 
       - name: Build and run tests
         run: cargo test --workspace
@@ -91,8 +89,6 @@ jobs:
       - name: Build and run C++ tests
         shell: bash
         run: |
-          mkdir ffi/build
-          cd ffi/build
-          cmake ..
-          cmake --build .
-          ctest
+          cmake cmake -B ffi/build ffi
+          cmake --build ffi/build
+          ctest --test-dir ffi/build
