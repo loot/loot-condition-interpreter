@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.0.0] - 2025-01-24
+
+### Added
+
+- `GameType::OpenMW` and `LCI_GAME_OPENMW` as the game code to use for OpenMW.
+
+### Changed
+
+- The `Error` and `GameType` enums are now non-exhaustive.
+- Updated libc to v0.2.169.
+- Updated regex to v1.11.1.
+- Updated unicase to v2.8.1.
+
 ## [4.0.2] - 2024-10-08
 
 ### Changed
