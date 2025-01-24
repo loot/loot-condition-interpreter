@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.0.0] - 2025-02-01
+
+### Added
+
+- `GameType::OpenMW` and `LCI_GAME_OPENMW` as the game code to use for OpenMW.
+  Unlike other games:
+
+  - `.omwgame`, `.omwaddon` and `.omwscripts` are valid plugin file extensions.
+  - Ghosted plugins are not supported.
+  - The `is_master()` condition function returns `false` for all OpenMW plugins.
+  - When resolving filenames, the additional data paths are checked in reverse
+    order.
+
+### Changed
+
+- The `Error` and `GameType` enums are now non-exhaustive.
+- Updated libc to v0.2.169.
+- Updated regex to v1.11.1.
+- Updated unicase to v2.8.1.
+
 ## [4.0.2] - 2024-10-08
 
 ### Changed
