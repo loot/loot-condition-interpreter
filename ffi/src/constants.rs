@@ -37,6 +37,10 @@ pub static LCI_ERROR_POISONED_THREAD_LOCK: c_int = -6;
 #[no_mangle]
 pub static LCI_ERROR_TEXT_ENCODE_FAIL: c_int = -7;
 
+/// The library encountered an error that should not have been possible to encounter.
+#[no_mangle]
+pub static LCI_ERROR_INTERNAL_LOGIC_ERROR: c_int = -8;
+
 /// Game code for The Elder Scrolls III: Morrowind.
 #[no_mangle]
 pub static LCI_GAME_MORROWIND: c_int = 8;

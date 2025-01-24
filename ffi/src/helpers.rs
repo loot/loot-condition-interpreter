@@ -28,6 +28,7 @@ fn map_error(err: &Error) -> c_int {
         Error::ParsingError(_, _) => LCI_ERROR_PARSING_ERROR,
         Error::PeParsingError(_, _) => LCI_ERROR_PE_PARSING_ERROR,
         Error::IoError(_, _) => LCI_ERROR_IO_ERROR,
+        _ => LCI_ERROR_INTERNAL_LOGIC_ERROR,
     }
 }
 

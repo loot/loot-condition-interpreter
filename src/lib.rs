@@ -22,9 +22,8 @@ use function::Function;
 
 type ParsingResult<'a, T> = IResult<&'a str, T, ParsingError<&'a str>>;
 
-// GameType variants must not change order, as their integer values are used as
-// constants in the C API.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum GameType {
     Oblivion,
     Skyrim,

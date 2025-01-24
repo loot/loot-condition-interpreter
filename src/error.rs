@@ -9,6 +9,7 @@ use nom::error::ErrorKind;
 use nom::Err;
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     ParsingIncomplete(MoreDataNeeded),
     // The string is the input that was not parsed.
