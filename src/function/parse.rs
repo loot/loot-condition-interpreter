@@ -5,8 +5,8 @@ use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag};
 use nom::character::complete::hex_digit1;
 use nom::combinator::{map, map_parser, value};
-use nom::sequence::{delimited, tuple};
-use nom::{Err, IResult};
+use nom::sequence::delimited;
+use nom::{Err, IResult, Parser};
 use regex::{Regex, RegexBuilder};
 
 use super::{ComparisonOperator, Function};
@@ -22,7 +22,8 @@ impl ComparisonOperator {
             value(ComparisonOperator::GreaterThanOrEqual, tag(">=")),
             value(ComparisonOperator::LessThan, tag("<")),
             value(ComparisonOperator::GreaterThan, tag(">")),
-        ))(input)
+        ))
+        .parse(input)
     }
 }
 
@@ -60,7 +61,8 @@ fn parse_path(input: &str) -> IResult<&str, PathBuf> {
     map(
         delimited(tag("\""), is_not(INVALID_PATH_CHARS), tag("\"")),
         PathBuf::from,
-    )(input)
+    )
+    .parse(input)
 }
 
 fn parse_version_args(input: &str) -> ParsingResult<(PathBuf, String, ComparisonOperator)> {
@@ -69,15 +71,15 @@ fn parse_version_args(input: &str) -> ParsingResult<(PathBuf, String, Comparison
         |version: &str| version.to_string(),
     );
 
-    let parser = tuple((
+    let parser = (
         parse_path,
         whitespace(tag(",")),
         version_parser,
         whitespace(tag(",")),
         ComparisonOperator::parse,
-    ));
+    );
 
-    let (remaining_input, (path, _, version, _, comparator)) = map_err(parser)(input)?;
+    let (remaining_input, (path, _, version, _, comparator)) = map_err(parser).parse(input)?;
 
     if is_in_game_path(&path) {
         Ok((remaining_input, (path, version, comparator)))
@@ -93,13 +95,13 @@ fn parse_crc(input: &str) -> ParsingResult<u32> {
 }
 
 fn parse_checksum_args(input: &str) -> ParsingResult<(PathBuf, u32)> {
-    let mut parser = tuple((
+    let mut parser = (
         map_err(parse_path),
         map_err(whitespace(tag(","))),
         map_parser(hex_digit1, parse_crc),
-    ));
+    );
 
-    let (remaining_input, (path, _, crc)) = parser(input)?;
+    let (remaining_input, (path, _, crc)) = parser.parse(input)?;
 
     if is_in_game_path(&path) {
         Ok((remaining_input, (path, crc)))
@@ -111,7 +113,8 @@ fn parse_checksum_args(input: &str) -> ParsingResult<(PathBuf, u32)> {
 fn parse_non_regex_path(input: &str) -> ParsingResult<PathBuf> {
     let (remaining_input, path) = map(is_not(INVALID_NON_REGEX_PATH_CHARS), |path: &str| {
         PathBuf::from(path)
-    })(input)?;
+    })
+    .parse(input)?;
 
     if is_in_game_path(&path) {
         Ok((remaining_input, path))
@@ -148,7 +151,7 @@ fn parse_regex_path(input: &str) -> ParsingResult<(PathBuf, Regex)> {
 }
 
 fn parse_regex_filename(input: &str) -> ParsingResult<Regex> {
-    map_parser(is_not(INVALID_REGEX_PATH_CHARS), parse_regex)(input)
+    map_parser(is_not(INVALID_REGEX_PATH_CHARS), parse_regex).parse(input)
 }
 
 impl Function {
@@ -242,7 +245,8 @@ impl Function {
                 ),
                 |(path, crc)| Function::Checksum(path, crc),
             ),
-        ))(input)
+        ))
+        .parse(input)
     }
 }
 

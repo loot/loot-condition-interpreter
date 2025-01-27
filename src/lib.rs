@@ -14,7 +14,7 @@ use nom::character::complete::space0;
 use nom::combinator::map;
 use nom::multi::separated_list0;
 use nom::sequence::{delimited, preceded};
-use nom::IResult;
+use nom::{IResult, Parser};
 
 use error::ParsingError;
 pub use error::{Error, MoreDataNeeded, ParsingErrorKind};
@@ -171,7 +171,8 @@ fn parse_expression(input: &str) -> ParsingResult<Expression> {
     map(
         separated_list0(map_err(whitespace(tag("or"))), CompoundCondition::parse),
         Expression,
-    )(input)
+    )
+    .parse(input)
 }
 
 impl fmt::Display for Expression {
@@ -199,7 +200,8 @@ impl CompoundCondition {
         map(
             separated_list0(map_err(whitespace(tag("and"))), Condition::parse),
             CompoundCondition,
-        )(input)
+        )
+        .parse(input)
     }
 }
 
@@ -251,7 +253,8 @@ impl Condition {
                 ),
                 Condition::InvertedExpression,
             ),
-        ))(input)
+        ))
+        .parse(input)
     }
 }
 
@@ -268,14 +271,14 @@ impl fmt::Display for Condition {
 }
 
 fn map_err<'a, O>(
-    mut parser: impl FnMut(&'a str) -> IResult<&'a str, O, nom::error::Error<&'a str>>,
+    mut parser: impl Parser<&'a str, Output = O, Error = nom::error::Error<&'a str>>,
 ) -> impl FnMut(&'a str) -> ParsingResult<'a, O> {
-    move |i| parser(i).map_err(nom::Err::convert)
+    move |i| parser.parse(i).map_err(nom::Err::convert)
 }
 
 fn whitespace<'a, O>(
     parser: impl Fn(&'a str) -> IResult<&'a str, O>,
-) -> impl FnMut(&'a str) -> IResult<&'a str, O> {
+) -> impl Parser<&'a str, Output = O, Error = nom::error::Error<&'a str>> {
     delimited(space0, parser, space0)
 }
 
