@@ -136,6 +136,10 @@ impl Version {
         })
     }
 
+    pub fn is_readable(file_path: &Path) -> bool {
+        Self::read_version(file_path, |_| None).is_ok()
+    }
+
     fn read_version<F: Fn(&VersionInfo) -> Option<String>>(
         file_path: &Path,
         formatter: F,

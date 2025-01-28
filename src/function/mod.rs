@@ -40,6 +40,7 @@ pub enum Function {
     FilePath(PathBuf),
     FileRegex(PathBuf, Regex),
     Readable(PathBuf),
+    IsExecutable(PathBuf),
     ActivePath(PathBuf),
     ActiveRegex(Regex),
     IsMaster(PathBuf),
@@ -57,6 +58,7 @@ impl fmt::Display for Function {
             FilePath(p) => write!(f, "file(\"{}\")", p.display()),
             FileRegex(p, r) => write!(f, "file(\"{}/{}\")", p.display(), r),
             Readable(p) => write!(f, "readable(\"{}\")", p.display()),
+            IsExecutable(p) => write!(f, "is_executable(\"{}\")", p.display()),
             ActivePath(p) => write!(f, "active(\"{}\")", p.display()),
             ActiveRegex(r) => write!(f, "active(\"{}\")", r),
             IsMaster(p) => write!(f, "is_master(\"{}\")", p.display()),
@@ -80,6 +82,9 @@ impl PartialEq for Function {
                 eq(r1.as_str(), r2.as_str()) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
             (Readable(p1), Readable(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
+            (IsExecutable(p1), IsExecutable(p2)) => {
+                eq(&p1.to_string_lossy(), &p2.to_string_lossy())
+            }
             (ActivePath(p1), ActivePath(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
             (ActiveRegex(r1), ActiveRegex(r2)) => eq(r1.as_str(), r2.as_str()),
             (IsMaster(p1), IsMaster(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
@@ -115,6 +120,9 @@ impl Hash for Function {
                 r.as_str().to_lowercase().hash(state);
             }
             Readable(p) => {
+                p.to_string_lossy().to_lowercase().hash(state);
+            }
+            IsExecutable(p) => {
                 p.to_string_lossy().to_lowercase().hash(state);
             }
             ActivePath(p) => {
@@ -183,6 +191,16 @@ mod tests {
             let function = Function::Readable("subdir/Blank.esm".into());
 
             assert_eq!("readable(\"subdir/Blank.esm\")", &format!("{}", function));
+        }
+
+        #[test]
+        fn function_fmt_for_is_executable_should_format_correctly() {
+            let function = Function::IsExecutable("subdir/Blank.esm".into());
+
+            assert_eq!(
+                "is_executable(\"subdir/Blank.esm\")",
+                &format!("{}", function)
+            );
         }
 
         #[test]
@@ -334,6 +352,40 @@ mod tests {
             assert_ne!(
                 Function::Readable("Blank.esm".into()),
                 Function::FilePath("Blank.esm".into())
+            );
+        }
+
+        #[test]
+        fn function_eq_for_is_executable_should_check_pathbuf() {
+            assert_eq!(
+                Function::IsExecutable("Blank.esm".into()),
+                Function::IsExecutable("Blank.esm".into())
+            );
+
+            assert_ne!(
+                Function::IsExecutable("Blank.esp".into()),
+                Function::IsExecutable("Blank.esm".into())
+            );
+        }
+
+        #[test]
+        fn function_eq_for_is_executable_should_be_case_insensitive_on_pathbuf() {
+            assert_eq!(
+                Function::IsExecutable("Blank.esm".into()),
+                Function::IsExecutable("blank.esm".into())
+            );
+        }
+
+        #[test]
+        fn function_eq_for_is_executable_should_not_be_equal_to_file_path_or_is_executable_with_same_pathbuf(
+        ) {
+            assert_ne!(
+                Function::IsExecutable("Blank.esm".into()),
+                Function::FilePath("Blank.esm".into())
+            );
+            assert_ne!(
+                Function::IsExecutable("Blank.esm".into()),
+                Function::Readable("Blank.esm".into())
             );
         }
 
@@ -675,6 +727,38 @@ mod tests {
             let function2 = Function::Readable("Blank.esm".into());
 
             assert_ne!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_is_executable_should_hash_pathbuf() {
+            let function1 = Function::IsExecutable("Blank.esm".into());
+            let function2 = Function::IsExecutable("Blank.esm".into());
+
+            assert_eq!(hash(function1), hash(function2));
+
+            let function1 = Function::IsExecutable("Blank.esm".into());
+            let function2 = Function::IsExecutable("Blank.esp".into());
+
+            assert_ne!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_is_executable_should_be_case_insensitive() {
+            let function1 = Function::IsExecutable("Blank.esm".into());
+            let function2 = Function::IsExecutable("blank.esm".into());
+
+            assert_eq!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_file_path_and_readable_and_is_executable_should_not_have_equal_hashes() {
+            let function1 = Function::FilePath("Blank.esm".into());
+            let function2 = Function::Readable("Blank.esm".into());
+            let function3 = Function::IsExecutable("Blank.esm".into());
+
+            assert_ne!(hash(function1.clone()), hash(function2.clone()));
+            assert_ne!(hash(function3.clone()), hash(function1));
+            assert_ne!(hash(function3), hash(function2));
         }
 
         #[test]

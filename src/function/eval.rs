@@ -72,6 +72,10 @@ fn evaluate_readable(state: &State, path: &Path) -> Result<bool, Error> {
     }
 }
 
+fn evaluate_is_executable(state: &State, path: &Path) -> Result<bool, Error> {
+    Ok(Version::is_readable(&resolve_path(state, path)))
+}
+
 fn evaluate_many(state: &State, parent_path: &Path, regex: &Regex) -> Result<bool, Error> {
     // Share the found_one state across all data paths because they're all
     // treated as if they were merged into one directory.
@@ -279,6 +283,7 @@ impl Function {
             Function::FilePath(f) => evaluate_file_path(state, f),
             Function::FileRegex(p, r) => evaluate_file_regex(state, p, r),
             Function::Readable(p) => evaluate_readable(state, p),
+            Function::IsExecutable(p) => evaluate_is_executable(state, p),
             Function::ActivePath(p) => evaluate_active_path(state, p),
             Function::ActiveRegex(r) => evaluate_active_regex(state, r),
             Function::IsMaster(p) => evaluate_is_master(state, p),
@@ -611,6 +616,86 @@ mod tests {
         let function = Function::Readable(PathBuf::from(relative_path));
 
         assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_is_executable_should_be_false_for_a_path_that_does_not_exist() {
+        let state = state(".");
+        let function = Function::IsExecutable("missing".into());
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_is_executable_should_be_false_for_a_directory() {
+        let state = state(".");
+        let function = Function::IsExecutable("tests".into());
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn function_is_executable_should_be_false_for_a_file_that_cannot_be_read() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        let relative_path = "unreadable";
+        let file_path = state.data_path.join(relative_path);
+
+        // Create a file and open it with exclusive access so that the readable
+        // function eval isn't able to open the file in read-only mode.
+        let _file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .share_mode(0)
+            .open(&file_path);
+
+        assert!(file_path.exists());
+
+        let function = Function::IsExecutable(PathBuf::from(relative_path));
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn function_is_executable_should_be_false_for_a_file_that_cannot_be_read() {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        let relative_path = "unreadable";
+        let file_path = state.data_path.join(relative_path);
+
+        std::fs::write(&file_path, "").unwrap();
+        make_path_unreadable(&file_path);
+
+        assert!(file_path.exists());
+
+        let function = Function::IsExecutable(PathBuf::from(relative_path));
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_is_executable_should_be_false_for_a_file_that_is_not_an_executable() {
+        let state = state(".");
+        let function = Function::IsExecutable("Cargo.toml".into());
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_is_executable_should_be_true_for_a_file_that_is_an_executable() {
+        let state = state(".");
+        let function = Function::IsExecutable("tests/libloot_win32/loot.dll".into());
+
+        assert!(function.eval(&state).unwrap());
     }
 
     #[test]

@@ -183,6 +183,14 @@ impl Function {
             ),
             map(
                 delimited(
+                    map_err(tag("is_executable(\"")),
+                    parse_non_regex_path,
+                    map_err(tag("\")")),
+                ),
+                Function::IsExecutable,
+            ),
+            map(
+                delimited(
                     map_err(tag("active(\"")),
                     parse_non_regex_path,
                     map_err(tag("\")")),
@@ -331,13 +339,29 @@ mod tests {
         assert!(output.0.is_empty());
         match output.1 {
             Function::Readable(f) => assert_eq!(Path::new("Cargo.toml"), f),
-            _ => panic!("Expected a file path function"),
+            _ => panic!("Expected a readable function"),
         }
     }
 
     #[test]
     fn function_parse_should_error_if_the_readable_path_is_outside_the_game_directory() {
         assert!(Function::parse("readable(\"../../Cargo.toml\")").is_err());
+    }
+
+    #[test]
+    fn function_parse_should_parse_an_is_executable_function() {
+        let output = Function::parse("is_executable(\"Cargo.toml\")").unwrap();
+
+        assert!(output.0.is_empty());
+        match output.1 {
+            Function::IsExecutable(f) => assert_eq!(Path::new("Cargo.toml"), f),
+            _ => panic!("Expected an is_executable function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_error_if_the_is_executable_path_is_outside_the_game_directory() {
+        assert!(Function::parse("is_executable(\"../../Cargo.toml\")").is_err());
     }
 
     #[test]
