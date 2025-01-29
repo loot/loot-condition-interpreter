@@ -89,6 +89,6 @@ jobs:
       - name: Build and run C++ tests
         shell: bash
         run: |
-          cmake cmake -B ffi/build ffi
+          cmake -B ffi/build ffi
           cmake --build ffi/build
-          ctest --test-dir ffi/build
+          ctest --test-dir ffi/build --output-on-failure
