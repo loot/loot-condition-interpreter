@@ -26,10 +26,13 @@ fn has_unghosted_plugin_file_extension(game_type: GameType, path: &Path) -> bool
 
 pub fn has_plugin_file_extension(game_type: GameType, path: &Path) -> bool {
     match path.extension() {
-        Some(ext) if ext.eq_ignore_ascii_case(GHOST_EXTENSION) => path
-            .file_stem()
-            .map(|s| has_unghosted_plugin_file_extension(game_type, Path::new(s)))
-            .unwrap_or(false),
+        Some(ext)
+            if game_type.allows_ghosted_plugins() && ext.eq_ignore_ascii_case(GHOST_EXTENSION) =>
+        {
+            path.file_stem()
+                .map(|s| has_unghosted_plugin_file_extension(game_type, Path::new(s)))
+                .unwrap_or(false)
+        }
         Some(ext) => is_unghosted_plugin_file_extension(game_type, ext),
         _ => false,
     }
@@ -47,6 +50,10 @@ fn add_ghost_extension(path: PathBuf) -> PathBuf {
 }
 
 pub fn normalise_file_name(game_type: GameType, name: &OsStr) -> &OsStr {
+    if !game_type.allows_ghosted_plugins() {
+        return name;
+    }
+
     let path = Path::new(name);
     if path
         .extension()
@@ -64,31 +71,62 @@ pub fn normalise_file_name(game_type: GameType, name: &OsStr) -> &OsStr {
     name
 }
 
-pub fn resolve_path(state: &State, path: &Path) -> PathBuf {
-    // First check external data paths, as files there may override files in the main data path.
-    for data_path in &state.additional_data_paths {
-        let mut path = data_path.join(path);
+pub fn resolve_path_in_parent_paths<'a>(
+    path: &Path,
+    parent_paths: impl Iterator<Item = &'a PathBuf>,
+    try_with_ghost_extension: bool,
+) -> Option<PathBuf> {
+    for parent_path in parent_paths {
+        let joined_path = parent_path.join(path);
 
-        if path.exists() {
-            return path;
+        if joined_path.exists() {
+            return Some(joined_path);
         }
 
-        if has_unghosted_plugin_file_extension(state.game_type, &path) {
-            path = add_ghost_extension(path);
-        }
+        if try_with_ghost_extension {
+            let ghosted_path = add_ghost_extension(joined_path);
 
-        if path.exists() {
-            return path;
+            if ghosted_path.exists() {
+                return Some(ghosted_path);
+            }
         }
     }
 
-    // Now check the main data path.
-    let path = state.data_path.join(path);
+    None
+}
 
-    if !path.exists() && has_unghosted_plugin_file_extension(state.game_type, &path) {
-        add_ghost_extension(path)
+pub fn resolve_path(state: &State, path: &Path) -> PathBuf {
+    let try_with_ghost_extension = state.game_type.allows_ghosted_plugins()
+        && has_unghosted_plugin_file_extension(state.game_type, &path);
+
+    // OpenMW uses the last data directory that contains a matching path, with
+    // the main data path being listed first, while for other games the first
+    // additional data path that contains a matching path is used, and then the
+    // main data path is checked.
+    let result = match state.game_type {
+        GameType::OpenMW => resolve_path_in_parent_paths(
+            path,
+            state.additional_data_paths.iter().rev(),
+            try_with_ghost_extension,
+        ),
+        _ => resolve_path_in_parent_paths(
+            path,
+            state.additional_data_paths.iter(),
+            try_with_ghost_extension,
+        ),
+    };
+
+    if let Some(path) = result {
+        return path;
+    }
+
+    // Now check the main data path.
+    let joined_path = state.data_path.join(path);
+
+    if !joined_path.exists() && try_with_ghost_extension {
+        add_ghost_extension(joined_path)
     } else {
-        path
+        joined_path
     }
 }
 
@@ -479,6 +517,15 @@ mod tests {
     }
 
     #[test]
+    fn has_plugin_file_extension_should_return_false_if_the_path_has_a_ghosted_plugin_extension_for_openmw(
+    ) {
+        assert!(!has_plugin_file_extension(
+            GameType::OpenMW,
+            Path::new("plugin.esp.Ghost")
+        ));
+    }
+
+    #[test]
     fn has_plugin_file_extension_should_return_false_if_the_path_has_a_non_plugin_extension() {
         assert!(!has_plugin_file_extension(
             GameType::Skyrim,
@@ -524,6 +571,38 @@ mod tests {
     }
 
     #[test]
+    fn normalise_file_name_should_remove_ghost_extension_from_a_plugin_filename() {
+        assert_eq!(
+            "plugin.esp",
+            normalise_file_name(GameType::Oblivion, OsStr::new("plugin.esp.ghost"))
+        );
+    }
+
+    #[test]
+    fn normalise_file_name_should_not_remove_ghost_extension_from_a_non_plugin_filename() {
+        assert_eq!(
+            "plugin.ghost",
+            normalise_file_name(GameType::Oblivion, OsStr::new("plugin.ghost"))
+        );
+    }
+
+    #[test]
+    fn normalise_file_name_should_return_a_non_ghost_extension_filename_unchanged() {
+        assert_eq!(
+            "plugin.esp",
+            normalise_file_name(GameType::Oblivion, OsStr::new("plugin.esp"))
+        );
+    }
+
+    #[test]
+    fn normalise_file_name_should_return_the_path_unchanged_for_openmw() {
+        assert_eq!(
+            "plugin.esp.ghost",
+            normalise_file_name(GameType::OpenMW, OsStr::new("plugin.esp.ghost"))
+        );
+    }
+
+    #[test]
     fn resolve_path_should_return_the_data_path_prefixed_path_if_it_exists() {
         let data_path = PathBuf::from(".");
         let state = State::new(GameType::Skyrim, data_path.clone());
@@ -564,6 +643,16 @@ mod tests {
     }
 
     #[test]
+    fn resolve_path_should_not_add_ghost_extension_for_openmw() {
+        let data_path = PathBuf::from(".");
+        let state = State::new(GameType::OpenMW, data_path.clone());
+        let input_path = Path::new("plugin.esp");
+        let resolved_path = resolve_path(&state, input_path);
+
+        assert_eq!(data_path.join(input_path), resolved_path);
+    }
+
+    #[test]
     fn resolve_path_should_check_external_data_paths_in_order_before_data_path() {
         use std::fs::copy;
         use std::fs::create_dir;
@@ -578,13 +667,59 @@ mod tests {
         create_dir(&data_path).unwrap();
         copy(
             Path::new("Cargo.toml"),
+            external_data_path_1.join("Cargo.toml"),
+        )
+        .unwrap();
+        copy(
+            Path::new("Cargo.toml"),
             external_data_path_2.join("Cargo.toml"),
         )
         .unwrap();
         copy(Path::new("Cargo.toml"), data_path.join("Cargo.toml")).unwrap();
 
         let mut state = State::new(GameType::Skyrim, data_path);
-        state.set_additional_data_paths(vec![external_data_path_1, external_data_path_2.clone()]);
+        state.set_additional_data_paths(vec![
+            external_data_path_1.clone(),
+            external_data_path_2.clone(),
+        ]);
+
+        let input_path = Path::new("Cargo.toml");
+        let resolved_path = resolve_path(&state, input_path);
+
+        assert_eq!(external_data_path_1.join(input_path), resolved_path);
+    }
+
+    #[test]
+    fn resolve_path_should_check_external_data_paths_in_reverse_order_before_data_path_for_openmw()
+    {
+        use std::fs::copy;
+        use std::fs::create_dir;
+
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let external_data_path_1 = tmp_dir.path().join("Data1");
+        let external_data_path_2 = tmp_dir.path().join("Data2");
+        let data_path = tmp_dir.path().join("Data3");
+
+        create_dir(&external_data_path_1).unwrap();
+        create_dir(&external_data_path_2).unwrap();
+        create_dir(&data_path).unwrap();
+        copy(
+            Path::new("Cargo.toml"),
+            external_data_path_1.join("Cargo.toml"),
+        )
+        .unwrap();
+        copy(
+            Path::new("Cargo.toml"),
+            external_data_path_2.join("Cargo.toml"),
+        )
+        .unwrap();
+        copy(Path::new("Cargo.toml"), data_path.join("Cargo.toml")).unwrap();
+
+        let mut state = State::new(GameType::OpenMW, data_path);
+        state.set_additional_data_paths(vec![
+            external_data_path_1.clone(),
+            external_data_path_2.clone(),
+        ]);
 
         let input_path = Path::new("Cargo.toml");
         let resolved_path = resolve_path(&state, input_path);

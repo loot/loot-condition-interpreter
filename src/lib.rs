@@ -49,6 +49,10 @@ impl GameType {
                 | GameType::Starfield
         )
     }
+
+    fn allows_ghosted_plugins(self) -> bool {
+        self != GameType::OpenMW
+    }
 }
 
 #[derive(Debug)]
