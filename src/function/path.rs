@@ -14,7 +14,8 @@ fn is_unghosted_plugin_file_extension(game_type: GameType, extension: &OsStr) ->
         || (game_type.supports_light_plugins() && extension.eq_ignore_ascii_case("esl"))
         || (game_type == GameType::OpenMW
             && (extension.eq_ignore_ascii_case("omwaddon")
-                || extension.eq_ignore_ascii_case("omwgame")))
+                || extension.eq_ignore_ascii_case("omwgame")
+                || extension.eq_ignore_ascii_case("omwscripts")))
 }
 
 fn has_unghosted_plugin_file_extension(game_type: GameType, path: &Path) -> bool {
@@ -97,7 +98,7 @@ pub fn resolve_path_in_parent_paths<'a>(
 
 pub fn resolve_path(state: &State, path: &Path) -> PathBuf {
     let try_with_ghost_extension = state.game_type.allows_ghosted_plugins()
-        && has_unghosted_plugin_file_extension(state.game_type, &path);
+        && has_unghosted_plugin_file_extension(state.game_type, path);
 
     // OpenMW uses the last data directory that contains a matching path, with
     // the main data path being listed first, while for other games the first
@@ -328,6 +329,53 @@ mod tests {
     #[test]
     fn is_unghosted_plugin_file_extension_should_be_true_for_omwgame_and_only_openmw() {
         let extension = OsStr::new("omwgame");
+
+        assert!(is_unghosted_plugin_file_extension(
+            GameType::OpenMW,
+            extension
+        ));
+
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Morrowind,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Oblivion,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Skyrim,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::SkyrimSE,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::SkyrimVR,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Fallout3,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::FalloutNV,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Fallout4,
+            extension
+        ));
+        assert!(!is_unghosted_plugin_file_extension(
+            GameType::Fallout4VR,
+            extension
+        ));
+    }
+
+    #[test]
+    fn is_unghosted_plugin_file_extension_should_be_true_for_omwscripts_and_only_openmw() {
+        let extension = OsStr::new("omwscripts");
 
         assert!(is_unghosted_plugin_file_extension(
             GameType::OpenMW,
