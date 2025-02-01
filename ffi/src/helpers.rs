@@ -59,9 +59,13 @@ pub unsafe fn to_str<'a>(c_string: *const c_char) -> Result<&'a str, c_int> {
     }
 }
 
-pub unsafe fn to_vec<U, V, F>(array: *const U, array_size: size_t, mapper: F) -> Result<Vec<V>, i32>
+pub unsafe fn to_vec<U, V, F>(
+    array: *const U,
+    array_size: size_t,
+    mapper: F,
+) -> Result<Vec<V>, c_int>
 where
-    F: Fn(&U) -> Result<V, i32>,
+    F: Fn(&U) -> Result<V, c_int>,
 {
     if array.is_null() || array_size == 0 {
         Ok(Vec::new())
@@ -76,18 +80,18 @@ where
 pub unsafe fn to_str_vec<'a>(
     array: *const *const c_char,
     array_size: size_t,
-) -> Result<Vec<&'a str>, i32> {
+) -> Result<Vec<&'a str>, c_int> {
     to_vec(array, array_size, |c| to_str(*c))
 }
 
 pub unsafe fn to_path_buf_vec(
     array: *const *const c_char,
     array_size: size_t,
-) -> Result<Vec<PathBuf>, i32> {
+) -> Result<Vec<PathBuf>, c_int> {
     to_vec(array, array_size, |c| to_str(*c).map(PathBuf::from))
 }
 
-unsafe fn map_plugin_version(c_object: &plugin_version) -> Result<(String, String), i32> {
+unsafe fn map_plugin_version(c_object: &plugin_version) -> Result<(String, String), c_int> {
     to_str(c_object.plugin_name)
         .and_then(|n| to_str(c_object.version).map(|v| (n.into(), v.into())))
 }
@@ -95,14 +99,14 @@ unsafe fn map_plugin_version(c_object: &plugin_version) -> Result<(String, Strin
 pub unsafe fn map_plugin_versions(
     plugin_versions: *const plugin_version,
     num_plugins: size_t,
-) -> Result<Vec<(String, String)>, i32> {
+) -> Result<Vec<(String, String)>, c_int> {
     to_vec(plugin_versions, num_plugins, |v| map_plugin_version(v))
 }
 
 pub unsafe fn map_plugin_crcs(
     plugin_crcs: *const plugin_crc,
     num_entries: size_t,
-) -> Result<Vec<(String, u32)>, i32> {
+) -> Result<Vec<(String, u32)>, c_int> {
     to_vec(plugin_crcs, num_entries, |v| {
         to_str(v.plugin_name).map(|s| (s.into(), v.crc))
     })
