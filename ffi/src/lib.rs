@@ -6,12 +6,11 @@ mod helpers;
 mod state;
 
 use std::cell::RefCell;
-use std::ffi::CString;
+use std::ffi::{c_char, c_int, CString};
 use std::panic::catch_unwind;
 use std::ptr;
 use std::str::FromStr;
 
-use libc::{c_char, c_int};
 use loot_condition_interpreter::*;
 
 pub use constants::*;

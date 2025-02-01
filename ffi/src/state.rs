@@ -1,8 +1,9 @@
+use std::ffi::{c_char, c_int};
 use std::panic::catch_unwind;
 use std::path::PathBuf;
 use std::sync::RwLock;
 
-use libc::{c_char, c_int, size_t};
+use libc::size_t;
 use loot_condition_interpreter::State;
 
 use crate::constants::*;

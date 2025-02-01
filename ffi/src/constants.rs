@@ -1,4 +1,4 @@
-use libc::c_int;
+use std::ffi::c_int;
 
 #[no_mangle]
 pub static LCI_OK: c_int = 0;

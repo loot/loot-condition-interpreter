@@ -1,8 +1,8 @@
-use std::ffi::{CStr, CString};
+use std::ffi::{c_char, c_int, CStr, CString};
 use std::path::PathBuf;
 use std::slice;
 
-use libc::{c_char, c_int, size_t};
+use libc::size_t;
 use loot_condition_interpreter::{Error, GameType};
 
 use super::ERROR_MESSAGE;
