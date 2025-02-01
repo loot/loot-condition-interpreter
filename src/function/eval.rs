@@ -127,7 +127,8 @@ fn evaluate_is_master(state: &State, file_path: &Path) -> Result<bool, Error> {
     use esplugin::GameId;
 
     let game_id = match state.game_type {
-        GameType::Morrowind | GameType::OpenMW => GameId::Morrowind,
+        GameType::OpenMW => return Ok(false),
+        GameType::Morrowind => GameId::Morrowind,
         GameType::Oblivion => GameId::Oblivion,
         GameType::Skyrim => GameId::Skyrim,
         GameType::SkyrimSE | GameType::SkyrimVR => GameId::SkyrimSE,
@@ -744,6 +745,15 @@ mod tests {
         let state = state("tests/testing-plugins/Oblivion/Data");
 
         assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_is_master_eval_should_be_false_if_the_path_is_an_openmw_master_flagged_plugin() {
+        let function = Function::IsMaster(PathBuf::from("Blank.esm"));
+        let mut state = state("tests/testing-plugins/Morrowind/Data Files");
+        state.game_type = GameType::OpenMW;
+
+        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]
