@@ -46,11 +46,20 @@ fn is_in_game_path(path: &Path) -> bool {
 
     true
 }
-fn parse_regex(input: &str) -> ParsingResult<Regex> {
-    RegexBuilder::new(&format!("^{}$", input))
+
+fn build_regex(input: &str) -> Result<(&'static str, Regex), regex::Error> {
+    RegexBuilder::new(input)
         .case_insensitive(true)
         .build()
         .map(|r| ("", r))
+}
+
+fn parse_regex(input: &str) -> ParsingResult<Regex> {
+    build_regex(input).map_err(|e| Err::Failure(ParsingErrorKind::from(e).at(input)))
+}
+
+fn parse_anchored_regex(input: &str) -> ParsingResult<Regex> {
+    build_regex(&format!("^{}$", input))
         .map_err(|e| Err::Failure(ParsingErrorKind::from(e).at(input)))
 }
 
@@ -136,6 +145,22 @@ fn parse_filename_version_args(
     Ok((remaining_input, (path, regex, version, comparator)))
 }
 
+fn parse_description_contains_args(input: &str) -> ParsingResult<(PathBuf, Regex)> {
+    let mut parser = (
+        map_err(parse_path),
+        map_err(whitespace(tag(","))),
+        delimited(
+            map_err(tag("\"")),
+            map_parser(is_not("\""), parse_regex),
+            map_err(tag("\"")),
+        ),
+    );
+
+    let (remaining_input, (path, _, regex)) = parser.parse(input)?;
+
+    Ok((remaining_input, (path, regex)))
+}
+
 fn parse_crc(input: &str) -> ParsingResult<u32> {
     u32::from_str_radix(input, 16)
         .map(|c| ("", c))
@@ -193,13 +218,13 @@ fn parse_regex_path(input: &str) -> ParsingResult<(PathBuf, Regex)> {
         return Err(not_in_game_directory(input, parent_path));
     }
 
-    let regex = parse_regex(regex_slice)?.1;
+    let regex = parse_anchored_regex(regex_slice)?.1;
 
     Ok((remaining_input, (parent_path, regex)))
 }
 
 fn parse_regex_filename(input: &str) -> ParsingResult<Regex> {
-    map_parser(is_not(INVALID_REGEX_PATH_CHARS), parse_regex).parse(input)
+    map_parser(is_not(INVALID_REGEX_PATH_CHARS), parse_anchored_regex).parse(input)
 }
 
 impl Function {
@@ -319,6 +344,14 @@ impl Function {
                 ),
                 |(path, crc)| Function::Checksum(path, crc),
             ),
+            map(
+                delimited(
+                    map_err(tag("description_contains(")),
+                    parse_description_contains_args,
+                    map_err(tag(")")),
+                ),
+                |(path, regex)| Function::DescriptionContains(path, regex),
+            ),
         ))
         .parse(input)
     }
@@ -338,8 +371,22 @@ mod tests {
     }
 
     #[test]
-    fn parse_regex_should_produce_a_regex_that_does_not_partially_match() {
-        let (_, regex) = parse_regex("cargo.").unwrap();
+    fn parse_regex_should_produce_a_regex_that_does_partially_match() {
+        let (_, regex) = parse_regex("argo.").unwrap();
+
+        assert!(regex.is_match("Cargo.toml"));
+    }
+
+    #[test]
+    fn parse_anchored_regex_should_produce_case_insensitive_regex() {
+        let (_, regex) = parse_anchored_regex("cargo.*").unwrap();
+
+        assert!(regex.is_match("Cargo.toml"));
+    }
+
+    #[test]
+    fn parse_anchored_regex_should_produce_a_regex_that_does_not_partially_match() {
+        let (_, regex) = parse_anchored_regex("cargo.").unwrap();
 
         assert!(!regex.is_match("Cargo.toml"));
     }
@@ -724,5 +771,19 @@ mod tests {
         assert!(
             Function::parse("filename_version(\"subdir/Cargo .+.toml\", \"1.2\", ==)").is_err()
         );
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_description_contains_function() {
+        let output = Function::parse("description_contains(\"Blank.esp\", \"€ƒ.\")").unwrap();
+
+        assert!(output.0.is_empty());
+        match output.1 {
+            Function::DescriptionContains(p, r) => {
+                assert_eq!(PathBuf::from("Blank.esp"), p);
+                assert_eq!(Regex::new("€ƒ.").unwrap().as_str(), r.as_str());
+            }
+            _ => panic!("Expected a description_contains function"),
+        }
     }
 }

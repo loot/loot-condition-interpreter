@@ -106,11 +106,11 @@ fn evaluate_active_regex(state: &State, regex: &Regex) -> Result<bool, Error> {
     Ok(state.active_plugins.iter().any(|p| regex.is_match(p)))
 }
 
-fn evaluate_is_master(state: &State, file_path: &Path) -> Result<bool, Error> {
+fn parse_plugin(state: &State, file_path: &Path) -> Option<esplugin::Plugin> {
     use esplugin::GameId;
 
     let game_id = match state.game_type {
-        GameType::OpenMW => return Ok(false),
+        GameType::OpenMW => return None,
         GameType::Morrowind => GameId::Morrowind,
         GameType::Oblivion => GameId::Oblivion,
         GameType::Skyrim => GameId::Skyrim,
@@ -125,10 +125,17 @@ fn evaluate_is_master(state: &State, file_path: &Path) -> Result<bool, Error> {
 
     let mut plugin = esplugin::Plugin::new(game_id, &path);
 
-    plugin
-        .parse_file(ParseOptions::header_only())
-        .map(|_| plugin.is_master_file())
-        .or(Ok(false))
+    if plugin.parse_file(ParseOptions::header_only()).is_ok() {
+        Some(plugin)
+    } else {
+        None
+    }
+}
+
+fn evaluate_is_master(state: &State, file_path: &Path) -> Result<bool, Error> {
+    Ok(parse_plugin(state, file_path)
+        .map(|plugin| plugin.is_master_file())
+        .unwrap_or(false))
 }
 
 fn evaluate_many_active(state: &State, regex: &Regex) -> Result<bool, Error> {
@@ -281,6 +288,17 @@ fn evaluate_filename_version(
     evaluate_dir_entries(state, parent_path, evaluator)
 }
 
+fn evaluate_description_contains(
+    state: &State,
+    file_path: &Path,
+    regex: &Regex,
+) -> Result<bool, Error> {
+    Ok(parse_plugin(state, file_path)
+        .and_then(|plugin| plugin.description().unwrap_or(None))
+        .map(|description| regex.is_match(&description))
+        .unwrap_or(false))
+}
+
 impl Function {
     pub fn eval(&self, state: &State) -> Result<bool, Error> {
         if self.is_slow() {
@@ -308,6 +326,7 @@ impl Function {
                 evaluate_version(state, p, v, *c, |_, p| get_product_version(p))
             }
             Function::FilenameVersion(p, r, v, c) => evaluate_filename_version(state, p, r, v, *c),
+            Function::DescriptionContains(p, r) => evaluate_description_contains(state, p, r),
         };
 
         if self.is_slow() {
@@ -1577,6 +1596,53 @@ mod tests {
             "5".into(),
             ComparisonOperator::NotEqual,
         );
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_description_contains_eval_should_return_false_if_the_file_does_not_exist() {
+        let state = state_with_versions("tests/testing-plugins/Oblivion/Data", &[]);
+
+        let function = Function::DescriptionContains("missing.esp".into(), regex("€ƒ."));
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_description_contains_eval_should_return_false_if_the_file_is_not_a_plugin() {
+        let state = state_with_versions("tests/testing-plugins/Oblivion/Data", &[]);
+
+        let function = Function::DescriptionContains("Blank.bsa".into(), regex("€ƒ."));
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_description_contains_eval_should_return_false_if_the_plugin_has_no_description() {
+        let state = state_with_versions("tests/testing-plugins/Oblivion/Data", &[]);
+
+        let function = Function::DescriptionContains("Blank - Different.esm".into(), regex("€ƒ."));
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_description_contains_eval_should_return_false_if_the_plugin_description_does_not_match(
+    ) {
+        let state = state_with_versions("tests/testing-plugins/Oblivion/Data", &[]);
+
+        let function = Function::DescriptionContains("Blank.esm".into(), regex("€ƒ."));
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_description_contains_eval_should_return_true_if_the_plugin_description_contains_a_match(
+    ) {
+        let state = state_with_versions("tests/testing-plugins/Oblivion/Data", &[]);
+
+        let function = Function::DescriptionContains("Blank.esp".into(), regex("ƒ"));
 
         assert!(function.eval(&state).unwrap());
     }

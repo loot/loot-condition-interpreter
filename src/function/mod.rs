@@ -51,6 +51,7 @@ pub enum Function {
     Version(PathBuf, String, ComparisonOperator),
     ProductVersion(PathBuf, String, ComparisonOperator),
     FilenameVersion(PathBuf, Regex, String, ComparisonOperator),
+    DescriptionContains(PathBuf, Regex),
 }
 
 impl fmt::Display for Function {
@@ -81,6 +82,9 @@ impl fmt::Display for Function {
                     v,
                     c
                 )
+            }
+            DescriptionContains(p, r) => {
+                write!(f, "description_contains(\"{}\", \"{}\")", p.display(), r)
             }
         }
     }
@@ -122,6 +126,9 @@ impl PartialEq for Function {
                     && eq(&v1, &v2)
                     && eq(r1.as_str(), r2.as_str())
                     && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
+            }
+            (DescriptionContains(p1, r1), DescriptionContains(p2, r2)) => {
+                eq(r1.as_str(), r2.as_str()) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
             _ => false,
         }
@@ -186,6 +193,10 @@ impl Hash for Function {
                 r.as_str().to_lowercase().hash(state);
                 v.to_lowercase().hash(state);
                 c.hash(state);
+            }
+            DescriptionContains(p, r) => {
+                p.to_string_lossy().to_lowercase().hash(state);
+                r.as_str().to_lowercase().hash(state);
             }
         }
 
@@ -329,6 +340,16 @@ mod tests {
 
             assert_eq!(
                 "filename_version(\"subdir/filename (\\d+(?:[_.-]?\\d+)*[a-z]?)\\.esp\", \"1.2a\", ==)",
+                &format!("{}", function)
+            );
+        }
+
+        #[test]
+        fn function_fmt_for_description_contains_should_format_correctly() {
+            let function = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
+
+            assert_eq!(
+                "description_contains(\"Blank.esp\", \"€ƒ.\")",
                 &format!("{}", function)
             );
         }
@@ -813,6 +834,40 @@ mod tests {
                     "a".into(),
                     ComparisonOperator::Equal
                 )
+            );
+        }
+
+        #[test]
+        fn function_eq_for_description_contains_should_check_pathbuf_and_regex() {
+            assert_eq!(
+                Function::DescriptionContains("Blank.esp".into(), regex("€ƒ.")),
+                Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."))
+            );
+
+            assert_ne!(
+                Function::DescriptionContains("Blank.esp".into(), regex("€ƒ.")),
+                Function::DescriptionContains("Blank.esp".into(), regex(".*"))
+            );
+            assert_ne!(
+                Function::DescriptionContains("Blank.esp".into(), regex("€ƒ.")),
+                Function::DescriptionContains("other".into(), regex("€ƒ."))
+            );
+        }
+
+        #[test]
+        fn function_eq_for_description_contains_should_be_case_insensitive_on_pathbuf_and_regex() {
+            assert_eq!(
+                Function::DescriptionContains("Blank.esp".into(), regex("€ƒ.")),
+                Function::DescriptionContains("blank.esp".into(), regex("€Ƒ."))
+            );
+        }
+
+        #[test]
+        fn function_eq_description_contains_should_not_be_equal_to_file_regex_with_same_pathbuf_and_regex(
+        ) {
+            assert_ne!(
+                Function::DescriptionContains("Blank.esp".into(), regex("€ƒ.")),
+                Function::FileRegex("Blank.esp".into(), regex("€ƒ."))
             );
         }
     }
@@ -1345,6 +1400,40 @@ mod tests {
             );
 
             assert_eq!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_description_contains_should_hash_pathbuf_and_regex() {
+            let function1 = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
+            let function2 = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
+
+            assert_eq!(hash(function1), hash(function2));
+
+            let function1 = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
+            let function2 = Function::DescriptionContains("other".into(), regex("€ƒ."));
+
+            assert_ne!(hash(function1), hash(function2));
+
+            let function1 = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
+            let function2 = Function::DescriptionContains("Blank.esp".into(), regex(".*"));
+
+            assert_ne!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_description_contains_should_be_case_insensitive() {
+            let function1 = Function::DescriptionContains("blank.esp".into(), regex("€Ƒ."));
+            let function2 = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
+
+            assert_eq!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_file_regex_and_description_contains_should_not_have_equal_hashes() {
+            let function1 = Function::FileRegex("Blank.esp".into(), regex("€ƒ."));
+            let function2 = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
+
+            assert_ne!(hash(function1), hash(function2));
         }
     }
 }
