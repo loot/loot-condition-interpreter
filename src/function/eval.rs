@@ -64,6 +64,12 @@ fn evaluate_file_regex(state: &State, parent_path: &Path, regex: &Regex) -> Resu
     )
 }
 
+fn evaluate_file_size(state: &State, path: &Path, size: u64) -> Result<bool, Error> {
+    std::fs::metadata(resolve_path(state, path))
+        .map(|m| m.len() == size)
+        .or(Ok(false))
+}
+
 fn evaluate_readable(state: &State, path: &Path) -> Result<bool, Error> {
     if path.is_dir() {
         Ok(read_dir(resolve_path(state, path)).is_ok())
@@ -283,6 +289,7 @@ impl Function {
         let result = match self {
             Function::FilePath(f) => evaluate_file_path(state, f),
             Function::FileRegex(p, r) => evaluate_file_regex(state, p, r),
+            Function::FileSize(p, s) => evaluate_file_size(state, p, *s),
             Function::Readable(p) => evaluate_readable(state, p),
             Function::IsExecutable(p) => evaluate_is_executable(state, p),
             Function::ActivePath(p) => evaluate_active_path(state, p),
@@ -500,6 +507,79 @@ mod tests {
         let state = state_with_data("./src", vec!["./tests/testing-plugins/Oblivion"], &[], &[]);
 
         assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_file_size_eval_should_return_false_if_file_does_not_exist() {
+        let function = Function::FileSize("missing.esp".into(), 55);
+        let state = state_with_data(
+            "./src",
+            vec!["./tests/testing-plugins/Oblivion/Data"],
+            &[],
+            &[],
+        );
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_file_size_eval_should_return_false_if_file_size_is_different() {
+        let function = Function::FileSize("Blank.esp".into(), 10);
+        let state = state_with_data(
+            "./src",
+            vec!["./tests/testing-plugins/Oblivion/Data"],
+            &[],
+            &[],
+        );
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_file_size_eval_should_return_true_if_file_size_is_equal() {
+        let function = Function::FileSize("Blank.esp".into(), 55);
+        let state = state_with_data(
+            "./src",
+            vec!["./tests/testing-plugins/Oblivion/Data"],
+            &[],
+            &[],
+        );
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_file_size_eval_should_return_true_if_given_a_plugin_that_is_ghosted() {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        copy(
+            Path::new("tests/testing-plugins/Oblivion/Data/Blank.esp"),
+            state.data_path.join("Blank.esp.ghost"),
+        )
+        .unwrap();
+
+        let function = Function::FileSize(PathBuf::from("Blank.esp"), 55);
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_file_size_eval_should_not_check_for_ghosted_non_plugin_file() {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        copy(
+            Path::new("tests/testing-plugins/Oblivion/Data/Blank.bsa"),
+            state.data_path.join("Blank.bsa.ghost"),
+        )
+        .unwrap();
+
+        let function = Function::FileSize(PathBuf::from("Blank.bsa"), 736);
+
+        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]

@@ -39,6 +39,7 @@ impl fmt::Display for ComparisonOperator {
 pub enum Function {
     FilePath(PathBuf),
     FileRegex(PathBuf, Regex),
+    FileSize(PathBuf, u64),
     Readable(PathBuf),
     IsExecutable(PathBuf),
     ActivePath(PathBuf),
@@ -57,6 +58,7 @@ impl fmt::Display for Function {
         match self {
             FilePath(p) => write!(f, "file(\"{}\")", p.display()),
             FileRegex(p, r) => write!(f, "file(\"{}/{}\")", p.display(), r),
+            FileSize(p, s) => write!(f, "file_size(\"{}\", {})", p.display(), s),
             Readable(p) => write!(f, "readable(\"{}\")", p.display()),
             IsExecutable(p) => write!(f, "is_executable(\"{}\")", p.display()),
             ActivePath(p) => write!(f, "active(\"{}\")", p.display()),
@@ -80,6 +82,9 @@ impl PartialEq for Function {
             (FilePath(p1), FilePath(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
             (FileRegex(p1, r1), FileRegex(p2, r2)) => {
                 eq(r1.as_str(), r2.as_str()) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
+            }
+            (FileSize(p1, s1), FileSize(p2, s2)) => {
+                s1 == s2 && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
             (Readable(p1), Readable(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
             (IsExecutable(p1), IsExecutable(p2)) => {
@@ -118,6 +123,10 @@ impl Hash for Function {
             FileRegex(p, r) => {
                 p.to_string_lossy().to_lowercase().hash(state);
                 r.as_str().to_lowercase().hash(state);
+            }
+            FileSize(p, s) => {
+                p.to_string_lossy().to_lowercase().hash(state);
+                s.hash(state);
             }
             Readable(p) => {
                 p.to_string_lossy().to_lowercase().hash(state);
@@ -184,6 +193,16 @@ mod tests {
             let function = Function::FileRegex("subdir".into(), regex("Blank.*"));
 
             assert_eq!("file(\"subdir/Blank.*\")", &format!("{}", function));
+        }
+
+        #[test]
+        fn function_fmt_for_file_size_should_format_correctly() {
+            let function = Function::FileSize("subdir/Blank.esm".into(), 12345678);
+
+            assert_eq!(
+                "file_size(\"subdir/Blank.esm\", 12345678)",
+                &format!("{}", function)
+            );
         }
 
         #[test]
@@ -323,6 +342,31 @@ mod tests {
             assert_eq!(
                 Function::FileRegex("subdir".into(), regex("blank.*")),
                 Function::FileRegex("Subdir".into(), regex("Blank.*"))
+            );
+        }
+
+        #[test]
+        fn function_eq_for_file_size_should_check_pathbuf_and_size() {
+            assert_eq!(
+                Function::FileSize("subdir".into(), 1),
+                Function::FileSize("subdir".into(), 1)
+            );
+
+            assert_ne!(
+                Function::FileSize("subdir".into(), 1),
+                Function::FileSize("other".into(), 1)
+            );
+            assert_ne!(
+                Function::FileSize("subdir".into(), 1),
+                Function::FileSize("subdir".into(), 2)
+            );
+        }
+
+        #[test]
+        fn function_eq_for_file_size_should_be_case_insensitive_on_pathbuf() {
+            assert_eq!(
+                Function::FileSize("subdir".into(), 1),
+                Function::FileSize("Subdir".into(), 1)
             );
         }
 
@@ -512,8 +556,8 @@ mod tests {
         #[test]
         fn function_eq_for_many_should_be_case_insensitive_on_pathbuf_and_regex() {
             assert_eq!(
-                Function::FileRegex("subdir".into(), regex("blank.*")),
-                Function::FileRegex("Subdir".into(), regex("Blank.*"))
+                Function::Many("subdir".into(), regex("blank.*")),
+                Function::Many("Subdir".into(), regex("Blank.*"))
             );
         }
 
@@ -696,6 +740,32 @@ mod tests {
         fn function_hash_file_regex_should_be_case_insensitive() {
             let function1 = Function::FileRegex("Subdir".into(), regex("Blank.*"));
             let function2 = Function::FileRegex("subdir".into(), regex("blank.*"));
+
+            assert_eq!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_file_size_should_hash_pathbuf_and_size() {
+            let function1 = Function::FileSize("subdir".into(), 1);
+            let function2 = Function::FileSize("subdir".into(), 1);
+
+            assert_eq!(hash(function1), hash(function2));
+
+            let function1 = Function::FileSize("subdir".into(), 1);
+            let function2 = Function::FileSize("other".into(), 1);
+
+            assert_ne!(hash(function1), hash(function2));
+
+            let function1 = Function::FileSize("subdir".into(), 1);
+            let function2 = Function::FileSize("subdir".into(), 2);
+
+            assert_ne!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_file_size_should_be_case_insensitive() {
+            let function1 = Function::FileSize("Subdir".into(), 1);
+            let function2 = Function::FileSize("subdir".into(), 1);
 
             assert_eq!(hash(function1), hash(function2));
         }

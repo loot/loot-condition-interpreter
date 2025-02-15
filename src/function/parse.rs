@@ -3,6 +3,7 @@ use std::str;
 
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag};
+use nom::character::complete::digit1;
 use nom::character::complete::hex_digit1;
 use nom::combinator::{map, map_parser, value};
 use nom::sequence::delimited;
@@ -63,6 +64,28 @@ fn parse_path(input: &str) -> IResult<&str, PathBuf> {
         PathBuf::from,
     )
     .parse(input)
+}
+
+fn parse_size(input: &str) -> ParsingResult<u64> {
+    str::parse(input)
+        .map(|c| ("", c))
+        .map_err(|e| Err::Failure(ParsingErrorKind::from(e).at(input)))
+}
+
+fn parse_file_size_args(input: &str) -> ParsingResult<(PathBuf, u64)> {
+    let mut parser = (
+        map_err(parse_path),
+        map_err(whitespace(tag(","))),
+        map_parser(digit1, parse_size),
+    );
+
+    let (remaining_input, (path, _, size)) = parser.parse(input)?;
+
+    if is_in_game_path(&path) {
+        Ok((remaining_input, (path, size)))
+    } else {
+        Err(not_in_game_directory(input, path))
+    }
 }
 
 fn parse_version_args(input: &str) -> ParsingResult<(PathBuf, String, ComparisonOperator)> {
@@ -172,6 +195,14 @@ impl Function {
                     map_err(tag("\")")),
                 ),
                 |(path, regex)| Function::FileRegex(path, regex),
+            ),
+            map(
+                delimited(
+                    map_err(tag("file_size(")),
+                    parse_file_size_args,
+                    map_err(tag(")")),
+                ),
+                |(path, size)| Function::FileSize(path, size),
             ),
             map(
                 delimited(
@@ -330,6 +361,25 @@ mod tests {
     #[test]
     fn function_parse_should_error_if_the_file_regex_parent_path_is_outside_the_game_directory() {
         assert!(Function::parse("file(\"../../Cargo.*\")").is_err());
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_file_size_function() {
+        let output = Function::parse("file_size(\"Cargo.toml\", 1234)").unwrap();
+
+        assert!(output.0.is_empty());
+        match output.1 {
+            Function::FileSize(f, s) => {
+                assert_eq!(Path::new("Cargo.toml"), f);
+                assert_eq!(1234, s);
+            }
+            _ => panic!("Expected a file size function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_error_if_the_file_size_is_outside_the_game_directory() {
+        assert!(Function::parse("file_size(\"../../Cargo.toml\", 1234)").is_err());
     }
 
     #[test]
