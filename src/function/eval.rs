@@ -23,23 +23,28 @@ fn is_match(game_type: GameType, regex: &Regex, file_name: &OsStr) -> bool {
         .unwrap_or(false)
 }
 
-fn evaluate_regex(
-    game_type: GameType,
-    data_path: &Path,
+fn evaluate_dir_entries(
+    state: &State,
     parent_path: &Path,
-    regex: &Regex,
-    mut condition: impl FnMut() -> bool,
+    mut evaluator: impl FnMut(&OsStr) -> bool,
 ) -> Result<bool, Error> {
-    let parent_path = data_path.join(parent_path);
-    let dir_iterator = match read_dir(&parent_path) {
-        Ok(i) => i,
-        Err(_) => return Ok(false),
-    };
+    let data_paths_iter = state
+        .additional_data_paths
+        .iter()
+        .chain(std::iter::once(&state.data_path));
 
-    for entry in dir_iterator {
-        let entry = entry.map_err(|e| Error::IoError(parent_path.to_path_buf(), e))?;
-        if is_match(game_type, regex, &entry.file_name()) && condition() {
-            return Ok(true);
+    for data_path in data_paths_iter {
+        let parent_path = data_path.join(parent_path);
+        let dir_iterator = match read_dir(&parent_path) {
+            Ok(i) => i,
+            Err(_) => return Ok(false),
+        };
+
+        for entry in dir_iterator {
+            let entry = entry.map_err(|e| Error::IoError(parent_path.to_path_buf(), e))?;
+            if evaluator(&entry.file_name()) {
+                return Ok(true);
+            }
         }
     }
 
@@ -47,21 +52,9 @@ fn evaluate_regex(
 }
 
 fn evaluate_file_regex(state: &State, parent_path: &Path, regex: &Regex) -> Result<bool, Error> {
-    for data_path in &state.additional_data_paths {
-        let result = evaluate_regex(state.game_type, data_path, parent_path, regex, || true)?;
+    let evaluator = |filename: &OsStr| is_match(state.game_type, regex, filename);
 
-        if result {
-            return Ok(true);
-        }
-    }
-
-    evaluate_regex(
-        state.game_type,
-        &state.data_path,
-        parent_path,
-        regex,
-        || true,
-    )
+    evaluate_dir_entries(state, parent_path, evaluator)
 }
 
 fn evaluate_file_size(state: &State, path: &Path, size: u64) -> Result<bool, Error> {
@@ -86,36 +79,20 @@ fn evaluate_many(state: &State, parent_path: &Path, regex: &Regex) -> Result<boo
     // Share the found_one state across all data paths because they're all
     // treated as if they were merged into one directory.
     let mut found_one = false;
-    let mut condition = || {
-        if found_one {
-            true
+    let evaluator = |filename: &OsStr| {
+        if is_match(state.game_type, regex, filename) {
+            if found_one {
+                true
+            } else {
+                found_one = true;
+                false
+            }
         } else {
-            found_one = true;
             false
         }
     };
 
-    for data_path in &state.additional_data_paths {
-        let result = evaluate_regex(
-            state.game_type,
-            data_path,
-            parent_path,
-            regex,
-            &mut condition,
-        )?;
-
-        if result {
-            return Ok(true);
-        }
-    }
-
-    evaluate_regex(
-        state.game_type,
-        &state.data_path,
-        parent_path,
-        regex,
-        &mut condition,
-    )
+    evaluate_dir_entries(state, parent_path, evaluator)
 }
 
 fn evaluate_active_path(state: &State, path: &Path) -> Result<bool, Error> {
@@ -244,6 +221,23 @@ fn get_product_version(file_path: &Path) -> Result<Option<Version>, Error> {
     }
 }
 
+fn compare_versions(
+    actual_version: Version,
+    comparator: ComparisonOperator,
+    given_version: &str,
+) -> bool {
+    let given_version = Version::from(given_version);
+
+    match comparator {
+        ComparisonOperator::Equal => actual_version == given_version,
+        ComparisonOperator::NotEqual => actual_version != given_version,
+        ComparisonOperator::LessThan => actual_version < given_version,
+        ComparisonOperator::GreaterThan => actual_version > given_version,
+        ComparisonOperator::LessThanOrEqual => actual_version <= given_version,
+        ComparisonOperator::GreaterThanOrEqual => actual_version >= given_version,
+    }
+}
+
 fn evaluate_version<F>(
     state: &State,
     file_path: &Path,
@@ -264,16 +258,27 @@ where
         }
     };
 
-    let given_version = Version::from(given_version);
+    Ok(compare_versions(actual_version, comparator, given_version))
+}
 
-    match comparator {
-        ComparisonOperator::Equal => Ok(actual_version == given_version),
-        ComparisonOperator::NotEqual => Ok(actual_version != given_version),
-        ComparisonOperator::LessThan => Ok(actual_version < given_version),
-        ComparisonOperator::GreaterThan => Ok(actual_version > given_version),
-        ComparisonOperator::LessThanOrEqual => Ok(actual_version <= given_version),
-        ComparisonOperator::GreaterThanOrEqual => Ok(actual_version >= given_version),
-    }
+fn evaluate_filename_version(
+    state: &State,
+    parent_path: &Path,
+    regex: &Regex,
+    version: &str,
+    comparator: ComparisonOperator,
+) -> Result<bool, Error> {
+    let evaluator = |filename: &OsStr| {
+        normalise_file_name(state.game_type, filename)
+            .to_str()
+            .and_then(|s| regex.captures(s))
+            .and_then(|c| c.get(1))
+            .map(|m| Version::from(m.as_str()))
+            .map(|v| compare_versions(v, comparator, version))
+            .unwrap_or(false)
+    };
+
+    evaluate_dir_entries(state, parent_path, evaluator)
 }
 
 impl Function {
@@ -302,6 +307,7 @@ impl Function {
             Function::ProductVersion(p, v, c) => {
                 evaluate_version(state, p, v, *c, |_, p| get_product_version(p))
             }
+            Function::FilenameVersion(p, r, v, c) => evaluate_filename_version(state, p, r, v, *c),
         };
 
         if self.is_slow() {
@@ -1453,5 +1459,125 @@ mod tests {
     #[test]
     fn get_product_version_should_error_if_the_path_is_not_an_executable() {
         assert!(get_product_version(Path::new("Cargo.toml")).is_err());
+    }
+
+    #[test]
+    fn function_filename_version_eval_should_be_false_if_no_matching_filenames_exist() {
+        let state = state_with_versions("tests/testing-plugins/Oblivion/Data", &[]);
+
+        let function = Function::FilenameVersion(
+            "".into(),
+            regex("Blank (A+).esm"),
+            "5".into(),
+            ComparisonOperator::Equal,
+        );
+
+        assert!(!function.eval(&state).unwrap());
+
+        let function = Function::FilenameVersion(
+            "".into(),
+            regex("Blank (A+).esm"),
+            "5".into(),
+            ComparisonOperator::NotEqual,
+        );
+
+        assert!(!function.eval(&state).unwrap());
+
+        let function = Function::FilenameVersion(
+            "".into(),
+            regex("Blank (A+).esm"),
+            "5".into(),
+            ComparisonOperator::LessThan,
+        );
+
+        assert!(!function.eval(&state).unwrap());
+
+        let function = Function::FilenameVersion(
+            "".into(),
+            regex("Blank (A+).esm"),
+            "5".into(),
+            ComparisonOperator::GreaterThan,
+        );
+
+        assert!(!function.eval(&state).unwrap());
+
+        let function = Function::FilenameVersion(
+            "".into(),
+            regex("Blank (A+).esm"),
+            "5".into(),
+            ComparisonOperator::LessThanOrEqual,
+        );
+
+        assert!(!function.eval(&state).unwrap());
+
+        let function = Function::FilenameVersion(
+            "".into(),
+            regex("Blank (A+).esm"),
+            "5".into(),
+            ComparisonOperator::GreaterThanOrEqual,
+        );
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_filename_version_eval_should_be_false_if_filenames_matched_but_no_version_was_captured(
+    ) {
+        // This shouldn't happen in practice because parsing validates that there is one explicit capturing group in the regex.
+        let function = Function::FilenameVersion(
+            "".into(),
+            regex("Blank .+.esm"),
+            "5".into(),
+            ComparisonOperator::GreaterThanOrEqual,
+        );
+        let state = state_with_versions("tests/testing-plugins/Oblivion/Data", &[]);
+
+        assert!(!function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_filename_version_eval_should_be_true_if_the_captured_version_is_eq_and_operator_is_eq(
+    ) {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        copy(
+            Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
+            state.data_path.join("Blank 5.esm"),
+        )
+        .unwrap();
+
+        let function = Function::FilenameVersion(
+            "".into(),
+            regex("Blank (\\d).esm"),
+            "5".into(),
+            ComparisonOperator::Equal,
+        );
+
+        assert!(function.eval(&state).unwrap());
+    }
+
+    #[test]
+    fn function_filename_version_eval_should_be_true_if_the_captured_version_is_not_equal_and_operator_is_not_equal(
+    ) {
+        let tmp_dir = tempdir().unwrap();
+        let data_path = tmp_dir.path().join("Data");
+        let state = state(data_path);
+
+        copy(
+            Path::new("tests/testing-plugins/Oblivion/Data/Blank.esm"),
+            state.data_path.join("Blank 4.esm"),
+        )
+        .unwrap();
+
+        let function = Function::FilenameVersion(
+            "".into(),
+            regex("Blank (\\d).esm"),
+            "5".into(),
+            ComparisonOperator::NotEqual,
+        );
+
+        assert!(function.eval(&state).unwrap());
     }
 }

@@ -50,6 +50,7 @@ pub enum Function {
     Checksum(PathBuf, u32),
     Version(PathBuf, String, ComparisonOperator),
     ProductVersion(PathBuf, String, ComparisonOperator),
+    FilenameVersion(PathBuf, Regex, String, ComparisonOperator),
 }
 
 impl fmt::Display for Function {
@@ -70,6 +71,16 @@ impl fmt::Display for Function {
             Version(p, v, c) => write!(f, "version(\"{}\", \"{}\", {})", p.display(), v, c),
             ProductVersion(p, v, c) => {
                 write!(f, "product_version(\"{}\", \"{}\", {})", p.display(), v, c)
+            }
+            FilenameVersion(p, r, v, c) => {
+                write!(
+                    f,
+                    "filename_version(\"{}/{}\", \"{}\", {})",
+                    p.display(),
+                    r,
+                    v,
+                    c
+                )
             }
         }
     }
@@ -105,6 +116,12 @@ impl PartialEq for Function {
             }
             (ProductVersion(p1, v1, c1), ProductVersion(p2, v2, c2)) => {
                 c1 == c2 && eq(&v1, &v2) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
+            }
+            (FilenameVersion(p1, r1, v1, c1), FilenameVersion(p2, r2, v2, c2)) => {
+                c1 == c2
+                    && eq(&v1, &v2)
+                    && eq(r1.as_str(), r2.as_str())
+                    && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
             _ => false,
         }
@@ -161,6 +178,12 @@ impl Hash for Function {
             }
             ProductVersion(p, v, c) => {
                 p.to_string_lossy().to_lowercase().hash(state);
+                v.to_lowercase().hash(state);
+                c.hash(state);
+            }
+            FilenameVersion(p, r, v, c) => {
+                p.to_string_lossy().to_lowercase().hash(state);
+                r.as_str().to_lowercase().hash(state);
                 v.to_lowercase().hash(state);
                 c.hash(state);
             }
@@ -291,6 +314,21 @@ mod tests {
 
             assert_eq!(
                 "product_version(\"../TESV.exe\", \"1.2a\", ==)",
+                &format!("{}", function)
+            );
+        }
+
+        #[test]
+        fn function_fmt_for_filename_version_should_format_correctly() {
+            let function = Function::FilenameVersion(
+                "subdir".into(),
+                regex(r"filename (\d+(?:[_.-]?\d+)*[a-z]?)\.esp"),
+                "1.2a".into(),
+                ComparisonOperator::Equal,
+            );
+
+            assert_eq!(
+                "filename_version(\"subdir/filename (\\d+(?:[_.-]?\\d+)*[a-z]?)\\.esp\", \"1.2a\", ==)",
                 &format!("{}", function)
             );
         }
@@ -682,6 +720,99 @@ mod tests {
             assert_eq!(
                 Function::ProductVersion("Blank.esm".into(), "A".into(), ComparisonOperator::Equal),
                 Function::ProductVersion("blank.esm".into(), "a".into(), ComparisonOperator::Equal)
+            );
+        }
+
+        #[test]
+        fn function_eq_for_filename_version_should_check_pathbuf_regex_version_and_comparator() {
+            assert_eq!(
+                Function::FilenameVersion(
+                    "subdir".into(),
+                    regex("Blank\\.esm"),
+                    "1".into(),
+                    ComparisonOperator::Equal
+                ),
+                Function::FilenameVersion(
+                    "subdir".into(),
+                    regex("Blank\\.esm"),
+                    "1".into(),
+                    ComparisonOperator::Equal
+                )
+            );
+
+            assert_ne!(
+                Function::FilenameVersion(
+                    "subdir1".into(),
+                    regex("Blank\\.esm"),
+                    "1".into(),
+                    ComparisonOperator::Equal
+                ),
+                Function::FilenameVersion(
+                    "subdir2".into(),
+                    regex("Blank\\.esm"),
+                    "1".into(),
+                    ComparisonOperator::Equal
+                )
+            );
+            assert_ne!(
+                Function::FilenameVersion(
+                    "subdir".into(),
+                    regex("Blank\\.esm"),
+                    "1".into(),
+                    ComparisonOperator::Equal
+                ),
+                Function::FilenameVersion(
+                    "subdir".into(),
+                    regex("Blank.esp"),
+                    "1".into(),
+                    ComparisonOperator::Equal
+                )
+            );
+            assert_ne!(
+                Function::FilenameVersion(
+                    "subdir".into(),
+                    regex("Blank\\.esm"),
+                    "1".into(),
+                    ComparisonOperator::Equal
+                ),
+                Function::FilenameVersion(
+                    "subdir".into(),
+                    regex("Blank\\.esm"),
+                    "2".into(),
+                    ComparisonOperator::Equal
+                )
+            );
+            assert_ne!(
+                Function::FilenameVersion(
+                    "subdir".into(),
+                    regex("Blank\\.esm"),
+                    "1".into(),
+                    ComparisonOperator::Equal
+                ),
+                Function::FilenameVersion(
+                    "subdir".into(),
+                    regex("Blank\\.esm"),
+                    "1".into(),
+                    ComparisonOperator::NotEqual
+                )
+            );
+        }
+
+        #[test]
+        fn function_eq_for_filename_version_should_be_case_insensitive_on_pathbuf_and_version() {
+            assert_eq!(
+                Function::FilenameVersion(
+                    "subdir".into(),
+                    regex("Blank\\.esm"),
+                    "A".into(),
+                    ComparisonOperator::Equal
+                ),
+                Function::FilenameVersion(
+                    "Subdir".into(),
+                    regex("Blank\\.esm"),
+                    "a".into(),
+                    ComparisonOperator::Equal
+                )
             );
         }
     }
@@ -1113,6 +1244,102 @@ mod tests {
             );
             let function2 = Function::ProductVersion(
                 "Blank.esm".into(),
+                "1.2A".into(),
+                ComparisonOperator::Equal,
+            );
+
+            assert_eq!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_filename_version_should_hash_pathbuf_regex_and_version_and_comparator() {
+            let function1 = Function::FilenameVersion(
+                "subdir".into(),
+                regex("Blank\\.esm"),
+                "1.2a".into(),
+                ComparisonOperator::Equal,
+            );
+            let function2 = Function::FilenameVersion(
+                "subdir".into(),
+                regex("Blank\\.esm"),
+                "1.2a".into(),
+                ComparisonOperator::Equal,
+            );
+
+            assert_eq!(hash(function1), hash(function2));
+
+            let function1 = Function::FilenameVersion(
+                "subdir1".into(),
+                regex("Blank\\.esm"),
+                "1".into(),
+                ComparisonOperator::Equal,
+            );
+            let function2 = Function::FilenameVersion(
+                "subdir2".into(),
+                regex("Blank\\.esp"),
+                "1".into(),
+                ComparisonOperator::Equal,
+            );
+
+            assert_ne!(hash(function1), hash(function2));
+
+            let function1 = Function::FilenameVersion(
+                "subdir".into(),
+                regex("Blank\\.esm"),
+                "1".into(),
+                ComparisonOperator::Equal,
+            );
+            let function2 = Function::FilenameVersion(
+                "subdir".into(),
+                regex("Blank\\.esp"),
+                "1".into(),
+                ComparisonOperator::Equal,
+            );
+
+            assert_ne!(hash(function1), hash(function2));
+
+            let function1 = Function::FilenameVersion(
+                "subdir".into(),
+                regex("Blank\\.esm"),
+                "1".into(),
+                ComparisonOperator::Equal,
+            );
+            let function2 = Function::FilenameVersion(
+                "subdir".into(),
+                regex("Blank\\.esm"),
+                "2".into(),
+                ComparisonOperator::Equal,
+            );
+
+            assert_ne!(hash(function1), hash(function2));
+
+            let function1 = Function::FilenameVersion(
+                "subdir".into(),
+                regex("Blank\\.esm"),
+                "1".into(),
+                ComparisonOperator::Equal,
+            );
+            let function2 = Function::FilenameVersion(
+                "subdir".into(),
+                regex("Blank\\.esm"),
+                "1".into(),
+                ComparisonOperator::NotEqual,
+            );
+
+            assert_ne!(hash(function1), hash(function2));
+        }
+
+        #[test]
+        fn function_hash_filename_version_should_be_case_insensitive() {
+            let function1 = Function::FilenameVersion(
+                "subdir".into(),
+                regex("Blank\\.esm"),
+                "1.2a".into(),
+                ComparisonOperator::Equal,
+            );
+            let function2 = Function::FilenameVersion(
+                "Subdir".into(),
+                regex("Blank\\.esm"),
                 "1.2A".into(),
                 ComparisonOperator::Equal,
             );

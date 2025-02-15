@@ -88,16 +88,19 @@ fn parse_file_size_args(input: &str) -> ParsingResult<(PathBuf, u64)> {
     }
 }
 
-fn parse_version_args(input: &str) -> ParsingResult<(PathBuf, String, ComparisonOperator)> {
-    let version_parser = map(
+fn parse_version(input: &str) -> IResult<&str, String> {
+    map(
         delimited(tag("\""), is_not("\""), tag("\"")),
         |version: &str| version.to_string(),
-    );
+    )
+    .parse(input)
+}
 
+fn parse_version_args(input: &str) -> ParsingResult<(PathBuf, String, ComparisonOperator)> {
     let parser = (
         parse_path,
         whitespace(tag(",")),
-        version_parser,
+        parse_version,
         whitespace(tag(",")),
         ComparisonOperator::parse,
     );
@@ -109,6 +112,28 @@ fn parse_version_args(input: &str) -> ParsingResult<(PathBuf, String, Comparison
     } else {
         Err(not_in_game_directory(input, path))
     }
+}
+
+fn parse_filename_version_args(
+    input: &str,
+) -> ParsingResult<(PathBuf, Regex, String, ComparisonOperator)> {
+    let mut parser = (
+        delimited(map_err(tag("\"")), parse_regex_path, map_err(tag("\""))),
+        map_err(whitespace(tag(","))),
+        map_err(parse_version),
+        map_err(whitespace(tag(","))),
+        map_err(ComparisonOperator::parse),
+    );
+
+    let (remaining_input, ((path, regex), _, version, _, comparator)) = parser.parse(input)?;
+
+    if regex.captures_len() != 2 {
+        return Err(Err::Failure(
+            ParsingErrorKind::InvalidRegexUnknown.at(input),
+        ));
+    }
+
+    Ok((remaining_input, (path, regex, version, comparator)))
 }
 
 fn parse_crc(input: &str) -> ParsingResult<u32> {
@@ -275,6 +300,16 @@ impl Function {
                     map_err(tag(")")),
                 ),
                 |(path, version, comparator)| Function::ProductVersion(path, version, comparator),
+            ),
+            map(
+                delimited(
+                    map_err(tag("filename_version(")),
+                    parse_filename_version_args,
+                    map_err(tag(")")),
+                ),
+                |(path, regex, version, comparator)| {
+                    Function::FilenameVersion(path, regex, version, comparator)
+                },
             ),
             map(
                 delimited(
@@ -661,5 +696,33 @@ mod tests {
     #[test]
     fn function_parse_should_error_if_the_product_version_path_is_outside_the_game_directory() {
         assert!(Function::parse("product_version(\"../../Cargo.toml\", \"1.2\", ==)").is_err());
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_filename_version_equals_function() {
+        let output =
+            Function::parse("filename_version(\"subdir/Cargo (.+).toml\", \"1.2\", ==)").unwrap();
+
+        assert!(output.0.is_empty());
+        match output.1 {
+            Function::FilenameVersion(path, regex, version, comparator) => {
+                assert_eq!(PathBuf::from("subdir"), path);
+                assert_eq!(
+                    Regex::new("^Cargo (.+).toml$").unwrap().as_str(),
+                    regex.as_str()
+                );
+                assert_eq!("1.2", version);
+                assert_eq!(ComparisonOperator::Equal, comparator);
+            }
+            _ => panic!("Expected a filename version function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_error_if_the_filename_version_regex_does_not_contain_an_explicit_capture_group(
+    ) {
+        assert!(
+            Function::parse("filename_version(\"subdir/Cargo .+.toml\", \"1.2\", ==)").is_err()
+        );
     }
 }
