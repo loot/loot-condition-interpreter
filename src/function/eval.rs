@@ -1,8 +1,8 @@
 use std::ffi::OsStr;
-use std::fs::{read_dir, File};
+use std::fs::{read_dir, DirEntry, File};
 use std::hash::Hasher;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use esplugin::ParseOptions;
 use regex::Regex;
@@ -23,18 +23,13 @@ fn is_match(game_type: GameType, regex: &Regex, file_name: &OsStr) -> bool {
         .unwrap_or(false)
 }
 
-fn evaluate_dir_entries(
-    state: &State,
+fn evaluate_dir_entries_from_base_paths<'a>(
+    base_path_iter: impl Iterator<Item = &'a PathBuf>,
     parent_path: &Path,
-    mut evaluator: impl FnMut(&OsStr) -> bool,
+    mut evaluator: impl FnMut(DirEntry) -> bool,
 ) -> Result<bool, Error> {
-    let data_paths_iter = state
-        .additional_data_paths
-        .iter()
-        .chain(std::iter::once(&state.data_path));
-
-    for data_path in data_paths_iter {
-        let parent_path = data_path.join(parent_path);
+    for base_path in base_path_iter {
+        let parent_path = base_path.join(parent_path);
         let dir_iterator = match read_dir(&parent_path) {
             Ok(i) => i,
             Err(_) => return Ok(false),
@@ -42,7 +37,7 @@ fn evaluate_dir_entries(
 
         for entry in dir_iterator {
             let entry = entry.map_err(|e| Error::IoError(parent_path.to_path_buf(), e))?;
-            if evaluator(&entry.file_name()) {
+            if evaluator(entry) {
                 return Ok(true);
             }
         }
@@ -51,8 +46,34 @@ fn evaluate_dir_entries(
     Ok(false)
 }
 
+fn evaluate_dir_entries(
+    state: &State,
+    parent_path: &Path,
+    evaluator: impl FnMut(DirEntry) -> bool,
+) -> Result<bool, Error> {
+    match state.game_type {
+        GameType::OpenMW => evaluate_dir_entries_from_base_paths(
+            state
+                .additional_data_paths
+                .iter()
+                .rev()
+                .chain(std::iter::once(&state.data_path)),
+            parent_path,
+            evaluator,
+        ),
+        _ => evaluate_dir_entries_from_base_paths(
+            state
+                .additional_data_paths
+                .iter()
+                .chain(std::iter::once(&state.data_path)),
+            parent_path,
+            evaluator,
+        ),
+    }
+}
+
 fn evaluate_file_regex(state: &State, parent_path: &Path, regex: &Regex) -> Result<bool, Error> {
-    let evaluator = |filename: &OsStr| is_match(state.game_type, regex, filename);
+    let evaluator = |entry: DirEntry| is_match(state.game_type, regex, &entry.file_name());
 
     evaluate_dir_entries(state, parent_path, evaluator)
 }
@@ -79,8 +100,8 @@ fn evaluate_many(state: &State, parent_path: &Path, regex: &Regex) -> Result<boo
     // Share the found_one state across all data paths because they're all
     // treated as if they were merged into one directory.
     let mut found_one = false;
-    let evaluator = |filename: &OsStr| {
-        if is_match(state.game_type, regex, filename) {
+    let evaluator = |entry: DirEntry| {
+        if is_match(state.game_type, regex, &entry.file_name()) {
             if found_one {
                 true
             } else {
@@ -275,8 +296,8 @@ fn evaluate_filename_version(
     version: &str,
     comparator: ComparisonOperator,
 ) -> Result<bool, Error> {
-    let evaluator = |filename: &OsStr| {
-        normalise_file_name(state.game_type, filename)
+    let evaluator = |entry: DirEntry| {
+        normalise_file_name(state.game_type, &entry.file_name())
             .to_str()
             .and_then(|s| regex.captures(s))
             .and_then(|c| c.get(1))
@@ -430,6 +451,88 @@ mod tests {
         let mut permissions = std::fs::metadata(&path).unwrap().permissions();
         permissions.set_mode(0o200);
         std::fs::set_permissions(&path, permissions).unwrap();
+    }
+
+    #[test]
+    fn evaluate_dir_entries_should_check_additional_paths_in_order_then_data_path() {
+        let state = state_with_data(
+            "./tests/testing-plugins/SkyrimSE",
+            vec![
+                "./tests/testing-plugins/Oblivion",
+                "./tests/testing-plugins/Skyrim",
+            ],
+            &[],
+            &[],
+        );
+
+        let mut paths = Vec::new();
+        let evaluator = |entry: DirEntry| {
+            if entry.file_name() == "Blank.esp" {
+                paths.push(
+                    entry
+                        .path()
+                        .parent()
+                        .unwrap()
+                        .parent()
+                        .unwrap()
+                        .to_path_buf(),
+                );
+            }
+            false
+        };
+        let result = evaluate_dir_entries(&state, Path::new("Data"), evaluator).unwrap();
+
+        assert!(!result);
+        assert_eq!(
+            vec![
+                state.additional_data_paths[0].clone(),
+                state.additional_data_paths[1].clone(),
+                state.data_path,
+            ],
+            paths
+        );
+    }
+
+    #[test]
+    fn evaluate_dir_entries_should_check_additional_paths_in_reverse_order_then_data_path_for_openmw(
+    ) {
+        let mut state = state_with_data(
+            "./tests/testing-plugins/SkyrimSE",
+            vec![
+                "./tests/testing-plugins/Oblivion",
+                "./tests/testing-plugins/Skyrim",
+            ],
+            &[],
+            &[],
+        );
+        state.game_type = GameType::OpenMW;
+
+        let mut paths = Vec::new();
+        let evaluator = |entry: DirEntry| {
+            if entry.file_name() == "Blank.esp" {
+                paths.push(
+                    entry
+                        .path()
+                        .parent()
+                        .unwrap()
+                        .parent()
+                        .unwrap()
+                        .to_path_buf(),
+                );
+            }
+            false
+        };
+        let result = evaluate_dir_entries(&state, Path::new("Data"), evaluator).unwrap();
+
+        assert!(!result);
+        assert_eq!(
+            vec![
+                state.additional_data_paths[1].clone(),
+                state.additional_data_paths[0].clone(),
+                state.data_path,
+            ],
+            paths
+        );
     }
 
     #[test]
