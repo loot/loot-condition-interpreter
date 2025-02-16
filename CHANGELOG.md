@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.1.0] = 2025-02-16
+
+### Added
+
+- Support for a `file_size()` condition function that returns true if the given
+  file's size matches the given number of bytes, and false otherwise (including
+  if the file doesn't exist).
+- Support for a `filename_version()` condition function that takes a regex path
+  with a single capture group, a version string and a comparison operator and
+  returns true if there is a path that matches the regex path and the value
+  captured by the regex is a version string for which the comparison against the
+  given version is true. Unlike the other version functions, it always returns
+  false if it cannot find a version to compare against the given version,
+  irrespective of the given comparison operator.
+- Support for a `description_contains()` condition function that takes a path
+  and a regex and returns true if the given path is a plugin with a description
+  that contains text that matches the given regex, and false otherwise
+  (including if the path does not exist, is not a plugin, or has no
+  description).
+
 ## [5.0.0] - 2025-02-01
 
 ### Added
@@ -12,6 +32,8 @@
   - The `is_master()` condition function returns `false` for all OpenMW plugins.
   - When resolving filenames, the additional data paths are checked in reverse
     order.
+- Support for an `is_executable(path)` condition function that returns true if
+  the given path is a Windows executable (PE) file.
 
 ### Changed
 
@@ -166,8 +188,10 @@
 ### Changed
 
 - Checksum calculations are now much faster for larger files.
-- Directory paths are now handled more gracefully in `checksum()`, `version()` and `product_version()` conditions.
-- Resolved some `rustc` deprecation warnings by replacing usage of `std::error::Error`'s `description()` function with `to_string()`.
+- Directory paths are now handled more gracefully in `checksum()`, `version()`
+  and `product_version()` conditions.
+- Resolved some `rustc` deprecation warnings by replacing usage of
+  `std::error::Error`'s `description()` function with `to_string()`.
 - Updated cbindgen to v0.14.
 - Updated pelite to v0.8.0.
 
