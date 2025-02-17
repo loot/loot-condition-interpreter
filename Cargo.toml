@@ -15,7 +15,7 @@ unicase = "2.8.1"
 
 [dev-dependencies]
 criterion = "0.5.0"
-tempfile = "3.16.0"
+tempfile = "3.17.0"
 
 [[bench]]
 name = "eval"
