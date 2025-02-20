@@ -10,7 +10,7 @@ use std::sync::{PoisonError, RwLock, RwLockWriteGuard};
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::space0;
+use nom::character::complete::multispace0;
 use nom::combinator::map;
 use nom::multi::separated_list0;
 use nom::sequence::{delimited, preceded};
@@ -283,7 +283,7 @@ fn map_err<'a, O>(
 fn whitespace<'a, O>(
     parser: impl Fn(&'a str) -> IResult<&'a str, O>,
 ) -> impl Parser<&'a str, Output = O, Error = nom::error::Error<&'a str>> {
-    delimited(space0, parser, space0)
+    delimited(multispace0, parser, multispace0)
 }
 
 #[cfg(test)]
@@ -438,6 +438,30 @@ mod tests {
         assert!(is_ok(
             "many(\"Deeper Thoughts (\\(Curie\\)|- (Expressive )?Curie)\\.esp\")"
         ));
+    }
+
+    #[test]
+    fn expression_parsing_should_ignore_line_breaks_when_ignoring_whitespace() {
+        let result = Expression::from_str("file(\"Cargo.toml\")\r\nor\nversion(\"Cargo.toml\",\n\"1.2\",\r\n==)\nand\r\nfile(\"Cargo.toml\")").unwrap();
+
+        match result.0.as_slice() {
+            [CompoundCondition(c1), CompoundCondition(c2)] => {
+                match (c1.as_slice(), c2.as_slice()) {
+                    (
+                        [Condition::Function(_)],
+                        [Condition::Function(_), Condition::Function(_)],
+                    ) => {}
+                    v => panic!(
+                        "Expected an expression with two compound conditions, got {:?}",
+                        v
+                    ),
+                }
+            }
+            v => panic!(
+                "Expected an expression with two compound conditions, got {:?}",
+                v
+            ),
+        }
     }
 
     #[test]
