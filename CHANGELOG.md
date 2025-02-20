@@ -1,6 +1,13 @@
 # Changelog
 
-## [5.1.0] = 2025-02-16
+## [5.2.0] - 2025-02-20
+
+### Changed
+
+- Line breaks are now accepted as whitespace when parsing condition strings, so
+  long expressions can be split over multiple lines.
+
+## [5.1.0] - 2025-02-16
 
 ### Added
 
