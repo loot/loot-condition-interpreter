@@ -11,7 +11,7 @@ pub mod parse;
 mod path;
 mod version;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum ComparisonOperator {
     Equal,
     NotEqual,

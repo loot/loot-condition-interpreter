@@ -22,7 +22,7 @@ use function::Function;
 
 type ParsingResult<'a, T> = IResult<&'a str, T, ParsingError<&'a str>>;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[non_exhaustive]
 pub enum GameType {
     Oblivion,

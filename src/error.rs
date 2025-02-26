@@ -86,7 +86,7 @@ impl error::Error for Error {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum MoreDataNeeded {
     /// It's not known how much more data are needed
     UnknownSize,
@@ -94,7 +94,7 @@ pub enum MoreDataNeeded {
     Size(NonZeroUsize),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParsingError<I: fmt::Debug + fmt::Display> {
     input: I,
     kind: ParsingErrorKind,
@@ -143,7 +143,7 @@ impl<I: fmt::Debug + fmt::Display> nom::error::ParseError<I> for ParsingError<I>
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ParsingErrorKind {
     InvalidRegexSyntax(String),
     InvalidRegexUnknown,
