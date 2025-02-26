@@ -16,7 +16,7 @@ pub enum Error {
     UnconsumedInput(String),
     /// The string is the input at which the error was encountered.
     ParsingError(String, ParsingErrorKind),
-    PeParsingError(PathBuf, Box<dyn error::Error>),
+    PeParsingError(PathBuf, Box<dyn error::Error + Send + Sync + 'static>),
     IoError(PathBuf, io::Error),
 }
 

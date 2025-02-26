@@ -150,7 +150,7 @@ impl Version {
         match get_pe_version_info(file_map.as_ref()) {
             Ok(v) => Ok(formatter(&v).map(Version::from)),
             Err(FindError::NotFound) => Ok(None),
-            Err(e) => Err(Error::PeParsingError(file_path.to_path_buf(), e.into())),
+            Err(e) => Err(Error::PeParsingError(file_path.to_path_buf(), Box::new(e))),
         }
     }
 }
