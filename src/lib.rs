@@ -117,7 +117,11 @@ impl State {
         &mut self,
         plugin_crcs: &[(T, u32)],
     ) -> Result<(), PoisonError<RwLockWriteGuard<HashMap<String, u32>>>> {
-        let mut writer = self.crc_cache.write()?;
+        let mut writer = self.crc_cache.write().unwrap_or_else(|mut e| {
+            **e.get_mut() = HashMap::new();
+            self.crc_cache.clear_poison();
+            e.into_inner()
+        });
 
         writer.deref_mut().clear();
         writer.deref_mut().extend(
@@ -132,7 +136,13 @@ impl State {
     pub fn clear_condition_cache(
         &mut self,
     ) -> Result<(), PoisonError<RwLockWriteGuard<HashMap<Function, bool>>>> {
-        self.condition_cache.write().map(|mut c| c.clear())
+        let mut writer = self.condition_cache.write().unwrap_or_else(|mut e| {
+            **e.get_mut() = HashMap::new();
+            self.crc_cache.clear_poison();
+            e.into_inner()
+        });
+        writer.clear();
+        Ok(())
     }
 
     pub fn set_additional_data_paths(&mut self, additional_data_paths: Vec<PathBuf>) {
