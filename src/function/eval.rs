@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs::{read_dir, DirEntry, File};
 use std::hash::Hasher;
@@ -208,10 +209,14 @@ fn evaluate_checksum(state: &State, file_path: &Path, crc: u32) -> Result<bool, 
     }
 
     let calculated_crc = hasher.finalize();
-    if let Ok(mut writer) = state.crc_cache.write() {
-        if let Some(key) = lowercase(file_path) {
-            writer.insert(key, calculated_crc);
-        }
+    let mut writer = state.crc_cache.write().unwrap_or_else(|mut e| {
+        **e.get_mut() = HashMap::new();
+        state.crc_cache.clear_poison();
+        e.into_inner()
+    });
+
+    if let Some(key) = lowercase(file_path) {
+        writer.insert(key, calculated_crc);
     }
 
     Ok(calculated_crc == crc)
@@ -352,9 +357,13 @@ impl Function {
 
         if self.is_slow() {
             if let Ok(function_result) = result {
-                if let Ok(mut writer) = state.condition_cache.write() {
-                    writer.insert(self.clone(), function_result);
-                }
+                let mut writer = state.condition_cache.write().unwrap_or_else(|mut e| {
+                    **e.get_mut() = HashMap::new();
+                    state.condition_cache.clear_poison();
+                    e.into_inner()
+                });
+
+                writer.insert(self.clone(), function_result);
             }
         }
 
