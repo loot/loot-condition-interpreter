@@ -1,5 +1,24 @@
 # Changelog
 
+## [5.3.0] - 2025-03-26
+
+### Added
+
+- Implemented `Ord` and `PartialOrd` on `GameType`.
+- Implemented `Ord`, `PartialOrd` and `Hash` on `MoreDataNeeded`.
+- Implemented `Clone`, `Eq` and `PartialEq` on `ParsingError` and
+  `ParsingErrorKind`.
+
+### Changed
+
+- The `Box<dyn error::Error>` held by `Error::PeParsingError` is now a
+  `Box<dyn error::Error + Send + Sync + 'static>`.
+- If the state's CRC or conditions cache are in a poisoned state when they are
+  accessed, they will now automatically be recreated in an empty non-poisoned
+  state before continuing, and the PoisonError will no longer be returned to the
+  caller.
+- Updated libc to v0.2.171.
+
 ## [5.2.0] - 2025-02-20
 
 ### Changed
