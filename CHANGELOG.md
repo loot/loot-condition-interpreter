@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.3.1] - 2025-03-26
+
+### Added
+
+- Metadata fields in `Cargo.toml` so that the crate can be published to
+  crates.io.
+
 ## [5.3.0] - 2025-03-26
 
 ### Added

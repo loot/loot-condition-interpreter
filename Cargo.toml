@@ -1,6 +1,6 @@
 [package]
 name = "loot-condition-interpreter"
-version = "5.3.0"
+version = "5.3.1"
 authors = ["Oliver Hamlet <oliver@ortham.net>"]
 description = "Parse and evaluate LOOT metadata condition strings."
 repository = "https://github.com/Ortham/libloadorder.git"
