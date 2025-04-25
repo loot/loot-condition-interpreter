@@ -26,7 +26,7 @@ impl fmt::Display for ComparisonOperator {
         use self::ComparisonOperator::*;
         match self {
             Equal => write!(f, "=="),
-            NotEqual => write!(f, "=="),
+            NotEqual => write!(f, "!="),
             LessThan => write!(f, "<"),
             GreaterThan => write!(f, ">"),
             LessThanOrEqual => write!(f, "<="),
