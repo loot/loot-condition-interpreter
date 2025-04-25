@@ -3,7 +3,6 @@ use std::path::Path;
 
 use pelite::resources::version_info::VersionInfo;
 use pelite::resources::{FindError, Resources};
-use pelite::FileMap;
 
 use crate::error::Error;
 
@@ -140,15 +139,27 @@ impl Version {
         Self::read_version(file_path, |_| None).is_ok()
     }
 
-    fn read_version<F: Fn(&VersionInfo) -> Option<String>>(
+    fn read_version<F: Fn(VersionInfo) -> Option<String>>(
         file_path: &Path,
         formatter: F,
     ) -> Result<Option<Self>, Error> {
-        let file_map =
-            FileMap::open(file_path).map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
+        #[cfg(any(windows, unix))]
+        let result = {
+            let file_map =
+            pelite::FileMap::open(file_path).map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
 
-        match get_pe_version_info(file_map.as_ref()) {
-            Ok(v) => Ok(formatter(&v).map(Version::from)),
+            get_pe_version_info(file_map.as_ref()).map(formatter)
+        };
+
+        #[cfg(not(any(windows, unix)))]
+        let result = {
+            let bytes = std::fs::read(file_path).map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
+
+            get_pe_version_info(&bytes).map(formatter)
+        };
+
+        match result {
+            Ok(s) => Ok(s.map(Version::from)),
             Err(FindError::NotFound) => Ok(None),
             Err(e) => Err(Error::PeParsingError(file_path.to_path_buf(), Box::new(e))),
         }
