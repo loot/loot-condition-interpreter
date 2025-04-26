@@ -25,21 +25,20 @@ fn has_unghosted_plugin_file_extension(game_type: GameType, path: &Path) -> bool
     }
 }
 
-pub fn has_plugin_file_extension(game_type: GameType, path: &Path) -> bool {
+pub(super) fn has_plugin_file_extension(game_type: GameType, path: &Path) -> bool {
     match path.extension() {
         Some(ext)
             if game_type.allows_ghosted_plugins() && ext.eq_ignore_ascii_case(GHOST_EXTENSION) =>
         {
             path.file_stem()
-                .map(|s| has_unghosted_plugin_file_extension(game_type, Path::new(s)))
-                .unwrap_or(false)
+                .is_some_and(|s| has_unghosted_plugin_file_extension(game_type, Path::new(s)))
         }
         Some(ext) => is_unghosted_plugin_file_extension(game_type, ext),
         _ => false,
     }
 }
 
-fn add_ghost_extension(path: PathBuf) -> PathBuf {
+fn add_ghost_extension(path: &Path) -> PathBuf {
     match path.extension() {
         Some(e) => {
             let mut new_extension = e.to_os_string();
@@ -50,7 +49,7 @@ fn add_ghost_extension(path: PathBuf) -> PathBuf {
     }
 }
 
-pub fn normalise_file_name(game_type: GameType, name: &OsStr) -> &OsStr {
+pub(super) fn normalise_file_name(game_type: GameType, name: &OsStr) -> &OsStr {
     if !game_type.allows_ghosted_plugins() {
         return name;
     }
@@ -58,8 +57,7 @@ pub fn normalise_file_name(game_type: GameType, name: &OsStr) -> &OsStr {
     let path = Path::new(name);
     if path
         .extension()
-        .map(|s| s.eq_ignore_ascii_case(GHOST_EXTENSION))
-        .unwrap_or(false)
+        .is_some_and(|s| s.eq_ignore_ascii_case(GHOST_EXTENSION))
     {
         // name ends in .ghost, trim it and then check the file extension.
         if let Some(stem) = path.file_stem() {
@@ -72,7 +70,7 @@ pub fn normalise_file_name(game_type: GameType, name: &OsStr) -> &OsStr {
     name
 }
 
-pub fn resolve_path_in_parent_paths<'a>(
+pub(super) fn resolve_path_in_parent_paths<'a>(
     path: &Path,
     parent_paths: impl Iterator<Item = &'a PathBuf>,
     try_with_ghost_extension: bool,
@@ -85,7 +83,7 @@ pub fn resolve_path_in_parent_paths<'a>(
         }
 
         if try_with_ghost_extension {
-            let ghosted_path = add_ghost_extension(joined_path);
+            let ghosted_path = add_ghost_extension(&joined_path);
 
             if ghosted_path.exists() {
                 return Some(ghosted_path);
@@ -96,7 +94,7 @@ pub fn resolve_path_in_parent_paths<'a>(
     None
 }
 
-pub fn resolve_path(state: &State, path: &Path) -> PathBuf {
+pub(super) fn resolve_path(state: &State, path: &Path) -> PathBuf {
     let try_with_ghost_extension = state.game_type.allows_ghosted_plugins()
         && has_unghosted_plugin_file_extension(state.game_type, path);
 
@@ -125,7 +123,7 @@ pub fn resolve_path(state: &State, path: &Path) -> PathBuf {
     let joined_path = state.data_path.join(path);
 
     if !joined_path.exists() && try_with_ghost_extension {
-        add_ghost_extension(joined_path)
+        add_ghost_extension(&joined_path)
     } else {
         joined_path
     }
@@ -133,6 +131,8 @@ pub fn resolve_path(state: &State, path: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::create_dir_all;
+
     use super::*;
 
     #[test]
@@ -608,13 +608,13 @@ mod tests {
 
     #[test]
     fn add_ghost_extension_should_add_dot_ghost_to_an_existing_extension() {
-        let path = add_ghost_extension("plugin.esp".into());
+        let path = add_ghost_extension(Path::new("plugin.esp"));
         assert_eq!(PathBuf::from("plugin.esp.ghost"), path);
     }
 
     #[test]
     fn add_ghost_extension_should_add_dot_ghost_to_an_a_path_with_no_extension() {
-        let path = add_ghost_extension("plugin".into());
+        let path = add_ghost_extension(Path::new("plugin"));
         assert_eq!(PathBuf::from("plugin.ghost"), path);
     }
 
@@ -703,16 +703,15 @@ mod tests {
     #[test]
     fn resolve_path_should_check_external_data_paths_in_order_before_data_path() {
         use std::fs::copy;
-        use std::fs::create_dir;
 
         let tmp_dir = tempfile::tempdir().unwrap();
         let external_data_path_1 = tmp_dir.path().join("Data1");
         let external_data_path_2 = tmp_dir.path().join("Data2");
         let data_path = tmp_dir.path().join("Data3");
 
-        create_dir(&external_data_path_1).unwrap();
-        create_dir(&external_data_path_2).unwrap();
-        create_dir(&data_path).unwrap();
+        create_dir_all(&external_data_path_1).unwrap();
+        create_dir_all(&external_data_path_2).unwrap();
+        create_dir_all(&data_path).unwrap();
         copy(
             Path::new("Cargo.toml"),
             external_data_path_1.join("Cargo.toml"),
@@ -741,16 +740,15 @@ mod tests {
     fn resolve_path_should_check_external_data_paths_in_reverse_order_before_data_path_for_openmw()
     {
         use std::fs::copy;
-        use std::fs::create_dir;
 
         let tmp_dir = tempfile::tempdir().unwrap();
         let external_data_path_1 = tmp_dir.path().join("Data1");
         let external_data_path_2 = tmp_dir.path().join("Data2");
         let data_path = tmp_dir.path().join("Data3");
 
-        create_dir(&external_data_path_1).unwrap();
-        create_dir(&external_data_path_2).unwrap();
-        create_dir(&data_path).unwrap();
+        create_dir_all(&external_data_path_1).unwrap();
+        create_dir_all(&external_data_path_2).unwrap();
+        create_dir_all(&data_path).unwrap();
         copy(
             Path::new("Cargo.toml"),
             external_data_path_1.join("Cargo.toml"),

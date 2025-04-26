@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use nom::error::ErrorKind;
 use nom::Err;
 
+#[expect(clippy::error_impl_error)]
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
@@ -49,15 +50,12 @@ impl fmt::Display for Error {
                 f,
                 "{size} bytes of additional input was expected by the parser"
             ),
-            Error::UnconsumedInput(i) => write!(
-                f,
-                "The parser did not consume the following input: \"{}\"",
-                i
-            ),
+            Error::UnconsumedInput(i) => {
+                write!(f, "The parser did not consume the following input: \"{i}\"")
+            }
             Error::ParsingError(i, e) => write!(
                 f,
-                "An error was encountered while parsing the expression \"{}\": {}",
-                i, e
+                "An error was encountered while parsing the expression \"{i}\": {e}"
             ),
             Error::PeParsingError(p, e) => write!(
                 f,
@@ -134,7 +132,7 @@ impl<I: fmt::Debug + fmt::Display> nom::error::ParseError<I> for ParsingError<I>
     fn from_error_kind(input: I, kind: ErrorKind) -> Self {
         ParsingError {
             input,
-            kind: ParsingErrorKind::GenericParserError(kind.description().to_string()),
+            kind: ParsingErrorKind::GenericParserError(kind.description().to_owned()),
         }
     }
 
@@ -186,7 +184,7 @@ impl error::Error for ParsingErrorKind {
 impl fmt::Display for ParsingErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ParsingErrorKind::InvalidRegexSyntax(s) => write!(f, "{}", s),
+            ParsingErrorKind::InvalidRegexSyntax(s) => write!(f, "{s}"),
             ParsingErrorKind::InvalidRegexUnknown => write!(f, "Unknown regex parsing error"),
             ParsingErrorKind::InvalidCrc(e) => e.fmt(f),
             ParsingErrorKind::PathEndsInADirectorySeparator(p) => {
@@ -195,7 +193,7 @@ impl fmt::Display for ParsingErrorKind {
             ParsingErrorKind::PathIsNotInGameDirectory(p) => {
                 write!(f, "\"{}\" is not in the game directory", p.display())
             }
-            ParsingErrorKind::GenericParserError(e) => write!(f, "Error in parser: {}", e),
+            ParsingErrorKind::GenericParserError(e) => write!(f, "Error in parser: {e}"),
         }
     }
 }

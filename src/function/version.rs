@@ -14,11 +14,10 @@ enum ReleaseId {
 
 impl<'a> From<&'a str> for ReleaseId {
     fn from(string: &'a str) -> Self {
-        string
-            .trim()
-            .parse()
-            .map(ReleaseId::Numeric)
-            .unwrap_or_else(|_| ReleaseId::NonNumeric(string.to_lowercase()))
+        string.trim().parse().map_or_else(
+            |_| ReleaseId::NonNumeric(string.to_lowercase()),
+            ReleaseId::Numeric,
+        )
     }
 }
 
@@ -36,8 +35,9 @@ impl PartialEq for ReleaseId {
         match (self, other) {
             (Self::Numeric(n1), Self::Numeric(n2)) => n1 == n2,
             (Self::NonNumeric(s1), Self::NonNumeric(s2)) => s1 == s2,
-            (Self::Numeric(n), Self::NonNumeric(s)) => are_numeric_values_equal(*n, s),
-            (Self::NonNumeric(s), Self::Numeric(n)) => are_numeric_values_equal(*n, s),
+            (Self::Numeric(n), Self::NonNumeric(s)) | (Self::NonNumeric(s), Self::Numeric(n)) => {
+                are_numeric_values_equal(*n, s)
+            }
         }
     }
 }
@@ -45,19 +45,16 @@ impl PartialEq for ReleaseId {
 // This is like u32::from_str_radix(), but stops instead of erroring when it
 // encounters a non-digit character. It also doesn't support signs.
 fn u32_from_str(id: &str) -> (Option<u32>, usize) {
-    // Find the index of the first non-digit character. All valid digits are
-    // ASCII so treat this as a byte slice.
-    let bytes = id.as_bytes();
-    let first_non_digit_index = bytes.iter().position(|byte| !byte.is_ascii_digit());
-
     // Conversion can fail even with only ASCII digits because of overflow, so
     // take that into account.
-    match first_non_digit_index {
-        // If the first byte is not a digit, there is no number to parse (this
-        // ignores + and - signs).
-        Some(0) => (None, id.len()),
-        Some(index) => (id[..index].trim().parse().ok(), id.len() - index),
-        None => (id.trim().parse().ok(), 0),
+    if let Some((digits, remainder)) = id.split_once(|c: char| !c.is_ascii_digit()) {
+        if digits.is_empty() {
+            (None, id.len())
+        } else {
+            (digits.trim().parse().ok(), remainder.len() + 1)
+        }
+    } else {
+        (id.trim().parse().ok(), 0)
     }
 }
 
@@ -84,7 +81,7 @@ impl PartialOrd for ReleaseId {
             (Self::NonNumeric(s1), Self::NonNumeric(s2)) => s1.partial_cmp(s2),
             (Self::Numeric(n), Self::NonNumeric(s)) => compare_heterogeneous_ids(*n, s),
             (Self::NonNumeric(s), Self::Numeric(n)) => {
-                compare_heterogeneous_ids(*n, s).map(|o| o.reverse())
+                compare_heterogeneous_ids(*n, s).map(Ordering::reverse)
             }
         }
     }
@@ -98,22 +95,21 @@ enum PreReleaseId {
 
 impl<'a> From<&'a str> for PreReleaseId {
     fn from(string: &'a str) -> Self {
-        string
-            .trim()
-            .parse()
-            .map(PreReleaseId::Numeric)
-            .unwrap_or_else(|_| PreReleaseId::NonNumeric(string.to_lowercase()))
+        string.trim().parse().map_or_else(
+            |_| PreReleaseId::NonNumeric(string.to_lowercase()),
+            PreReleaseId::Numeric,
+        )
     }
 }
 
 #[derive(Debug)]
-pub struct Version {
+pub(super) struct Version {
     release_ids: Vec<ReleaseId>,
     pre_release_ids: Vec<PreReleaseId>,
 }
 
 impl Version {
-    pub fn read_file_version(file_path: &Path) -> Result<Option<Self>, Error> {
+    pub(super) fn read_file_version(file_path: &Path) -> Result<Option<Self>, Error> {
         Self::read_version(file_path, |v| {
             v.fixed().map(|f| {
                 format!(
@@ -127,7 +123,7 @@ impl Version {
         })
     }
 
-    pub fn read_product_version(file_path: &Path) -> Result<Option<Self>, Error> {
+    pub(super) fn read_product_version(file_path: &Path) -> Result<Option<Self>, Error> {
         Self::read_version(file_path, |v| {
             v.translation()
                 .first()
@@ -135,7 +131,7 @@ impl Version {
         })
     }
 
-    pub fn is_readable(file_path: &Path) -> bool {
+    pub(super) fn is_readable(file_path: &Path) -> bool {
         Self::read_version(file_path, |_| None).is_ok()
     }
 
@@ -145,15 +141,16 @@ impl Version {
     ) -> Result<Option<Self>, Error> {
         #[cfg(any(windows, unix))]
         let result = {
-            let file_map =
-            pelite::FileMap::open(file_path).map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
+            let file_map = pelite::FileMap::open(file_path)
+                .map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
 
             get_pe_version_info(file_map.as_ref()).map(formatter)
         };
 
         #[cfg(not(any(windows, unix)))]
         let result = {
-            let bytes = std::fs::read(file_path).map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
+            let bytes =
+                std::fs::read(file_path).map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
 
             get_pe_version_info(&bytes).map(formatter)
         };
@@ -204,10 +201,7 @@ fn split_version_string(string: &str) -> (&str, &str) {
         }
     }
 
-    match string.find(is_separator) {
-        Some(i) if i + 1 < string.len() => (&string[..i], &string[i + 1..]),
-        Some(_) | None => (string, ""),
-    }
+    string.split_once(is_separator).unwrap_or((string, ""))
 }
 
 impl<T: AsRef<str>> From<T> for Version {
@@ -227,8 +221,8 @@ impl<T: AsRef<str>> From<T> for Version {
 fn trim_metadata(version: &str) -> &str {
     if version.is_empty() {
         "0"
-    } else if let Some(i) = version.find('+') {
-        &version[..i]
+    } else if let Some((prefix, _)) = version.split_once('+') {
+        prefix
     } else {
         version
     }
@@ -271,7 +265,7 @@ fn pad_release_ids(ids1: &[ReleaseId], ids2: &[ReleaseId]) -> (Vec<ReleaseId>, V
     match ids1.len().cmp(&ids2.len()) {
         Ordering::Less => ids1.resize(ids2.len(), ReleaseId::Numeric(0)),
         Ordering::Greater => ids2.resize(ids1.len(), ReleaseId::Numeric(0)),
-        _ => {}
+        Ordering::Equal => {}
     }
 
     (ids1, ids2)
@@ -279,8 +273,8 @@ fn pad_release_ids(ids1: &[ReleaseId], ids2: &[ReleaseId]) -> (Vec<ReleaseId>, V
 
 #[cfg(test)]
 mod tests {
-    fn is_cmp_eq(lhs: super::Version, rhs: super::Version) -> bool {
-        lhs.partial_cmp(&rhs).unwrap().is_eq()
+    fn is_cmp_eq(lhs: &super::Version, rhs: &super::Version) -> bool {
+        lhs.partial_cmp(rhs).unwrap().is_eq()
     }
 
     mod release_ids {
@@ -504,8 +498,8 @@ mod tests {
             let mut dll_bytes = std::fs::read("tests/libloot_win32/loot.dll").unwrap();
 
             // Set the version info block's language code to 1049 (Russian).
-            dll_bytes[0x53204A] = b'1'; // This changes VersionInfo.strings.Language.lang_id
-            dll_bytes[0x53216C] = 0x19; // This changes VersionInfo.langs.Language.lang_id
+            dll_bytes[0x0053_204A] = b'1'; // This changes VersionInfo.strings.Language.lang_id
+            dll_bytes[0x0053_216C] = 0x19; // This changes VersionInfo.langs.Language.lang_id
 
             std::fs::write(&dll_path, dll_bytes).unwrap();
 
@@ -750,21 +744,21 @@ mod tests {
         #[test]
         fn version_partial_cmp_should_ignore_metadata() {
             assert!(is_cmp_eq(
-                Version::from("0.0.1+alpha"),
-                Version::from("0.0.1+1")
+                &Version::from("0.0.1+alpha"),
+                &Version::from("0.0.1+1")
             ));
             assert!(is_cmp_eq(
-                Version::from("0.0.1+1"),
-                Version::from("0.0.1+alpha")
+                &Version::from("0.0.1+1"),
+                &Version::from("0.0.1+alpha")
             ));
 
             assert!(is_cmp_eq(
-                Version::from("0.0.1+2"),
-                Version::from("0.0.1+1")
+                &Version::from("0.0.1+2"),
+                &Version::from("0.0.1+1")
             ));
             assert!(is_cmp_eq(
-                Version::from("0.0.1+1"),
-                Version::from("0.0.1+2")
+                &Version::from("0.0.1+1"),
+                &Version::from("0.0.1+2")
             ));
         }
     }
@@ -798,8 +792,8 @@ mod tests {
 
         #[test]
         fn version_partial_cmp_should_ignore_leading_zeroes_in_major_version_numbers() {
-            assert!(is_cmp_eq(Version::from("05.0.0"), Version::from("5.0.0")));
-            assert!(is_cmp_eq(Version::from("5.0.0"), Version::from("05.0.0")));
+            assert!(is_cmp_eq(&Version::from("05.0.0"), &Version::from("5.0.0")));
+            assert!(is_cmp_eq(&Version::from("5.0.0"), &Version::from("05.0.0")));
         }
 
         #[test]
@@ -810,8 +804,8 @@ mod tests {
 
         #[test]
         fn version_partial_cmp_should_ignore_leading_zeroes_in_minor_version_numbers() {
-            assert!(is_cmp_eq(Version::from("0.05.0"), Version::from("0.5.0")));
-            assert!(is_cmp_eq(Version::from("0.5.0"), Version::from("0.05.0")));
+            assert!(is_cmp_eq(&Version::from("0.05.0"), &Version::from("0.5.0")));
+            assert!(is_cmp_eq(&Version::from("0.5.0"), &Version::from("0.05.0")));
         }
 
         #[test]
@@ -822,8 +816,8 @@ mod tests {
 
         #[test]
         fn version_partial_cmp_should_ignore_leading_zeroes_in_patch_version_numbers() {
-            assert!(is_cmp_eq(Version::from("0.0.05"), Version::from("0.0.5")));
-            assert!(is_cmp_eq(Version::from("0.0.5"), Version::from("0.0.05")));
+            assert!(is_cmp_eq(&Version::from("0.0.05"), &Version::from("0.0.5")));
+            assert!(is_cmp_eq(&Version::from("0.0.5"), &Version::from("0.0.05")));
         }
 
         #[test]
@@ -835,12 +829,12 @@ mod tests {
         #[test]
         fn version_partial_cmp_should_ignore_leading_zeroes_in_numeric_pre_release_ids() {
             assert!(is_cmp_eq(
-                Version::from("0.0.5-05"),
-                Version::from("0.0.5-5")
+                &Version::from("0.0.5-05"),
+                &Version::from("0.0.5-5")
             ));
             assert!(is_cmp_eq(
-                Version::from("0.0.5-5"),
-                Version::from("0.0.5-05")
+                &Version::from("0.0.5-5"),
+                &Version::from("0.0.5-05")
             ));
         }
 
@@ -855,8 +849,8 @@ mod tests {
         #[test]
         fn version_partial_cmp_should_compare_an_equal_but_arbitrary_number_of_version_numbers() {
             assert!(is_cmp_eq(
-                Version::from("1.0.0.1.0.0"),
-                Version::from("1.0.0.1.0.0")
+                &Version::from("1.0.0.1.0.0"),
+                &Version::from("1.0.0.1.0.0")
             ));
 
             assert!(Version::from("1.0.0.0.0.0") < Version::from("1.0.0.0.0.1"));
@@ -941,12 +935,12 @@ mod tests {
             assert!(Version::from("1.0.0.0.0.1") > Version::from("1.0.0.0"));
 
             assert!(is_cmp_eq(
-                Version::from("1.0.0.0.0.0"),
-                Version::from("1.0.0.0")
+                &Version::from("1.0.0.0.0.0"),
+                &Version::from("1.0.0.0")
             ));
             assert!(is_cmp_eq(
-                Version::from("1.0.0.0"),
-                Version::from("1.0.0.0.0.0")
+                &Version::from("1.0.0.0"),
+                &Version::from("1.0.0.0.0.0")
             ));
         }
 

@@ -36,10 +36,9 @@ fn is_in_game_path(path: &Path) -> bool {
     let mut previous_component = Component::CurDir;
     for component in path.components() {
         match (component, previous_component) {
-            (Component::Prefix(_), _) => return false,
-            (Component::RootDir, _) => return false,
-            (Component::ParentDir, Component::ParentDir) => return false,
-            (Component::CurDir, _) => continue,
+            (Component::Prefix(_) | Component::RootDir, _)
+            | (Component::ParentDir, Component::ParentDir) => return false,
+            (Component::CurDir, _) => {}
             _ => previous_component = component,
         }
     }
@@ -59,7 +58,7 @@ fn parse_regex(input: &str) -> ParsingResult<Regex> {
 }
 
 fn parse_anchored_regex(input: &str) -> ParsingResult<Regex> {
-    build_regex(&format!("^{}$", input))
+    build_regex(&format!("^{input}$"))
         .map_err(|e| Err::Failure(ParsingErrorKind::from(e).at(input)))
 }
 
@@ -100,7 +99,7 @@ fn parse_file_size_args(input: &str) -> ParsingResult<(PathBuf, u64)> {
 fn parse_version(input: &str) -> IResult<&str, String> {
     map(
         delimited(tag("\""), is_not("\""), tag("\"")),
-        |version: &str| version.to_string(),
+        |version: &str| version.to_owned(),
     )
     .parse(input)
 }
@@ -207,10 +206,7 @@ fn parse_regex_path(input: &str) -> ParsingResult<(PathBuf, Regex)> {
         ));
     }
 
-    let (parent_path_slice, regex_slice) = string
-        .rfind('/')
-        .map(|i| (&string[..i], &string[i + 1..]))
-        .unwrap_or_else(|| (".", string));
+    let (parent_path_slice, regex_slice) = string.rsplit_once('/').unwrap_or((".", string));
 
     let parent_path = PathBuf::from(parent_path_slice);
 
@@ -228,6 +224,7 @@ fn parse_regex_filename(input: &str) -> ParsingResult<Regex> {
 }
 
 impl Function {
+    #[expect(clippy::too_many_lines)]
     pub fn parse(input: &str) -> ParsingResult<Function> {
         alt((
             map(
@@ -360,8 +357,6 @@ impl Function {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use std::path::Path;
 
     #[test]
     fn parse_regex_should_produce_case_insensitive_regex() {
@@ -521,7 +516,7 @@ mod tests {
         assert!(output.0.is_empty());
         match output.1 {
             Function::ActiveRegex(r) => {
-                assert_eq!(Regex::new("^Cargo.*$").unwrap().as_str(), r.as_str())
+                assert_eq!(Regex::new("^Cargo.*$").unwrap().as_str(), r.as_str());
             }
             _ => panic!("Expected an active regex function"),
         }
@@ -590,7 +585,7 @@ mod tests {
         assert!(output.0.is_empty());
         match output.1 {
             Function::ManyActive(r) => {
-                assert_eq!(Regex::new("^Cargo.*$").unwrap().as_str(), r.as_str())
+                assert_eq!(Regex::new("^Cargo.*$").unwrap().as_str(), r.as_str());
             }
             _ => panic!("Expected a many active function"),
         }
@@ -604,7 +599,7 @@ mod tests {
         match output.1 {
             Function::Checksum(path, crc) => {
                 assert_eq!(Path::new("Cargo.toml"), path);
-                assert_eq!(0xDEADBEEF, crc);
+                assert_eq!(0xDEAD_BEEF, crc);
             }
             _ => panic!("Expected a checksum function"),
         }
@@ -775,13 +770,18 @@ mod tests {
 
     #[test]
     fn function_parse_should_parse_a_description_contains_function() {
-        let output = Function::parse("description_contains(\"Blank.esp\", \"€ƒ.\")").unwrap();
+        let lowercase_non_ascii = "\u{20ac}\u{192}.";
+        let function = format!("description_contains(\"Blank.esp\", \"{lowercase_non_ascii}\")");
+        let output = Function::parse(&function).unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
             Function::DescriptionContains(p, r) => {
                 assert_eq!(PathBuf::from("Blank.esp"), p);
-                assert_eq!(Regex::new("€ƒ.").unwrap().as_str(), r.as_str());
+                assert_eq!(
+                    Regex::new(lowercase_non_ascii).unwrap().as_str(),
+                    r.as_str()
+                );
             }
             _ => panic!("Expected a description_contains function"),
         }

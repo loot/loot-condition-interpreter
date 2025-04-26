@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use regex::Regex;
 use unicase::eq;
 
-pub mod eval;
-pub mod parse;
+pub(crate) mod eval;
+pub(crate) mod parse;
 mod path;
 mod version;
 
@@ -23,14 +23,13 @@ pub enum ComparisonOperator {
 
 impl fmt::Display for ComparisonOperator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::ComparisonOperator::*;
         match self {
-            Equal => write!(f, "=="),
-            NotEqual => write!(f, "!="),
-            LessThan => write!(f, "<"),
-            GreaterThan => write!(f, ">"),
-            LessThanOrEqual => write!(f, "<="),
-            GreaterThanOrEqual => write!(f, ">="),
+            Self::Equal => write!(f, "=="),
+            Self::NotEqual => write!(f, "!="),
+            Self::LessThan => write!(f, "<"),
+            Self::GreaterThan => write!(f, ">"),
+            Self::LessThanOrEqual => write!(f, "<="),
+            Self::GreaterThanOrEqual => write!(f, ">="),
         }
     }
 }
@@ -56,34 +55,33 @@ pub enum Function {
 
 impl fmt::Display for Function {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use Function::*;
         match self {
-            FilePath(p) => write!(f, "file(\"{}\")", p.display()),
-            FileRegex(p, r) => write!(f, "file(\"{}/{}\")", p.display(), r),
-            FileSize(p, s) => write!(f, "file_size(\"{}\", {})", p.display(), s),
-            Readable(p) => write!(f, "readable(\"{}\")", p.display()),
-            IsExecutable(p) => write!(f, "is_executable(\"{}\")", p.display()),
-            ActivePath(p) => write!(f, "active(\"{}\")", p.display()),
-            ActiveRegex(r) => write!(f, "active(\"{}\")", r),
-            IsMaster(p) => write!(f, "is_master(\"{}\")", p.display()),
-            Many(p, r) => write!(f, "many(\"{}/{}\")", p.display(), r),
-            ManyActive(r) => write!(f, "many_active(\"{}\")", r),
-            Checksum(p, c) => write!(f, "checksum(\"{}\", {:02X?})", p.display(), c),
-            Version(p, v, c) => write!(f, "version(\"{}\", \"{}\", {})", p.display(), v, c),
-            ProductVersion(p, v, c) => {
+            Self::FilePath(p) => write!(f, "file(\"{}\")", p.display()),
+            Self::FileRegex(p, r) => write!(f, "file(\"{}/{}\")", p.display(), r),
+            Self::FileSize(p, s) => write!(f, "file_size(\"{}\", {})", p.display(), s),
+            Self::Readable(p) => write!(f, "readable(\"{}\")", p.display()),
+            Self::IsExecutable(p) => write!(f, "is_executable(\"{}\")", p.display()),
+            Self::ActivePath(p) => write!(f, "active(\"{}\")", p.display()),
+            Self::ActiveRegex(r) => write!(f, "active(\"{r}\")"),
+            Self::IsMaster(p) => write!(f, "is_master(\"{}\")", p.display()),
+            Self::Many(p, r) => write!(f, "many(\"{}/{}\")", p.display(), r),
+            Self::ManyActive(r) => write!(f, "many_active(\"{r}\")"),
+            Self::Checksum(p, c) => write!(f, "checksum(\"{}\", {:02X})", p.display(), c),
+            Self::Version(p, v, c) => write!(f, "version(\"{}\", \"{}\", {})", p.display(), v, c),
+            Self::ProductVersion(p, v, c) => {
                 write!(f, "product_version(\"{}\", \"{}\", {})", p.display(), v, c)
             }
-            FilenameVersion(p, r, v, c) => {
+            Self::FilenameVersion(path, regex, version, comparator) => {
                 write!(
                     f,
                     "filename_version(\"{}/{}\", \"{}\", {})",
-                    p.display(),
-                    r,
-                    v,
-                    c
+                    path.display(),
+                    regex,
+                    version,
+                    comparator
                 )
             }
-            DescriptionContains(p, r) => {
+            Self::DescriptionContains(p, r) => {
                 write!(f, "description_contains(\"{}\", \"{}\")", p.display(), r)
             }
         }
@@ -92,43 +90,36 @@ impl fmt::Display for Function {
 
 impl PartialEq for Function {
     fn eq(&self, other: &Function) -> bool {
-        use Function::*;
         match (self, other) {
-            (FilePath(p1), FilePath(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
-            (FileRegex(p1, r1), FileRegex(p2, r2)) => {
-                eq(r1.as_str(), r2.as_str()) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
-            }
-            (FileSize(p1, s1), FileSize(p2, s2)) => {
-                s1 == s2 && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
-            }
-            (Readable(p1), Readable(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
-            (IsExecutable(p1), IsExecutable(p2)) => {
+            (Self::FilePath(p1), Self::FilePath(p2))
+            | (Self::Readable(p1), Self::Readable(p2))
+            | (Self::IsExecutable(p1), Self::IsExecutable(p2))
+            | (Self::ActivePath(p1), Self::ActivePath(p2))
+            | (Self::IsMaster(p1), Self::IsMaster(p2)) => {
                 eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
-            (ActivePath(p1), ActivePath(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
-            (ActiveRegex(r1), ActiveRegex(r2)) => eq(r1.as_str(), r2.as_str()),
-            (IsMaster(p1), IsMaster(p2)) => eq(&p1.to_string_lossy(), &p2.to_string_lossy()),
-            (Many(p1, r1), Many(p2, r2)) => {
+            (Self::FileRegex(p1, r1), Self::FileRegex(p2, r2))
+            | (Self::Many(p1, r1), Self::Many(p2, r2))
+            | (Self::DescriptionContains(p1, r1), Self::DescriptionContains(p2, r2)) => {
                 eq(r1.as_str(), r2.as_str()) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
-            (ManyActive(r1), ManyActive(r2)) => eq(r1.as_str(), r2.as_str()),
-            (Checksum(p1, c1), Checksum(p2, c2)) => {
+            (Self::FileSize(p1, s1), Self::FileSize(p2, s2)) => {
+                s1 == s2 && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
+            }
+            (Self::ActiveRegex(r1), Self::ActiveRegex(r2))
+            | (Self::ManyActive(r1), Self::ManyActive(r2)) => eq(r1.as_str(), r2.as_str()),
+            (Self::Checksum(p1, c1), Self::Checksum(p2, c2)) => {
                 c1 == c2 && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
-            (Version(p1, v1, c1), Version(p2, v2, c2)) => {
+            (Self::Version(p1, v1, c1), Self::Version(p2, v2, c2))
+            | (Self::ProductVersion(p1, v1, c1), Self::ProductVersion(p2, v2, c2)) => {
                 c1 == c2 && eq(&v1, &v2) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
-            (ProductVersion(p1, v1, c1), ProductVersion(p2, v2, c2)) => {
-                c1 == c2 && eq(&v1, &v2) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
-            }
-            (FilenameVersion(p1, r1, v1, c1), FilenameVersion(p2, r2, v2, c2)) => {
+            (Self::FilenameVersion(p1, r1, v1, c1), Self::FilenameVersion(p2, r2, v2, c2)) => {
                 c1 == c2
                     && eq(&v1, &v2)
                     && eq(r1.as_str(), r2.as_str())
                     && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
-            }
-            (DescriptionContains(p1, r1), DescriptionContains(p2, r2)) => {
-                eq(r1.as_str(), r2.as_str()) && eq(&p1.to_string_lossy(), &p2.to_string_lossy())
             }
             _ => false,
         }
@@ -139,64 +130,39 @@ impl Eq for Function {}
 
 impl Hash for Function {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        use Function::*;
         match self {
-            FilePath(p) => {
+            Self::FilePath(p)
+            | Self::Readable(p)
+            | Self::IsExecutable(p)
+            | Self::ActivePath(p)
+            | Self::IsMaster(p) => {
                 p.to_string_lossy().to_lowercase().hash(state);
             }
-            FileRegex(p, r) => {
+            Self::FileRegex(p, r) | Self::Many(p, r) | Self::DescriptionContains(p, r) => {
                 p.to_string_lossy().to_lowercase().hash(state);
                 r.as_str().to_lowercase().hash(state);
             }
-            FileSize(p, s) => {
+            Self::FileSize(p, s) => {
                 p.to_string_lossy().to_lowercase().hash(state);
                 s.hash(state);
             }
-            Readable(p) => {
-                p.to_string_lossy().to_lowercase().hash(state);
-            }
-            IsExecutable(p) => {
-                p.to_string_lossy().to_lowercase().hash(state);
-            }
-            ActivePath(p) => {
-                p.to_string_lossy().to_lowercase().hash(state);
-            }
-            ActiveRegex(r) => {
+            Self::ActiveRegex(r) | Self::ManyActive(r) => {
                 r.as_str().to_lowercase().hash(state);
             }
-            IsMaster(p) => {
-                p.to_string_lossy().to_lowercase().hash(state);
-            }
-            Many(p, r) => {
-                p.to_string_lossy().to_lowercase().hash(state);
-                r.as_str().to_lowercase().hash(state);
-            }
-            ManyActive(r) => {
-                r.as_str().to_lowercase().hash(state);
-            }
-            Checksum(p, c) => {
+            Self::Checksum(p, c) => {
                 p.to_string_lossy().to_lowercase().hash(state);
                 c.hash(state);
             }
-            Version(p, v, c) => {
+            Self::Version(p, v, c) | Self::ProductVersion(p, v, c) => {
                 p.to_string_lossy().to_lowercase().hash(state);
                 v.to_lowercase().hash(state);
                 c.hash(state);
             }
-            ProductVersion(p, v, c) => {
-                p.to_string_lossy().to_lowercase().hash(state);
-                v.to_lowercase().hash(state);
-                c.hash(state);
-            }
-            FilenameVersion(p, r, v, c) => {
+            Self::FilenameVersion(p, r, v, c) => {
                 p.to_string_lossy().to_lowercase().hash(state);
                 r.as_str().to_lowercase().hash(state);
                 v.to_lowercase().hash(state);
                 c.hash(state);
-            }
-            DescriptionContains(p, r) => {
-                p.to_string_lossy().to_lowercase().hash(state);
-                r.as_str().to_lowercase().hash(state);
             }
         }
 
@@ -207,6 +173,9 @@ impl Hash for Function {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const LOWERCASE_NON_ASCII: &str = "\u{20ac}\u{192}.";
+    const UPPERCASE_NON_ASCII: &str = "\u{20ac}\u{191}.";
 
     fn regex(string: &str) -> Regex {
         Regex::new(string).unwrap()
@@ -219,23 +188,23 @@ mod tests {
         fn function_fmt_for_file_path_should_format_correctly() {
             let function = Function::FilePath("subdir/Blank.esm".into());
 
-            assert_eq!("file(\"subdir/Blank.esm\")", &format!("{}", function));
+            assert_eq!("file(\"subdir/Blank.esm\")", &format!("{function}"));
         }
 
         #[test]
         fn function_fmt_for_file_regex_should_format_correctly() {
             let function = Function::FileRegex("subdir".into(), regex("Blank.*"));
 
-            assert_eq!("file(\"subdir/Blank.*\")", &format!("{}", function));
+            assert_eq!("file(\"subdir/Blank.*\")", &format!("{function}"));
         }
 
         #[test]
         fn function_fmt_for_file_size_should_format_correctly() {
-            let function = Function::FileSize("subdir/Blank.esm".into(), 12345678);
+            let function = Function::FileSize("subdir/Blank.esm".into(), 12_345_678);
 
             assert_eq!(
                 "file_size(\"subdir/Blank.esm\", 12345678)",
-                &format!("{}", function)
+                &format!("{function}")
             );
         }
 
@@ -243,7 +212,7 @@ mod tests {
         fn function_fmt_for_readable_should_format_correctly() {
             let function = Function::Readable("subdir/Blank.esm".into());
 
-            assert_eq!("readable(\"subdir/Blank.esm\")", &format!("{}", function));
+            assert_eq!("readable(\"subdir/Blank.esm\")", &format!("{function}"));
         }
 
         #[test]
@@ -252,7 +221,7 @@ mod tests {
 
             assert_eq!(
                 "is_executable(\"subdir/Blank.esm\")",
-                &format!("{}", function)
+                &format!("{function}")
             );
         }
 
@@ -260,44 +229,44 @@ mod tests {
         fn function_fmt_for_active_path_should_format_correctly() {
             let function = Function::ActivePath("Blank.esm".into());
 
-            assert_eq!("active(\"Blank.esm\")", &format!("{}", function));
+            assert_eq!("active(\"Blank.esm\")", &format!("{function}"));
         }
 
         #[test]
         fn function_fmt_for_active_regex_should_format_correctly() {
             let function = Function::ActiveRegex(regex("Blank.*"));
 
-            assert_eq!("active(\"Blank.*\")", &format!("{}", function));
+            assert_eq!("active(\"Blank.*\")", &format!("{function}"));
         }
 
         #[test]
         fn function_fmt_for_is_master_should_format_correctly() {
             let function = Function::IsMaster("Blank.esm".into());
 
-            assert_eq!("is_master(\"Blank.esm\")", &format!("{}", function));
+            assert_eq!("is_master(\"Blank.esm\")", &format!("{function}"));
         }
 
         #[test]
         fn function_fmt_for_many_should_format_correctly() {
             let function = Function::Many("subdir".into(), regex("Blank.*"));
 
-            assert_eq!("many(\"subdir/Blank.*\")", &format!("{}", function));
+            assert_eq!("many(\"subdir/Blank.*\")", &format!("{function}"));
         }
 
         #[test]
         fn function_fmt_for_many_active_should_format_correctly() {
             let function = Function::ManyActive(regex("Blank.*"));
 
-            assert_eq!("many_active(\"Blank.*\")", &format!("{}", function));
+            assert_eq!("many_active(\"Blank.*\")", &format!("{function}"));
         }
 
         #[test]
         fn function_fmt_for_checksum_should_format_correctly() {
-            let function = Function::Checksum("subdir/Blank.esm".into(), 0xDEADBEEF);
+            let function = Function::Checksum("subdir/Blank.esm".into(), 0xDEAD_BEEF);
 
             assert_eq!(
                 "checksum(\"subdir/Blank.esm\", DEADBEEF)",
-                &format!("{}", function)
+                &format!("{function}")
             );
         }
 
@@ -311,7 +280,7 @@ mod tests {
 
             assert_eq!(
                 "version(\"subdir/Blank.esm\", \"1.2a\", ==)",
-                &format!("{}", function)
+                &format!("{function}")
             );
         }
 
@@ -325,7 +294,7 @@ mod tests {
 
             assert_eq!(
                 "product_version(\"../TESV.exe\", \"1.2a\", ==)",
-                &format!("{}", function)
+                &format!("{function}")
             );
         }
 
@@ -340,17 +309,18 @@ mod tests {
 
             assert_eq!(
                 "filename_version(\"subdir/filename (\\d+(?:[_.-]?\\d+)*[a-z]?)\\.esp\", \"1.2a\", ==)",
-                &format!("{}", function)
+                &format!("{function}")
             );
         }
 
         #[test]
         fn function_fmt_for_description_contains_should_format_correctly() {
-            let function = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
+            let function =
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII));
 
             assert_eq!(
-                "description_contains(\"Blank.esp\", \"€ƒ.\")",
-                &format!("{}", function)
+                &format!("description_contains(\"Blank.esp\", \"{LOWERCASE_NON_ASCII}\")"),
+                &format!("{function}")
             );
         }
     }
@@ -840,25 +810,25 @@ mod tests {
         #[test]
         fn function_eq_for_description_contains_should_check_pathbuf_and_regex() {
             assert_eq!(
-                Function::DescriptionContains("Blank.esp".into(), regex("€ƒ.")),
-                Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."))
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII)),
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII))
             );
 
             assert_ne!(
-                Function::DescriptionContains("Blank.esp".into(), regex("€ƒ.")),
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII)),
                 Function::DescriptionContains("Blank.esp".into(), regex(".*"))
             );
             assert_ne!(
-                Function::DescriptionContains("Blank.esp".into(), regex("€ƒ.")),
-                Function::DescriptionContains("other".into(), regex("€ƒ."))
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII)),
+                Function::DescriptionContains("other".into(), regex(LOWERCASE_NON_ASCII))
             );
         }
 
         #[test]
         fn function_eq_for_description_contains_should_be_case_insensitive_on_pathbuf_and_regex() {
             assert_eq!(
-                Function::DescriptionContains("Blank.esp".into(), regex("€ƒ.")),
-                Function::DescriptionContains("blank.esp".into(), regex("€Ƒ."))
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII)),
+                Function::DescriptionContains("blank.esp".into(), regex(UPPERCASE_NON_ASCII))
             );
         }
 
@@ -866,8 +836,8 @@ mod tests {
         fn function_eq_description_contains_should_not_be_equal_to_file_regex_with_same_pathbuf_and_regex(
         ) {
             assert_ne!(
-                Function::DescriptionContains("Blank.esp".into(), regex("€ƒ.")),
-                Function::FileRegex("Blank.esp".into(), regex("€ƒ."))
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII)),
+                Function::FileRegex("Blank.esp".into(), regex(LOWERCASE_NON_ASCII))
             );
         }
     }
@@ -877,7 +847,7 @@ mod tests {
 
         use std::collections::hash_map::DefaultHasher;
 
-        fn hash(function: Function) -> u64 {
+        fn hash(function: &Function) -> u64 {
             let mut hasher = DefaultHasher::new();
             function.hash(&mut hasher);
             hasher.finish()
@@ -888,12 +858,12 @@ mod tests {
             let function1 = Function::FilePath("Blank.esm".into());
             let function2 = Function::FilePath("Blank.esm".into());
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 = Function::FilePath("Blank.esm".into());
             let function2 = Function::FilePath("Blank.esp".into());
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -901,7 +871,7 @@ mod tests {
             let function1 = Function::FilePath("Blank.esm".into());
             let function2 = Function::FilePath("blank.esm".into());
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -909,17 +879,17 @@ mod tests {
             let function1 = Function::FileRegex("subdir".into(), regex(".*"));
             let function2 = Function::FileRegex("subdir".into(), regex(".*"));
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 = Function::FileRegex("subdir".into(), regex(".*"));
             let function2 = Function::FileRegex("other".into(), regex(".*"));
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
 
             let function1 = Function::FileRegex("subdir".into(), regex(".*"));
             let function2 = Function::FileRegex("subdir".into(), regex("Blank.*"));
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -927,7 +897,7 @@ mod tests {
             let function1 = Function::FileRegex("Subdir".into(), regex("Blank.*"));
             let function2 = Function::FileRegex("subdir".into(), regex("blank.*"));
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -935,17 +905,17 @@ mod tests {
             let function1 = Function::FileSize("subdir".into(), 1);
             let function2 = Function::FileSize("subdir".into(), 1);
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 = Function::FileSize("subdir".into(), 1);
             let function2 = Function::FileSize("other".into(), 1);
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
 
             let function1 = Function::FileSize("subdir".into(), 1);
             let function2 = Function::FileSize("subdir".into(), 2);
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -953,7 +923,7 @@ mod tests {
             let function1 = Function::FileSize("Subdir".into(), 1);
             let function2 = Function::FileSize("subdir".into(), 1);
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -961,12 +931,12 @@ mod tests {
             let function1 = Function::Readable("Blank.esm".into());
             let function2 = Function::Readable("Blank.esm".into());
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 = Function::Readable("Blank.esm".into());
             let function2 = Function::Readable("Blank.esp".into());
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -974,7 +944,7 @@ mod tests {
             let function1 = Function::Readable("Blank.esm".into());
             let function2 = Function::Readable("blank.esm".into());
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -982,7 +952,7 @@ mod tests {
             let function1 = Function::FilePath("Blank.esm".into());
             let function2 = Function::Readable("Blank.esm".into());
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -990,12 +960,12 @@ mod tests {
             let function1 = Function::IsExecutable("Blank.esm".into());
             let function2 = Function::IsExecutable("Blank.esm".into());
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 = Function::IsExecutable("Blank.esm".into());
             let function2 = Function::IsExecutable("Blank.esp".into());
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1003,7 +973,7 @@ mod tests {
             let function1 = Function::IsExecutable("Blank.esm".into());
             let function2 = Function::IsExecutable("blank.esm".into());
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1012,9 +982,9 @@ mod tests {
             let function2 = Function::Readable("Blank.esm".into());
             let function3 = Function::IsExecutable("Blank.esm".into());
 
-            assert_ne!(hash(function1.clone()), hash(function2.clone()));
-            assert_ne!(hash(function3.clone()), hash(function1));
-            assert_ne!(hash(function3), hash(function2));
+            assert_ne!(hash(&function1.clone()), hash(&function2.clone()));
+            assert_ne!(hash(&function3.clone()), hash(&function1));
+            assert_ne!(hash(&function3), hash(&function2));
         }
 
         #[test]
@@ -1022,12 +992,12 @@ mod tests {
             let function1 = Function::ActivePath("Blank.esm".into());
             let function2 = Function::ActivePath("Blank.esm".into());
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 = Function::ActivePath("Blank.esm".into());
             let function2 = Function::ActivePath("Blank.esp".into());
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1035,7 +1005,7 @@ mod tests {
             let function1 = Function::ActivePath("Blank.esm".into());
             let function2 = Function::ActivePath("blank.esm".into());
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1043,7 +1013,7 @@ mod tests {
             let function1 = Function::FilePath("Blank.esm".into());
             let function2 = Function::ActivePath("Blank.esm".into());
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1051,7 +1021,7 @@ mod tests {
             let function1 = Function::Readable("Blank.esm".into());
             let function2 = Function::ActivePath("Blank.esm".into());
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1059,12 +1029,12 @@ mod tests {
             let function1 = Function::ActiveRegex(regex(".*"));
             let function2 = Function::ActiveRegex(regex(".*"));
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 = Function::ActiveRegex(regex(".*"));
             let function2 = Function::ActiveRegex(regex("Blank.*"));
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1072,7 +1042,7 @@ mod tests {
             let function1 = Function::ActiveRegex(regex("Blank.*"));
             let function2 = Function::ActiveRegex(regex("blank.*"));
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1080,12 +1050,12 @@ mod tests {
             let function1 = Function::IsMaster("Blank.esm".into());
             let function2 = Function::IsMaster("Blank.esm".into());
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 = Function::IsMaster("Blank.esm".into());
             let function2 = Function::IsMaster("Blank.esp".into());
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1093,7 +1063,7 @@ mod tests {
             let function1 = Function::IsMaster("Blank.esm".into());
             let function2 = Function::IsMaster("blank.esm".into());
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1101,7 +1071,7 @@ mod tests {
             let function1 = Function::FilePath("Blank.esm".into());
             let function2 = Function::IsMaster("Blank.esm".into());
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1109,7 +1079,7 @@ mod tests {
             let function1 = Function::Readable("Blank.esm".into());
             let function2 = Function::IsMaster("Blank.esm".into());
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1117,7 +1087,7 @@ mod tests {
             let function1 = Function::ActivePath("Blank.esm".into());
             let function2 = Function::IsMaster("Blank.esm".into());
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1125,17 +1095,17 @@ mod tests {
             let function1 = Function::Many("subdir".into(), regex(".*"));
             let function2 = Function::Many("subdir".into(), regex(".*"));
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 = Function::Many("subdir".into(), regex(".*"));
             let function2 = Function::Many("other".into(), regex(".*"));
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
 
             let function1 = Function::Many("subdir".into(), regex(".*"));
             let function2 = Function::Many("subdir".into(), regex("Blank.*"));
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1143,7 +1113,7 @@ mod tests {
             let function1 = Function::Many("Subdir".into(), regex("Blank.*"));
             let function2 = Function::Many("subdir".into(), regex("blank.*"));
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1151,7 +1121,7 @@ mod tests {
             let function1 = Function::FileRegex("subdir".into(), regex(".*"));
             let function2 = Function::Many("subdir".into(), regex(".*"));
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1159,12 +1129,12 @@ mod tests {
             let function1 = Function::ManyActive(regex(".*"));
             let function2 = Function::ManyActive(regex(".*"));
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 = Function::ManyActive(regex(".*"));
             let function2 = Function::ManyActive(regex("Blank.*"));
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1172,7 +1142,7 @@ mod tests {
             let function1 = Function::ManyActive(regex("Blank.*"));
             let function2 = Function::ManyActive(regex("blank.*"));
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1180,7 +1150,7 @@ mod tests {
             let function1 = Function::ActiveRegex(regex(".*"));
             let function2 = Function::ManyActive(regex(".*"));
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1188,17 +1158,17 @@ mod tests {
             let function1 = Function::Checksum("subdir".into(), 1);
             let function2 = Function::Checksum("subdir".into(), 1);
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 = Function::Checksum("subdir".into(), 1);
             let function2 = Function::Checksum("other".into(), 1);
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
 
             let function1 = Function::Checksum("subdir".into(), 1);
             let function2 = Function::Checksum("subdir".into(), 2);
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1206,7 +1176,7 @@ mod tests {
             let function1 = Function::Checksum("Blank.esm".into(), 1);
             let function2 = Function::Checksum("Blank.esm".into(), 1);
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1216,28 +1186,28 @@ mod tests {
             let function2 =
                 Function::Version("Blank.esm".into(), "1.2a".into(), ComparisonOperator::Equal);
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 =
                 Function::Version("Blank.esm".into(), "1".into(), ComparisonOperator::Equal);
             let function2 =
                 Function::Version("Blank.esp".into(), "1".into(), ComparisonOperator::Equal);
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
 
             let function1 =
                 Function::Version("Blank.esm".into(), "1".into(), ComparisonOperator::Equal);
             let function2 =
                 Function::Version("Blank.esm".into(), "2".into(), ComparisonOperator::Equal);
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
 
             let function1 =
                 Function::Version("Blank.esm".into(), "1".into(), ComparisonOperator::Equal);
             let function2 =
                 Function::Version("Blank.esm".into(), "1".into(), ComparisonOperator::NotEqual);
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1247,7 +1217,7 @@ mod tests {
             let function2 =
                 Function::Version("Blank.esm".into(), "1.2A".into(), ComparisonOperator::Equal);
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1263,21 +1233,21 @@ mod tests {
                 ComparisonOperator::Equal,
             );
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 =
                 Function::ProductVersion("Blank.esm".into(), "1".into(), ComparisonOperator::Equal);
             let function2 =
                 Function::ProductVersion("Blank.esp".into(), "1".into(), ComparisonOperator::Equal);
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
 
             let function1 =
                 Function::ProductVersion("Blank.esm".into(), "1".into(), ComparisonOperator::Equal);
             let function2 =
                 Function::ProductVersion("Blank.esm".into(), "2".into(), ComparisonOperator::Equal);
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
 
             let function1 =
                 Function::ProductVersion("Blank.esm".into(), "1".into(), ComparisonOperator::Equal);
@@ -1287,7 +1257,7 @@ mod tests {
                 ComparisonOperator::NotEqual,
             );
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1303,7 +1273,7 @@ mod tests {
                 ComparisonOperator::Equal,
             );
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1321,7 +1291,7 @@ mod tests {
                 ComparisonOperator::Equal,
             );
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
             let function1 = Function::FilenameVersion(
                 "subdir1".into(),
@@ -1336,7 +1306,7 @@ mod tests {
                 ComparisonOperator::Equal,
             );
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
 
             let function1 = Function::FilenameVersion(
                 "subdir".into(),
@@ -1351,7 +1321,7 @@ mod tests {
                 ComparisonOperator::Equal,
             );
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
 
             let function1 = Function::FilenameVersion(
                 "subdir".into(),
@@ -1366,7 +1336,7 @@ mod tests {
                 ComparisonOperator::Equal,
             );
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
 
             let function1 = Function::FilenameVersion(
                 "subdir".into(),
@@ -1381,7 +1351,7 @@ mod tests {
                 ComparisonOperator::NotEqual,
             );
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
@@ -1399,41 +1369,49 @@ mod tests {
                 ComparisonOperator::Equal,
             );
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
         fn function_hash_description_contains_should_hash_pathbuf_and_regex() {
-            let function1 = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
-            let function2 = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
+            let function1 =
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII));
+            let function2 =
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII));
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
 
-            let function1 = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
-            let function2 = Function::DescriptionContains("other".into(), regex("€ƒ."));
+            let function1 =
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII));
+            let function2 =
+                Function::DescriptionContains("other".into(), regex(LOWERCASE_NON_ASCII));
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
 
-            let function1 = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
+            let function1 =
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII));
             let function2 = Function::DescriptionContains("Blank.esp".into(), regex(".*"));
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
 
         #[test]
         fn function_hash_description_contains_should_be_case_insensitive() {
-            let function1 = Function::DescriptionContains("blank.esp".into(), regex("€Ƒ."));
-            let function2 = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
+            let function1 =
+                Function::DescriptionContains("blank.esp".into(), regex(UPPERCASE_NON_ASCII));
+            let function2 =
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII));
 
-            assert_eq!(hash(function1), hash(function2));
+            assert_eq!(hash(&function1), hash(&function2));
         }
 
         #[test]
         fn function_hash_file_regex_and_description_contains_should_not_have_equal_hashes() {
-            let function1 = Function::FileRegex("Blank.esp".into(), regex("€ƒ."));
-            let function2 = Function::DescriptionContains("Blank.esp".into(), regex("€ƒ."));
+            let function1 = Function::FileRegex("Blank.esp".into(), regex(LOWERCASE_NON_ASCII));
+            let function2 =
+                Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII));
 
-            assert_ne!(hash(function1), hash(function2));
+            assert_ne!(hash(&function1), hash(&function2));
         }
     }
 }

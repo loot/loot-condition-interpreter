@@ -6,16 +6,20 @@ use std::sync::RwLock;
 use libc::size_t;
 use loot_condition_interpreter::State;
 
-use crate::constants::*;
+use crate::constants::{
+    LCI_ERROR_INVALID_ARGS, LCI_ERROR_PANICKED, LCI_ERROR_POISONED_THREAD_LOCK, LCI_OK,
+};
 use crate::helpers::{
     error, map_game_type, map_plugin_crcs, map_plugin_versions, to_path_buf_vec, to_str, to_str_vec,
 };
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
+#[derive(Debug)]
 pub struct lci_state(pub RwLock<State>);
 
 #[allow(non_camel_case_types)]
 #[repr(C)]
+#[derive(Debug)]
 pub struct plugin_version {
     pub plugin_name: *const c_char,
     pub version: *const c_char,
@@ -23,6 +27,7 @@ pub struct plugin_version {
 
 #[allow(non_camel_case_types)]
 #[repr(C)]
+#[derive(Debug)]
 pub struct plugin_crc {
     pub plugin_name: *const c_char,
     pub crc: u32,
@@ -170,7 +175,7 @@ pub unsafe extern "C" fn lci_state_set_crc_cache(
                 Err(e) => error(LCI_ERROR_POISONED_THREAD_LOCK, &e.to_string()),
                 Ok(mut s) => match s.set_cached_crcs(&plugin_crcs) {
                     Err(e) => error(LCI_ERROR_POISONED_THREAD_LOCK, &e.to_string()),
-                    Ok(_) => LCI_OK,
+                    Ok(()) => LCI_OK,
                 },
             }
         }
@@ -188,7 +193,7 @@ pub unsafe extern "C" fn lci_state_clear_condition_cache(state: *mut lci_state) 
                 Err(e) => error(LCI_ERROR_POISONED_THREAD_LOCK, &e.to_string()),
                 Ok(mut s) => match s.clear_condition_cache() {
                     Err(e) => error(LCI_ERROR_POISONED_THREAD_LOCK, &e.to_string()),
-                    Ok(_) => LCI_OK,
+                    Ok(()) => LCI_OK,
                 },
             }
         }

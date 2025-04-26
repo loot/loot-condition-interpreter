@@ -13,15 +13,14 @@ use super::version::Version;
 use super::{ComparisonOperator, Function};
 use crate::{Error, GameType, State};
 
-fn evaluate_file_path(state: &State, file_path: &Path) -> Result<bool, Error> {
-    Ok(resolve_path(state, file_path).exists())
+fn evaluate_file_path(state: &State, file_path: &Path) -> bool {
+    resolve_path(state, file_path).exists()
 }
 
 fn is_match(game_type: GameType, regex: &Regex, file_name: &OsStr) -> bool {
     normalise_file_name(game_type, file_name)
         .to_str()
-        .map(|s| regex.is_match(s))
-        .unwrap_or(false)
+        .is_some_and(|s| regex.is_match(s))
 }
 
 fn evaluate_dir_entries_from_base_paths<'a>(
@@ -31,13 +30,12 @@ fn evaluate_dir_entries_from_base_paths<'a>(
 ) -> Result<bool, Error> {
     for base_path in base_path_iter {
         let parent_path = base_path.join(parent_path);
-        let dir_iterator = match read_dir(&parent_path) {
-            Ok(i) => i,
-            Err(_) => return Ok(false),
+        let Ok(dir_iterator) = read_dir(&parent_path) else {
+            return Ok(false);
         };
 
         for entry in dir_iterator {
-            let entry = entry.map_err(|e| Error::IoError(parent_path.to_path_buf(), e))?;
+            let entry = entry.map_err(|e| Error::IoError(parent_path.clone(), e))?;
             if evaluator(entry) {
                 return Ok(true);
             }
@@ -85,16 +83,16 @@ fn evaluate_file_size(state: &State, path: &Path, size: u64) -> Result<bool, Err
         .or(Ok(false))
 }
 
-fn evaluate_readable(state: &State, path: &Path) -> Result<bool, Error> {
+fn evaluate_readable(state: &State, path: &Path) -> bool {
     if path.is_dir() {
-        Ok(read_dir(resolve_path(state, path)).is_ok())
+        read_dir(resolve_path(state, path)).is_ok()
     } else {
-        Ok(File::open(resolve_path(state, path)).is_ok())
+        File::open(resolve_path(state, path)).is_ok()
     }
 }
 
-fn evaluate_is_executable(state: &State, path: &Path) -> Result<bool, Error> {
-    Ok(Version::is_readable(&resolve_path(state, path)))
+fn evaluate_is_executable(state: &State, path: &Path) -> bool {
+    Version::is_readable(&resolve_path(state, path))
 }
 
 fn evaluate_many(state: &State, parent_path: &Path, regex: &Regex) -> Result<bool, Error> {
@@ -117,15 +115,13 @@ fn evaluate_many(state: &State, parent_path: &Path, regex: &Regex) -> Result<boo
     evaluate_dir_entries(state, parent_path, evaluator)
 }
 
-fn evaluate_active_path(state: &State, path: &Path) -> Result<bool, Error> {
-    Ok(path
-        .to_str()
-        .map(|s| state.active_plugins.contains(&s.to_lowercase()))
-        .unwrap_or(false))
+fn evaluate_active_path(state: &State, path: &Path) -> bool {
+    path.to_str()
+        .is_some_and(|s| state.active_plugins.contains(&s.to_lowercase()))
 }
 
-fn evaluate_active_regex(state: &State, regex: &Regex) -> Result<bool, Error> {
-    Ok(state.active_plugins.iter().any(|p| regex.is_match(p)))
+fn evaluate_active_regex(state: &State, regex: &Regex) -> bool {
+    state.active_plugins.iter().any(|p| regex.is_match(p))
 }
 
 fn parse_plugin(state: &State, file_path: &Path) -> Option<esplugin::Plugin> {
@@ -147,32 +143,29 @@ fn parse_plugin(state: &State, file_path: &Path) -> Option<esplugin::Plugin> {
 
     let mut plugin = esplugin::Plugin::new(game_id, &path);
 
-    if plugin.parse_file(ParseOptions::header_only()).is_ok() {
-        Some(plugin)
-    } else {
-        None
-    }
+    plugin
+        .parse_file(ParseOptions::header_only())
+        .is_ok()
+        .then_some(plugin)
 }
 
-fn evaluate_is_master(state: &State, file_path: &Path) -> Result<bool, Error> {
-    Ok(parse_plugin(state, file_path)
-        .map(|plugin| plugin.is_master_file())
-        .unwrap_or(false))
+fn evaluate_is_master(state: &State, file_path: &Path) -> bool {
+    parse_plugin(state, file_path).is_some_and(|plugin| plugin.is_master_file())
 }
 
-fn evaluate_many_active(state: &State, regex: &Regex) -> Result<bool, Error> {
+#[expect(clippy::iter_over_hash_type)]
+fn evaluate_many_active(state: &State, regex: &Regex) -> bool {
     let mut found_one = false;
     for active_plugin in &state.active_plugins {
         if regex.is_match(active_plugin) {
             if found_one {
-                return Ok(true);
-            } else {
-                found_one = true;
+                return true;
             }
+            found_one = true;
         }
     }
 
-    Ok(false)
+    false
 }
 
 fn lowercase(path: &Path) -> Option<String> {
@@ -255,11 +248,11 @@ fn get_product_version(file_path: &Path) -> Result<Option<Version>, Error> {
 }
 
 fn compare_versions(
-    actual_version: Version,
+    actual_version: &Version,
     comparator: ComparisonOperator,
     given_version: &str,
 ) -> bool {
-    let given_version = Version::from(given_version);
+    let given_version = &Version::from(given_version);
 
     match comparator {
         ComparisonOperator::Equal => actual_version == given_version,
@@ -282,16 +275,13 @@ where
     F: Fn(&State, &Path) -> Result<Option<Version>, Error>,
 {
     let file_path = resolve_path(state, file_path);
-    let actual_version = match read_version(state, &file_path)? {
-        Some(v) => v,
-        None => {
-            return Ok(comparator == ComparisonOperator::NotEqual
-                || comparator == ComparisonOperator::LessThan
-                || comparator == ComparisonOperator::LessThanOrEqual);
-        }
+    let Some(actual_version) = read_version(state, &file_path)? else {
+        return Ok(comparator == ComparisonOperator::NotEqual
+            || comparator == ComparisonOperator::LessThan
+            || comparator == ComparisonOperator::LessThanOrEqual);
     };
 
-    Ok(compare_versions(actual_version, comparator, given_version))
+    Ok(compare_versions(&actual_version, comparator, given_version))
 }
 
 fn evaluate_filename_version(
@@ -307,22 +297,16 @@ fn evaluate_filename_version(
             .and_then(|s| regex.captures(s))
             .and_then(|c| c.get(1))
             .map(|m| Version::from(m.as_str()))
-            .map(|v| compare_versions(v, comparator, version))
-            .unwrap_or(false)
+            .is_some_and(|v| compare_versions(&v, comparator, version))
     };
 
     evaluate_dir_entries(state, parent_path, evaluator)
 }
 
-fn evaluate_description_contains(
-    state: &State,
-    file_path: &Path,
-    regex: &Regex,
-) -> Result<bool, Error> {
-    Ok(parse_plugin(state, file_path)
+fn evaluate_description_contains(state: &State, file_path: &Path, regex: &Regex) -> bool {
+    parse_plugin(state, file_path)
         .and_then(|plugin| plugin.description().unwrap_or(None))
-        .map(|description| regex.is_match(&description))
-        .unwrap_or(false))
+        .is_some_and(|description| regex.is_match(&description))
 }
 
 impl Function {
@@ -336,23 +320,23 @@ impl Function {
         }
 
         let result = match self {
-            Function::FilePath(f) => evaluate_file_path(state, f),
+            Function::FilePath(f) => Ok(evaluate_file_path(state, f)),
             Function::FileRegex(p, r) => evaluate_file_regex(state, p, r),
             Function::FileSize(p, s) => evaluate_file_size(state, p, *s),
-            Function::Readable(p) => evaluate_readable(state, p),
-            Function::IsExecutable(p) => evaluate_is_executable(state, p),
-            Function::ActivePath(p) => evaluate_active_path(state, p),
-            Function::ActiveRegex(r) => evaluate_active_regex(state, r),
-            Function::IsMaster(p) => evaluate_is_master(state, p),
+            Function::Readable(p) => Ok(evaluate_readable(state, p)),
+            Function::IsExecutable(p) => Ok(evaluate_is_executable(state, p)),
+            Function::ActivePath(p) => Ok(evaluate_active_path(state, p)),
+            Function::ActiveRegex(r) => Ok(evaluate_active_regex(state, r)),
+            Function::IsMaster(p) => Ok(evaluate_is_master(state, p)),
             Function::Many(p, r) => evaluate_many(state, p, r),
-            Function::ManyActive(r) => evaluate_many_active(state, r),
+            Function::ManyActive(r) => Ok(evaluate_many_active(state, r)),
             Function::Checksum(path, crc) => evaluate_checksum(state, path, *crc),
             Function::Version(p, v, c) => evaluate_version(state, p, v, *c, get_version),
             Function::ProductVersion(p, v, c) => {
                 evaluate_version(state, p, v, *c, |_, p| get_product_version(p))
             }
             Function::FilenameVersion(p, r, v, c) => evaluate_filename_version(state, p, r, v, *c),
-            Function::DescriptionContains(p, r) => evaluate_description_contains(state, p, r),
+            Function::DescriptionContains(p, r) => Ok(evaluate_description_contains(state, p, r)),
         };
 
         if self.is_slow() {
@@ -374,10 +358,9 @@ impl Function {
     /// the cache, as the data they operate on are already cached separately and
     /// the operation is simple.
     fn is_slow(&self) -> bool {
-        use Function::*;
         !matches!(
             self,
-            ActivePath(_) | ActiveRegex(_) | ManyActive(_) | Checksum(_, _)
+            Self::ActivePath(_) | Self::ActiveRegex(_) | Self::ManyActive(_) | Self::Checksum(_, _)
         )
     }
 }
@@ -386,14 +369,13 @@ impl Function {
 mod tests {
     use super::*;
 
-    use std::fs::{copy, create_dir, remove_file};
-    use std::path::PathBuf;
+    const LOWERCASE_NON_ASCII: &str = "\u{20ac}\u{192}.";
+
+    use std::fs::{copy, create_dir_all, remove_file};
     use std::sync::RwLock;
 
     use regex::RegexBuilder;
     use tempfile::tempdir;
-
-    use crate::GameType;
 
     fn state<T: Into<PathBuf>>(data_path: T) -> State {
         state_with_active_plugins(data_path, &[])
@@ -418,7 +400,7 @@ mod tests {
     ) -> State {
         let data_path = data_path.into();
         if !data_path.exists() {
-            create_dir(&data_path).unwrap();
+            create_dir_all(&data_path).unwrap();
         }
 
         let additional_data_paths = additional_data_paths
@@ -426,7 +408,7 @@ mod tests {
             .map(|data_path| {
                 let data_path: PathBuf = data_path.into();
                 if !data_path.exists() {
-                    create_dir(&data_path).unwrap();
+                    create_dir_all(&data_path).unwrap();
                 }
                 data_path
             })
@@ -440,7 +422,7 @@ mod tests {
             crc_cache: RwLock::default(),
             plugin_versions: plugin_versions
                 .iter()
-                .map(|(p, v)| (p.to_lowercase(), v.to_string()))
+                .map(|(p, v)| (p.to_lowercase(), (*v).to_owned()))
                 .collect(),
             condition_cache: RwLock::default(),
         }
@@ -1096,7 +1078,7 @@ mod tests {
 
     #[test]
     fn function_checksum_eval_should_be_false_if_the_file_does_not_exist() {
-        let function = Function::Checksum(PathBuf::from("missing"), 0x374E2A6F);
+        let function = Function::Checksum(PathBuf::from("missing"), 0x374E_2A6F);
         let state = state(".");
 
         assert!(!function.eval(&state).unwrap());
@@ -1107,7 +1089,7 @@ mod tests {
     ) {
         let function = Function::Checksum(
             PathBuf::from("tests/testing-plugins/Oblivion/Data/Blank.esm"),
-            0xDEADBEEF,
+            0xDEAD_BEEF,
         );
         let state = state(".");
 
@@ -1118,7 +1100,7 @@ mod tests {
     fn function_checksum_eval_should_be_true_if_the_file_checksum_equals_the_given_checksum() {
         let function = Function::Checksum(
             PathBuf::from("tests/testing-plugins/Oblivion/Data/Blank.esm"),
-            0x374E2A6F,
+            0x374E_2A6F,
         );
         let state = state(".");
 
@@ -1137,7 +1119,7 @@ mod tests {
         )
         .unwrap();
 
-        let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E2A6F);
+        let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E_2A6F);
 
         assert!(function.eval(&state).unwrap());
     }
@@ -1154,7 +1136,7 @@ mod tests {
         )
         .unwrap();
 
-        let function = Function::Checksum(PathBuf::from("Blank.bsa"), 0x22AB79D9);
+        let function = Function::Checksum(PathBuf::from("Blank.bsa"), 0x22AB_79D9);
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -1162,7 +1144,7 @@ mod tests {
     #[test]
     fn function_checksum_eval_should_be_false_if_given_a_directory_path() {
         // The given CRC is the CRC-32 of the directory as calculated by 7-zip.
-        let function = Function::Checksum(PathBuf::from("tests/testing-plugins"), 0xC9CD16C3);
+        let function = Function::Checksum(PathBuf::from("tests/testing-plugins"), 0xC9CD_16C3);
         let state = state(".");
 
         assert!(!function.eval(&state).unwrap());
@@ -1180,7 +1162,7 @@ mod tests {
         )
         .unwrap();
 
-        let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E2A6F);
+        let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E_2A6F);
 
         assert!(function.eval(&state).unwrap());
 
@@ -1191,7 +1173,7 @@ mod tests {
         )
         .unwrap();
 
-        let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E2A6F);
+        let function = Function::Checksum(PathBuf::from("Blank.esm"), 0x374E_2A6F);
 
         assert!(function.eval(&state).unwrap());
     }
@@ -1716,7 +1698,8 @@ mod tests {
     fn function_description_contains_eval_should_return_false_if_the_file_does_not_exist() {
         let state = state_with_versions("tests/testing-plugins/Oblivion/Data", &[]);
 
-        let function = Function::DescriptionContains("missing.esp".into(), regex("€ƒ."));
+        let function =
+            Function::DescriptionContains("missing.esp".into(), regex(LOWERCASE_NON_ASCII));
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -1725,7 +1708,8 @@ mod tests {
     fn function_description_contains_eval_should_return_false_if_the_file_is_not_a_plugin() {
         let state = state_with_versions("tests/testing-plugins/Oblivion/Data", &[]);
 
-        let function = Function::DescriptionContains("Blank.bsa".into(), regex("€ƒ."));
+        let function =
+            Function::DescriptionContains("Blank.bsa".into(), regex(LOWERCASE_NON_ASCII));
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -1734,7 +1718,10 @@ mod tests {
     fn function_description_contains_eval_should_return_false_if_the_plugin_has_no_description() {
         let state = state_with_versions("tests/testing-plugins/Oblivion/Data", &[]);
 
-        let function = Function::DescriptionContains("Blank - Different.esm".into(), regex("€ƒ."));
+        let function = Function::DescriptionContains(
+            "Blank - Different.esm".into(),
+            regex(LOWERCASE_NON_ASCII),
+        );
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -1744,7 +1731,8 @@ mod tests {
     ) {
         let state = state_with_versions("tests/testing-plugins/Oblivion/Data", &[]);
 
-        let function = Function::DescriptionContains("Blank.esm".into(), regex("€ƒ."));
+        let function =
+            Function::DescriptionContains("Blank.esm".into(), regex(LOWERCASE_NON_ASCII));
 
         assert!(!function.eval(&state).unwrap());
     }
@@ -1754,7 +1742,8 @@ mod tests {
     ) {
         let state = state_with_versions("tests/testing-plugins/Oblivion/Data", &[]);
 
-        let function = Function::DescriptionContains("Blank.esp".into(), regex("ƒ"));
+        let function =
+            Function::DescriptionContains("Blank.esp".into(), regex(LOWERCASE_NON_ASCII));
 
         assert!(function.eval(&state).unwrap());
     }
