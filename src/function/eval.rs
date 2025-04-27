@@ -439,9 +439,9 @@ mod tests {
     fn make_path_unreadable(path: &Path) {
         use std::os::unix::fs::PermissionsExt;
 
-        let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+        let mut permissions = std::fs::metadata(path).unwrap().permissions();
         permissions.set_mode(0o200);
-        std::fs::set_permissions(&path, permissions).unwrap();
+        std::fs::set_permissions(path, permissions).unwrap();
     }
 
     #[test]
@@ -808,7 +808,7 @@ mod tests {
         let relative_path = "unreadable";
         let folder_path = state.data_path.join(relative_path);
 
-        std::fs::create_dir(&folder_path).unwrap();
+        create_dir_all(&folder_path).unwrap();
         make_path_unreadable(&folder_path);
 
         assert!(folder_path.exists());
