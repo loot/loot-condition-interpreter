@@ -1,4 +1,4 @@
-use std::path::{Component, Path, PathBuf};
+use std::path::PathBuf;
 use std::str;
 
 use nom::branch::alt;
@@ -12,7 +12,7 @@ use regex::{Regex, RegexBuilder};
 
 use super::{ComparisonOperator, Function};
 use crate::error::ParsingErrorKind;
-use crate::{map_err, whitespace, ParsingError, ParsingResult};
+use crate::{map_err, whitespace, ParsingResult};
 
 impl ComparisonOperator {
     pub fn parse(input: &str) -> IResult<&str, ComparisonOperator> {
@@ -32,20 +32,6 @@ const INVALID_PATH_CHARS: &str = "\":*?<>|";
 const INVALID_NON_REGEX_PATH_CHARS: &str = "\":*?<>|\\"; // \ is treated as invalid to distinguish regex strings.
 const INVALID_REGEX_PATH_CHARS: &str = "\"<>";
 
-fn is_in_game_path(path: &Path) -> bool {
-    let mut previous_component = Component::CurDir;
-    for component in path.components() {
-        match (component, previous_component) {
-            (Component::Prefix(_) | Component::RootDir, _)
-            | (Component::ParentDir, Component::ParentDir) => return false,
-            (Component::CurDir, _) => {}
-            _ => previous_component = component,
-        }
-    }
-
-    true
-}
-
 fn build_regex(input: &str) -> Result<(&'static str, Regex), regex::Error> {
     RegexBuilder::new(input)
         .case_insensitive(true)
@@ -60,10 +46,6 @@ fn parse_regex(input: &str) -> ParsingResult<Regex> {
 fn parse_anchored_regex(input: &str) -> ParsingResult<Regex> {
     build_regex(&format!("^{input}$"))
         .map_err(|e| Err::Failure(ParsingErrorKind::from(e).at(input)))
-}
-
-fn not_in_game_directory(input: &str, path: PathBuf) -> Err<ParsingError<&str>> {
-    Err::Failure(ParsingErrorKind::PathIsNotInGameDirectory(path).at(input))
 }
 
 fn parse_path(input: &str) -> IResult<&str, PathBuf> {
@@ -89,11 +71,7 @@ fn parse_file_size_args(input: &str) -> ParsingResult<(PathBuf, u64)> {
 
     let (remaining_input, (path, _, size)) = parser.parse(input)?;
 
-    if is_in_game_path(&path) {
-        Ok((remaining_input, (path, size)))
-    } else {
-        Err(not_in_game_directory(input, path))
-    }
+    Ok((remaining_input, (path, size)))
 }
 
 fn parse_version(input: &str) -> IResult<&str, String> {
@@ -115,11 +93,7 @@ fn parse_version_args(input: &str) -> ParsingResult<(PathBuf, String, Comparison
 
     let (remaining_input, (path, _, version, _, comparator)) = map_err(parser).parse(input)?;
 
-    if is_in_game_path(&path) {
-        Ok((remaining_input, (path, version, comparator)))
-    } else {
-        Err(not_in_game_directory(input, path))
-    }
+    Ok((remaining_input, (path, version, comparator)))
 }
 
 fn parse_filename_version_args(
@@ -175,11 +149,7 @@ fn parse_checksum_args(input: &str) -> ParsingResult<(PathBuf, u32)> {
 
     let (remaining_input, (path, _, crc)) = parser.parse(input)?;
 
-    if is_in_game_path(&path) {
-        Ok((remaining_input, (path, crc)))
-    } else {
-        Err(not_in_game_directory(input, path))
-    }
+    Ok((remaining_input, (path, crc)))
 }
 
 fn parse_non_regex_path(input: &str) -> ParsingResult<PathBuf> {
@@ -188,11 +158,7 @@ fn parse_non_regex_path(input: &str) -> ParsingResult<PathBuf> {
     })
     .parse(input)?;
 
-    if is_in_game_path(&path) {
-        Ok((remaining_input, path))
-    } else {
-        Err(not_in_game_directory(input, path))
-    }
+    Ok((remaining_input, path))
 }
 
 /// Parse a string that is a path where the last component is a regex string
@@ -209,10 +175,6 @@ fn parse_regex_path(input: &str) -> ParsingResult<(PathBuf, Regex)> {
     let (parent_path_slice, regex_slice) = string.rsplit_once('/').unwrap_or((".", string));
 
     let parent_path = PathBuf::from(parent_path_slice);
-
-    if !is_in_game_path(&parent_path) {
-        return Err(not_in_game_directory(input, parent_path));
-    }
 
     let regex = parse_anchored_regex(regex_slice)?.1;
 
@@ -356,6 +318,8 @@ impl Function {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
 
     #[test]
@@ -398,11 +362,6 @@ mod tests {
     }
 
     #[test]
-    fn function_parse_should_error_if_the_file_path_is_outside_the_game_directory() {
-        assert!(Function::parse("file(\"../../Cargo.toml\")").is_err());
-    }
-
-    #[test]
     fn function_parse_should_parse_a_file_regex_function_with_no_parent_path() {
         let output = Function::parse("file(\"Cargo.*\")").unwrap();
 
@@ -436,11 +395,6 @@ mod tests {
     }
 
     #[test]
-    fn function_parse_should_error_if_the_file_regex_parent_path_is_outside_the_game_directory() {
-        assert!(Function::parse("file(\"../../Cargo.*\")").is_err());
-    }
-
-    #[test]
     fn function_parse_should_parse_a_file_size_function() {
         let output = Function::parse("file_size(\"Cargo.toml\", 1234)").unwrap();
 
@@ -455,11 +409,6 @@ mod tests {
     }
 
     #[test]
-    fn function_parse_should_error_if_the_file_size_is_outside_the_game_directory() {
-        assert!(Function::parse("file_size(\"../../Cargo.toml\", 1234)").is_err());
-    }
-
-    #[test]
     fn function_parse_should_parse_a_readable_function() {
         let output = Function::parse("readable(\"Cargo.toml\")").unwrap();
 
@@ -468,11 +417,6 @@ mod tests {
             Function::Readable(f) => assert_eq!(Path::new("Cargo.toml"), f),
             _ => panic!("Expected a readable function"),
         }
-    }
-
-    #[test]
-    fn function_parse_should_error_if_the_readable_path_is_outside_the_game_directory() {
-        assert!(Function::parse("readable(\"../../Cargo.toml\")").is_err());
     }
 
     #[test]
@@ -487,11 +431,6 @@ mod tests {
     }
 
     #[test]
-    fn function_parse_should_error_if_the_is_executable_path_is_outside_the_game_directory() {
-        assert!(Function::parse("is_executable(\"../../Cargo.toml\")").is_err());
-    }
-
-    #[test]
     fn function_parse_should_parse_an_active_path_function() {
         let output = Function::parse("active(\"Cargo.toml\")").unwrap();
 
@@ -500,13 +439,6 @@ mod tests {
             Function::ActivePath(f) => assert_eq!(Path::new("Cargo.toml"), f),
             _ => panic!("Expected an active path function"),
         }
-    }
-
-    #[test]
-    fn function_parse_should_error_if_the_active_path_is_outside_the_game_directory() {
-        // Trying to check if a path that isn't a plugin in the data folder is
-        // active is pointless, but it's not worth having a more specific check.
-        assert!(Function::parse("active(\"../../Cargo.toml\")").is_err());
     }
 
     #[test]
@@ -531,13 +463,6 @@ mod tests {
             Function::IsMaster(f) => assert_eq!(Path::new("Blank.esm"), f),
             _ => panic!("Expected an is master function"),
         }
-    }
-
-    #[test]
-    fn function_parse_should_error_if_the_is_master_path_is_outside_the_game_directory() {
-        // Trying to check if a path that isn't a plugin in the data folder is
-        // active is pointless, but it's not worth having a more specific check.
-        assert!(Function::parse("is_master(\"../../Blank.esm\")").is_err());
     }
 
     #[test]
@@ -574,11 +499,6 @@ mod tests {
     }
 
     #[test]
-    fn function_parse_should_error_if_the_many_parent_path_is_outside_the_game_directory() {
-        assert!(Function::parse("file(\"../../Cargo.*\")").is_err());
-    }
-
-    #[test]
     fn function_parse_should_parse_a_many_active_function() {
         let output = Function::parse("many_active(\"Cargo.*\")").unwrap();
 
@@ -603,11 +523,6 @@ mod tests {
             }
             _ => panic!("Expected a checksum function"),
         }
-    }
-
-    #[test]
-    fn function_parse_should_error_if_the_checksum_path_is_outside_the_game_directory() {
-        assert!(Function::parse("checksum(\"../../Cargo.toml\", DEADBEEF)").is_err());
     }
 
     #[test]
@@ -716,11 +631,6 @@ mod tests {
     }
 
     #[test]
-    fn function_parse_should_error_if_the_version_path_is_outside_the_game_directory() {
-        assert!(Function::parse("version(\"../../Cargo.toml\", \"1.2\", ==)").is_err());
-    }
-
-    #[test]
     fn function_parse_should_parse_a_product_version_equals_function() {
         let output = Function::parse("product_version(\"Cargo.toml\", \"1.2\", ==)").unwrap();
 
@@ -733,11 +643,6 @@ mod tests {
             }
             _ => panic!("Expected a product version function"),
         }
-    }
-
-    #[test]
-    fn function_parse_should_error_if_the_product_version_path_is_outside_the_game_directory() {
-        assert!(Function::parse("product_version(\"../../Cargo.toml\", \"1.2\", ==)").is_err());
     }
 
     #[test]

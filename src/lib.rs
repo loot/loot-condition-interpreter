@@ -489,16 +489,6 @@ mod tests {
     }
 
     #[test]
-    fn expression_from_str_should_error_with_input_on_path_outside_game_directory() {
-        let error = Expression::from_str("file(\"../../Cargo.toml\")").unwrap_err();
-
-        assert_eq!(
-            "An error was encountered while parsing the expression \"../../Cargo.toml\\\")\": \"../../Cargo.toml\" is not in the game directory",
-            error.to_string()
-        );
-    }
-
-    #[test]
     fn expression_parse_should_handle_a_single_compound_condition() {
         let result = Expression::from_str("file(\"Cargo.toml\")").unwrap();
 
