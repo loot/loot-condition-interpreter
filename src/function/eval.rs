@@ -128,8 +128,7 @@ fn parse_plugin(state: &State, file_path: &Path) -> Option<esplugin::Plugin> {
     use esplugin::GameId;
 
     let game_id = match state.game_type {
-        GameType::OpenMW => return None,
-        GameType::Morrowind => GameId::Morrowind,
+        GameType::Morrowind | GameType::OpenMW => GameId::Morrowind,
         GameType::Oblivion => GameId::Oblivion,
         GameType::Skyrim => GameId::Skyrim,
         GameType::SkyrimSE | GameType::SkyrimVR => GameId::SkyrimSE,
@@ -150,7 +149,11 @@ fn parse_plugin(state: &State, file_path: &Path) -> Option<esplugin::Plugin> {
 }
 
 fn evaluate_is_master(state: &State, file_path: &Path) -> bool {
-    parse_plugin(state, file_path).is_some_and(|plugin| plugin.is_master_file())
+    if state.game_type == GameType::OpenMW {
+        false
+    } else {
+        parse_plugin(state, file_path).is_some_and(|plugin| plugin.is_master_file())
+    }
 }
 
 #[expect(clippy::iter_over_hash_type)]
@@ -524,6 +527,16 @@ mod tests {
             ],
             paths
         );
+    }
+
+    #[test]
+    fn parse_plugin_should_parse_openmw_plugins() {
+        let mut state = state(Path::new("./tests/testing-plugins/Morrowind/Data Files"));
+        state.game_type = GameType::OpenMW;
+
+        let plugin = parse_plugin(&state, Path::new("Blank.esp"));
+
+        assert!(plugin.is_some());
     }
 
     #[test]
