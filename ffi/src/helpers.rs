@@ -16,8 +16,9 @@ use crate::state::{plugin_crc, plugin_version};
 
 pub(crate) fn error(code: c_int, message: &str) -> c_int {
     ERROR_MESSAGE.with(|f| {
-        *f.borrow_mut() =
-            CString::new(message.as_bytes()).unwrap_or(c"Failed to retrieve error message".into());
+        *f.borrow_mut() = CString::new(message.as_bytes())
+            .or_else(|_e| CString::new(message.replace('\0', "\\0").as_bytes()))
+            .unwrap_or_else(|_e| c"Failed to retrieve error message".into());
     });
     code
 }
