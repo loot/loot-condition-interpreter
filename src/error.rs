@@ -3,7 +3,9 @@ use std::fmt;
 use std::io;
 use std::num::NonZeroUsize;
 use std::num::ParseIntError;
+use std::path::Path;
 use std::path::PathBuf;
+use std::slice::EscapeAscii;
 
 use nom::error::ErrorKind;
 use nom::Err;
@@ -60,13 +62,13 @@ impl fmt::Display for Error {
             Error::PeParsingError(p, e) => write!(
                 f,
                 "An error was encountered while reading the version fields of \"{}\": {}",
-                p.display(),
+                escape_ascii(p),
                 e
             ),
             Error::IoError(p, e) => write!(
                 f,
                 "An error was encountered while accessing the path \"{}\": {}",
-                p.display(),
+                escape_ascii(p),
                 e
             ),
         }
@@ -188,12 +190,16 @@ impl fmt::Display for ParsingErrorKind {
             ParsingErrorKind::InvalidRegexUnknown => write!(f, "Unknown regex parsing error"),
             ParsingErrorKind::InvalidCrc(e) => e.fmt(f),
             ParsingErrorKind::PathEndsInADirectorySeparator(p) => {
-                write!(f, "\"{}\" ends in a directory separator", p.display())
+                write!(f, "\"{}\" ends in a directory separator", escape_ascii(p))
             }
             ParsingErrorKind::PathIsNotInGameDirectory(p) => {
-                write!(f, "\"{}\" is not in the game directory", p.display())
+                write!(f, "\"{}\" is not in the game directory", escape_ascii(p))
             }
             ParsingErrorKind::GenericParserError(e) => write!(f, "Error in parser: {e}"),
         }
     }
+}
+
+fn escape_ascii(path: &Path) -> EscapeAscii {
+    path.as_os_str().as_encoded_bytes().escape_ascii()
 }
