@@ -1,5 +1,33 @@
 # Changelog
 
+## [5.3.2] - 2025-04-28
+
+### Fixed
+
+- If an FFI error message contains a nul byte, instead of using it and causing
+  the message to be truncated and leaking the rest of the string, the nul byte
+  will be escaped and that escaped message will be used instead.
+- Compilation would fail when targeting platforms for which `pelite` does not
+  provide memory map support. Instead, reading an executable now falls back to
+  reading it into memory before parsing its header.
+- The "not equal" version comparison operator was serialised as `==` instead of
+  `!=`.
+- The `description_contains()` condition did not read the description field of
+  OpenMW plugins.
+
+### Changed
+
+- Paths in conditions are no longer restricted to staying within the directory
+  tree that starts one level above the game's data path, as the restriction
+  didn't add any real value and did not work correctly for OpenMW or games with
+  additional data paths.
+- Paths in error messages will now be output as ASCII strings with character
+  escapes instead of unicode strings with surrogates escaped.
+- Some code that used functions that could panic has been rewritten to avoid
+  the risk of changes accidentally introducing panics.
+- Updated esplugin to v6.1.3.
+- Updated libc to v0.2.172.
+
 ## [5.3.1] - 2025-03-26
 
 ### Added
