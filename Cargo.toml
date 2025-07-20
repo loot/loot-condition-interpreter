@@ -8,7 +8,7 @@ license = "MIT"
 edition = "2021"
 
 [dependencies]
-crc32fast = "1.4.2"
+crc32fast = "1.5.0"
 esplugin = "6.1.2"
 nom = "8.0.0"
 pelite = "0.10.0"
