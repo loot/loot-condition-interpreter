@@ -3,7 +3,7 @@ name = "loot-condition-interpreter"
 version = "5.3.2"
 authors = ["Oliver Hamlet <oliver@ortham.net>"]
 description = "Parse and evaluate LOOT metadata condition strings."
-repository = "https://github.com/Ortham/libloadorder.git"
+repository = "https://github.com/loot/loot-condition-interpreter.git"
 license = "MIT"
 edition = "2021"
 
