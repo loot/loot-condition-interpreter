@@ -1,7 +1,7 @@
 loot-condition-interpreter
 ==========================
 
-![CI](https://github.com/loot/loot-condition-interpreter/workflows/CI/badge.svg?branch=master)
+![CI](https://github.com/loot/loot-condition-interpreter/actions/workflows/ci.yml/badge.svg?branch=master&event=push)
 [![Coverage Status](https://coveralls.io/repos/github/loot/loot-condition-interpreter/badge.svg?branch=master)](https://coveralls.io/github/loot/loot-condition-interpreter?branch=master)
 
 A library for parsing and evaluating LOOT's metadata condition strings. It
