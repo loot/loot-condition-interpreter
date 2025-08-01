@@ -43,7 +43,7 @@ Actions CI workflow for examples on what should be extracted where.
 To run the Rust tests:
 
 ```
-cargo test --all
+cargo test --workspace
 ```
 
 To run the benchmarks:
