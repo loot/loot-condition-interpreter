@@ -1,3 +1,7 @@
+#![allow(
+    clippy::multiple_inherent_impl,
+    reason = "impl Function is split between parsing and eval"
+)]
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::mem::discriminant;

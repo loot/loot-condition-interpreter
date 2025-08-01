@@ -1,3 +1,4 @@
+#![allow(clippy::missing_assert_message, clippy::unwrap_used)]
 #[macro_use]
 extern crate criterion;
 extern crate loot_condition_interpreter;
@@ -8,14 +9,14 @@ use criterion::Criterion;
 use loot_condition_interpreter::{Expression, GameType, State};
 
 fn generate_active_plugins() -> Vec<String> {
-    let mut vec: Vec<String> = (0..255).map(|i| format!("Blank{i}.esm")).collect();
+    let mut vec: Vec<String> = (0_u8..255).map(|i| format!("Blank{i}.esm")).collect();
     vec.push("Blank.esm".into());
     vec
 }
 
 fn generate_plugin_versions() -> Vec<(String, String)> {
-    let mut vec: Vec<(String, String)> = (0..255)
-        .map(|i| (format!("Blank{i}.esm"), "5".to_string()))
+    let mut vec: Vec<(String, String)> = (0_u8..255)
+        .map(|i| (format!("Blank{i}.esm"), "5".to_owned()))
         .collect();
     vec.push(("Blank.esm".into(), "5".into()));
     vec

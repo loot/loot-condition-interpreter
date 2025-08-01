@@ -13,3 +13,6 @@ libc = "0.2"
 [lib]
 name = "loot_condition_interpreter_ffi"
 crate-type = ["staticlib"]
+
+[lints]
+workspace = true
