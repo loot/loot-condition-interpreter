@@ -53,7 +53,6 @@ jobs:
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-        if: runner.os == 'Linux'
 
       - name: Prepare test resources
         shell: bash
@@ -76,17 +75,11 @@ jobs:
           7z x loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z
           mv loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32 tests/loot_api_python
 
-      - name: Build and run tests
-        run: cargo test --workspace
-        if: runner.os != 'Linux'
-
       - name: Build and run tests with code coverage
         run: cargo llvm-cov --workspace --lcov --output-path lcov.info
-        if: runner.os == 'Linux'
 
       - name: Upload code coverage to Coveralls
         uses: coverallsapp/github-action@v2
-        if: runner.os == 'Linux'
 
       # Need to rebuild the FFI wrapper so that its binary is given a filename
       # without a hash.
