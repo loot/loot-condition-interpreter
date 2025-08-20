@@ -39,11 +39,11 @@ fn build_regex(input: &str) -> Result<(&'static str, Regex), regex::Error> {
         .map(|r| ("", r))
 }
 
-fn parse_regex(input: &str) -> ParsingResult<Regex> {
+fn parse_regex(input: &str) -> ParsingResult<'_, Regex> {
     build_regex(input).map_err(|e| Err::Failure(ParsingErrorKind::from(e).at(input)))
 }
 
-fn parse_anchored_regex(input: &str) -> ParsingResult<Regex> {
+fn parse_anchored_regex(input: &str) -> ParsingResult<'_, Regex> {
     build_regex(&format!("^{input}$"))
         .map_err(|e| Err::Failure(ParsingErrorKind::from(e).at(input)))
 }
@@ -56,13 +56,13 @@ fn parse_path(input: &str) -> IResult<&str, PathBuf> {
     .parse(input)
 }
 
-fn parse_size(input: &str) -> ParsingResult<u64> {
+fn parse_size(input: &str) -> ParsingResult<'_, u64> {
     str::parse(input)
         .map(|c| ("", c))
         .map_err(|e| Err::Failure(ParsingErrorKind::from(e).at(input)))
 }
 
-fn parse_file_size_args(input: &str) -> ParsingResult<(PathBuf, u64)> {
+fn parse_file_size_args(input: &str) -> ParsingResult<'_, (PathBuf, u64)> {
     let mut parser = (
         map_err(parse_path),
         map_err(whitespace(tag(","))),
@@ -82,7 +82,7 @@ fn parse_version(input: &str) -> IResult<&str, String> {
     .parse(input)
 }
 
-fn parse_version_args(input: &str) -> ParsingResult<(PathBuf, String, ComparisonOperator)> {
+fn parse_version_args(input: &str) -> ParsingResult<'_, (PathBuf, String, ComparisonOperator)> {
     let parser = (
         parse_path,
         whitespace(tag(",")),
@@ -98,7 +98,7 @@ fn parse_version_args(input: &str) -> ParsingResult<(PathBuf, String, Comparison
 
 fn parse_filename_version_args(
     input: &str,
-) -> ParsingResult<(PathBuf, Regex, String, ComparisonOperator)> {
+) -> ParsingResult<'_, (PathBuf, Regex, String, ComparisonOperator)> {
     let mut parser = (
         delimited(map_err(tag("\"")), parse_regex_path, map_err(tag("\""))),
         map_err(whitespace(tag(","))),
@@ -118,7 +118,7 @@ fn parse_filename_version_args(
     Ok((remaining_input, (path, regex, version, comparator)))
 }
 
-fn parse_description_contains_args(input: &str) -> ParsingResult<(PathBuf, Regex)> {
+fn parse_description_contains_args(input: &str) -> ParsingResult<'_, (PathBuf, Regex)> {
     let mut parser = (
         map_err(parse_path),
         map_err(whitespace(tag(","))),
@@ -134,13 +134,13 @@ fn parse_description_contains_args(input: &str) -> ParsingResult<(PathBuf, Regex
     Ok((remaining_input, (path, regex)))
 }
 
-fn parse_crc(input: &str) -> ParsingResult<u32> {
+fn parse_crc(input: &str) -> ParsingResult<'_, u32> {
     u32::from_str_radix(input, 16)
         .map(|c| ("", c))
         .map_err(|e| Err::Failure(ParsingErrorKind::from(e).at(input)))
 }
 
-fn parse_checksum_args(input: &str) -> ParsingResult<(PathBuf, u32)> {
+fn parse_checksum_args(input: &str) -> ParsingResult<'_, (PathBuf, u32)> {
     let mut parser = (
         map_err(parse_path),
         map_err(whitespace(tag(","))),
@@ -152,7 +152,7 @@ fn parse_checksum_args(input: &str) -> ParsingResult<(PathBuf, u32)> {
     Ok((remaining_input, (path, crc)))
 }
 
-fn parse_non_regex_path(input: &str) -> ParsingResult<PathBuf> {
+fn parse_non_regex_path(input: &str) -> ParsingResult<'_, PathBuf> {
     let (remaining_input, path) = map(is_not(INVALID_NON_REGEX_PATH_CHARS), |path: &str| {
         PathBuf::from(path)
     })
@@ -163,7 +163,7 @@ fn parse_non_regex_path(input: &str) -> ParsingResult<PathBuf> {
 
 /// Parse a string that is a path where the last component is a regex string
 /// that may contain characters that are invalid in paths but valid in regex.
-fn parse_regex_path(input: &str) -> ParsingResult<(PathBuf, Regex)> {
+fn parse_regex_path(input: &str) -> ParsingResult<'_, (PathBuf, Regex)> {
     let (remaining_input, string) = is_not(INVALID_REGEX_PATH_CHARS)(input)?;
 
     if string.ends_with('/') {
@@ -181,13 +181,13 @@ fn parse_regex_path(input: &str) -> ParsingResult<(PathBuf, Regex)> {
     Ok((remaining_input, (parent_path, regex)))
 }
 
-fn parse_regex_filename(input: &str) -> ParsingResult<Regex> {
+fn parse_regex_filename(input: &str) -> ParsingResult<'_, Regex> {
     map_parser(is_not(INVALID_REGEX_PATH_CHARS), parse_anchored_regex).parse(input)
 }
 
 impl Function {
     #[expect(clippy::too_many_lines)]
-    pub fn parse(input: &str) -> ParsingResult<Function> {
+    pub fn parse(input: &str) -> ParsingResult<'_, Function> {
         alt((
             map(
                 delimited(

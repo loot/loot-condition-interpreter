@@ -134,7 +134,7 @@ impl State {
     pub fn set_cached_crcs<T: AsRef<str>>(
         &mut self,
         plugin_crcs: &[(T, u32)],
-    ) -> Result<(), PoisonError<RwLockWriteGuard<HashMap<String, u32>>>> {
+    ) -> Result<(), PoisonError<RwLockWriteGuard<'_, HashMap<String, u32>>>> {
         let mut writer = self.crc_cache.write().unwrap_or_else(|mut e| {
             **e.get_mut() = HashMap::new();
             self.crc_cache.clear_poison();
@@ -153,7 +153,7 @@ impl State {
 
     pub fn clear_condition_cache(
         &mut self,
-    ) -> Result<(), PoisonError<RwLockWriteGuard<HashMap<Function, bool>>>> {
+    ) -> Result<(), PoisonError<RwLockWriteGuard<'_, HashMap<Function, bool>>>> {
         let mut writer = self.condition_cache.write().unwrap_or_else(|mut e| {
             **e.get_mut() = HashMap::new();
             self.crc_cache.clear_poison();
@@ -199,7 +199,7 @@ impl str::FromStr for Expression {
     }
 }
 
-fn parse_expression(input: &str) -> ParsingResult<Expression> {
+fn parse_expression(input: &str) -> ParsingResult<'_, Expression> {
     map(
         separated_list0(map_err(whitespace(tag("or"))), CompoundCondition::parse),
         Expression,
@@ -228,7 +228,7 @@ impl CompoundCondition {
         Ok(true)
     }
 
-    fn parse(input: &str) -> ParsingResult<CompoundCondition> {
+    fn parse(input: &str) -> ParsingResult<'_, CompoundCondition> {
         map(
             separated_list0(map_err(whitespace(tag("and"))), Condition::parse),
             CompoundCondition,
@@ -262,7 +262,7 @@ impl Condition {
         }
     }
 
-    fn parse(input: &str) -> ParsingResult<Condition> {
+    fn parse(input: &str) -> ParsingResult<'_, Condition> {
         alt((
             map(Function::parse, Condition::Function),
             map(

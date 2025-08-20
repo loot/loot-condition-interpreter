@@ -163,11 +163,11 @@ impl Version {
     }
 }
 
-fn get_pe_version_info(bytes: &[u8]) -> Result<VersionInfo, FindError> {
+fn get_pe_version_info(bytes: &[u8]) -> Result<VersionInfo<'_>, FindError> {
     get_pe_resources(bytes)?.version_info()
 }
 
-fn get_pe_resources(bytes: &[u8]) -> Result<Resources, pelite::Error> {
+fn get_pe_resources(bytes: &[u8]) -> Result<Resources<'_>, pelite::Error> {
     use pelite::pe64;
     match pe64::PeFile::from_bytes(bytes) {
         Ok(file) => {
