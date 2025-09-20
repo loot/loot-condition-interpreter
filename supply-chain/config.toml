@@ -124,10 +124,6 @@ criteria = "safe-to-run"
 suggest = false
 notes = "At time of review this was only built if targeting WASM, which is not an intended target."
 
-[[exemptions.walkdir]]
-version = "2.5.0"
-criteria = "safe-to-run"
-
 [[exemptions.wasi]]
 version = "0.14.2+wasi-0.2.4"
 criteria = "safe-to-run"
