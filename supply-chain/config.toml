@@ -38,10 +38,6 @@ criteria = "safe-to-run"
 version = "0.6.0"
 criteria = "safe-to-run"
 
-[[exemptions.crossbeam-deque]]
-version = "0.8.6"
-criteria = "safe-to-run"
-
 [[exemptions.dataview]]
 version = "1.0.1"
 criteria = "safe-to-deploy"
