@@ -128,10 +128,6 @@ notes = "At time of review this was only built if targeting WASM, which is not a
 version = "1.0.20"
 criteria = "safe-to-run"
 
-[[exemptions.syn]]
-version = "2.0.101"
-criteria = "safe-to-run"
-
 [[exemptions.walkdir]]
 version = "2.5.0"
 criteria = "safe-to-run"
