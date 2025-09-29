@@ -1,5 +1,31 @@
 # Changelog
 
+## [5.3.3] - 2025-09-29
+
+### Fixed
+
+- The repository link in Cargo.toml pointed to the wrong Git repository.
+
+### Changed
+
+- Releases are now published to crates.io using Trusted Publishing.
+- The accepted dependency version ranges have been widened to include older
+  versions. The oldest accepted version for each dependency is the oldest that
+  loot-condition-interpreter will build and pass its tests with on x86-64
+  Windows and Linux.
+- Updated dependency versions in Cargo.lock:
+
+  - Updated crc32fast to v1.5.0.
+  - Updated libc to v0.2.175.
+  - Updated regex to v1.11.2.
+
+- Most of the Cargo.toml package fields are now inherited from workspace fields
+  that are now shared between loot-condition-interpreter and
+  loot-condition-interpreter-ffi.
+- Most of the lint configuration has been moved from Rust attributes to
+  workspace configuration, leaving only the configuration that is specific to
+  the relevant crate.
+
 ## [5.3.2] - 2025-04-28
 
 ### Fixed
