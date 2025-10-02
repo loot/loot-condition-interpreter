@@ -89,20 +89,23 @@ jobs:
         run: |
           mkdir tests
 
-          curl -sSfLO 'https://github.com/Ortham/testing-plugins/archive/1.4.0.zip'
-          7z x 1.4.0.zip
+          fetch() {
+            filename="${1##*/}"
+            curl -sSfLO "$1"
+            sha256sum -c <<< "$2 $filename"
+            7z x "$filename"
+          }
+
+          fetch 'https://github.com/Ortham/testing-plugins/archive/1.4.0.zip' 76415050637ab2ce7e5202b707c8f3165e3bf43e88da0c31f20bc638ce5d3a53
           mv testing-plugins-1.4.0 tests/testing-plugins
 
-          curl -sSfLO 'https://github.com/loot/libloot/releases/download/0.18.2/libloot-0.18.2-0-gb1a9e31_0.18.2-win32.7z'
-          7z x libloot-0.18.2-0-gb1a9e31_0.18.2-win32.7z
+          fetch 'https://github.com/loot/libloot/releases/download/0.18.2/libloot-0.18.2-0-gb1a9e31_0.18.2-win32.7z' b32d83bd0732cb861de9b80510dfddab6ca8369c4c3f703a693dc667ae3252cb
           mv libloot-0.18.2-0-gb1a9e31_0.18.2-win32 tests/libloot_win32
 
-          curl -sSfLO 'https://github.com/loot/libloot/releases/download/0.18.2/libloot-0.18.2-0-gb1a9e31_0.18.2-win64.7z'
-          7z x libloot-0.18.2-0-gb1a9e31_0.18.2-win64.7z
+          fetch 'https://github.com/loot/libloot/releases/download/0.18.2/libloot-0.18.2-0-gb1a9e31_0.18.2-win64.7z' 8119114395e6ccf3d89b7419418e3909e6d7e64a0d594ede56e07c3a396cde73
           mv libloot-0.18.2-0-gb1a9e31_0.18.2-win64 tests/libloot_win64
 
-          curl -sSfLO 'https://github.com/loot/loot-api-python/releases/download/4.0.2/loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z'
-          7z x loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z
+          fetch 'https://github.com/loot/loot-api-python/releases/download/4.0.2/loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32.7z' 83a898446b13eb73df002347027c0f5dd8adf9a404c84eca65db5710308ffafc
           mv loot_api_python-4.0.2-0-gd356ac2_master-python2.7-win32 tests/loot_api_python
 
       - name: Build and run tests with code coverage
