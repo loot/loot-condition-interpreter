@@ -13,11 +13,21 @@ criteria = "safe-to-deploy"
 delta = "1.11.2 -> 1.11.3"
 notes = "It just increments the minimum version of regex-automata."
 
+[[audits.regex]]
+who = "Oliver Hamlet <git@ortham.net>"
+criteria = "safe-to-deploy"
+delta = "1.11.3 -> 1.12.2"
+
 [[audits.regex-automata]]
 who = "Oliver Hamlet <git@ortham.net>"
 criteria = "safe-to-deploy"
 delta = "0.4.9 -> 0.4.11"
 notes = "It's a combination of format!() syntax tweaks and added calls to .shrink_to_fit()."
+
+[[audits.regex-automata]]
+who = "Oliver Hamlet <git@ortham.net>"
+criteria = "safe-to-deploy"
+delta = "0.4.11 -> 0.4.13"
 
 [[trusted.esplugin]]
 criteria = "safe-to-deploy"
