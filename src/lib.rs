@@ -187,15 +187,13 @@ impl str::FromStr for Expression {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_expression(s)
-            .map_err(Error::from)
-            .and_then(|(remaining_input, expression)| {
-                if remaining_input.is_empty() {
-                    Ok(expression)
-                } else {
-                    Err(Error::UnconsumedInput(remaining_input.to_owned()))
-                }
-            })
+        let (remaining_input, expression) = parse_expression(s)?;
+
+        if remaining_input.is_empty() {
+            Ok(expression)
+        } else {
+            Err(Error::UnconsumedInput(remaining_input.to_owned()))
+        }
     }
 }
 

@@ -98,8 +98,9 @@ pub(crate) unsafe fn to_path_buf_vec(
 }
 
 unsafe fn map_plugin_version(c_object: &plugin_version) -> Result<(String, String), c_int> {
-    to_str(c_object.plugin_name)
-        .and_then(|n| to_str(c_object.version).map(|v| (n.into(), v.into())))
+    let name = to_str(c_object.plugin_name)?;
+
+    to_str(c_object.version).map(|v| (name.into(), v.into()))
 }
 
 pub(crate) unsafe fn map_plugin_versions(
