@@ -1,3 +1,5 @@
+mod pe;
+
 use std::cmp::Ordering;
 use std::path::Path;
 
@@ -5,6 +7,7 @@ use pelite::resources::version_info::VersionInfo;
 use pelite::resources::{FindError, Resources};
 
 use crate::error::Error;
+use pe::{read_file_version, read_pe_version, read_product_version};
 
 #[derive(Clone, Debug)]
 enum ReleaseId {
@@ -110,7 +113,9 @@ pub(super) struct Version {
 
 impl Version {
     pub(super) fn read_file_version(file_path: &Path) -> Result<Option<Self>, Error> {
-        Self::read_version(file_path, |v| {
+        let version = read_pe_version(file_path, read_file_version)?;
+
+        let pelite_version = Self::read_version(file_path, |v| {
             v.fixed().map(|f| {
                 format!(
                     "{}.{}.{}.{}",
@@ -120,19 +125,25 @@ impl Version {
                     f.dwFileVersion.Build
                 )
             })
-        })
+        });
+
+        compare_versions(file_path, version, pelite_version)
     }
 
     pub(super) fn read_product_version(file_path: &Path) -> Result<Option<Self>, Error> {
-        Self::read_version(file_path, |v| {
+        let version = read_pe_version(file_path, read_product_version)?;
+
+        let pelite_version = Self::read_version(file_path, |v| {
             v.translation()
                 .first()
                 .and_then(|language| v.value(*language, "ProductVersion"))
-        })
+        });
+
+        compare_versions(file_path, version, pelite_version)
     }
 
     pub(super) fn is_readable(file_path: &Path) -> bool {
-        Self::read_version(file_path, |_| None).is_ok()
+        read_pe_version(file_path, |_| Ok(None)).is_ok()
     }
 
     fn read_version<F: Fn(VersionInfo) -> Option<String>>(
@@ -160,6 +171,25 @@ impl Version {
             Err(FindError::NotFound) => Ok(None),
             Err(e) => Err(Error::PeParsingError(file_path.to_path_buf(), Box::new(e))),
         }
+    }
+}
+
+fn compare_versions(
+    file_path: &Path,
+    version: Option<Version>,
+    pelite_version: Result<Option<Version>, Error>,
+) -> Result<Option<Version>, Error> {
+    match pelite_version {
+        Ok(pv) if pv == version => Ok(version),
+        Ok(pv) => Err(Error::PeParsingError(
+            file_path.to_path_buf(),
+            format!("Versions parsed by object and pelite don't match: {version:?} != {pv:?}")
+                .into(),
+        )),
+        Err(e) => Err(Error::PeParsingError(
+            file_path.to_path_buf(),
+            format!("pelite errored when parsing version but built-in parser did not: {e}").into(),
+        )),
     }
 }
 
@@ -442,7 +472,7 @@ mod tests {
         fn version_read_file_version_should_error_with_path_if_the_file_is_not_an_executable() {
             let error = Version::read_file_version(Path::new("Cargo.toml")).unwrap_err();
 
-            assert_eq!("An error was encountered while reading the version fields of \"Cargo.toml\": unknown magic number", error.to_string());
+            assert_eq!("An error was encountered while reading the version fields of \"Cargo.toml\": Unknown file magic", error.to_string());
         }
 
         #[test]
@@ -529,7 +559,7 @@ mod tests {
         fn version_read_product_version_should_error_with_path_if_the_file_is_not_an_executable() {
             let error = Version::read_product_version(Path::new("Cargo.toml")).unwrap_err();
 
-            assert_eq!("An error was encountered while reading the version fields of \"Cargo.toml\": unknown magic number", error.to_string());
+            assert_eq!("An error was encountered while reading the version fields of \"Cargo.toml\": Unknown file magic", error.to_string());
         }
 
         #[test]

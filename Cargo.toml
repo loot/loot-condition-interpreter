@@ -55,7 +55,7 @@ unsafe_code = "deny"
 [workspace.lints.clippy]
 pedantic = { level = "deny", priority = -1 }
 allow_attributes = "deny"
-as_conversions = "forbid"
+as_conversions = "deny"
 as_underscore = "forbid"
 assertions_on_result_states = "deny"
 big_endian_bytes = "forbid"
