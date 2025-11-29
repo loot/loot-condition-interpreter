@@ -38,14 +38,6 @@ criteria = "safe-to-run"
 version = "0.6.0"
 criteria = "safe-to-run"
 
-[[exemptions.dataview]]
-version = "1.0.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.derive_pod]]
-version = "0.1.2"
-criteria = "safe-to-deploy"
-
 [[exemptions.errno]]
 version = "0.3.14"
 criteria = "safe-to-run"
@@ -68,20 +60,8 @@ notes = "At time of review this was only built if targeting WASM, which is not a
 version = "2.7.4"
 criteria = "safe-to-deploy"
 
-[[exemptions.no-std-compat]]
-version = "0.4.1"
-criteria = "safe-to-deploy"
-
 [[exemptions.nom]]
 version = "8.0.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.pelite]]
-version = "0.10.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.pelite-macros]]
-version = "0.1.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.plotters]]
@@ -157,15 +137,3 @@ version = "0.3.77"
 criteria = "safe-to-run"
 suggest = false
 notes = "At time of review this was only built if targeting WASM, which is not an intended target."
-
-[[exemptions.winapi]]
-version = "0.3.9"
-criteria = "safe-to-deploy"
-
-[[exemptions.winapi-i686-pc-windows-gnu]]
-version = "0.4.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.winapi-x86_64-pc-windows-gnu]]
-version = "0.4.0"
-criteria = "safe-to-deploy"

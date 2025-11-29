@@ -3,9 +3,6 @@ mod pe;
 use std::cmp::Ordering;
 use std::path::Path;
 
-use pelite::resources::version_info::VersionInfo;
-use pelite::resources::{FindError, Resources};
-
 use crate::error::Error;
 use pe::{read_file_version, read_pe_version, read_product_version};
 
@@ -113,104 +110,15 @@ pub(super) struct Version {
 
 impl Version {
     pub(super) fn read_file_version(file_path: &Path) -> Result<Option<Self>, Error> {
-        let version = read_pe_version(file_path, read_file_version)?;
-
-        let pelite_version = Self::read_version(file_path, |v| {
-            v.fixed().map(|f| {
-                format!(
-                    "{}.{}.{}.{}",
-                    f.dwFileVersion.Major,
-                    f.dwFileVersion.Minor,
-                    f.dwFileVersion.Patch,
-                    f.dwFileVersion.Build
-                )
-            })
-        });
-
-        compare_versions(file_path, version, pelite_version)
+        read_pe_version(file_path, read_file_version)
     }
 
     pub(super) fn read_product_version(file_path: &Path) -> Result<Option<Self>, Error> {
-        let version = read_pe_version(file_path, read_product_version)?;
-
-        let pelite_version = Self::read_version(file_path, |v| {
-            v.translation()
-                .first()
-                .and_then(|language| v.value(*language, "ProductVersion"))
-        });
-
-        compare_versions(file_path, version, pelite_version)
+        read_pe_version(file_path, read_product_version)
     }
 
     pub(super) fn is_readable(file_path: &Path) -> bool {
         read_pe_version(file_path, |_| Ok(None)).is_ok()
-    }
-
-    fn read_version<F: Fn(VersionInfo) -> Option<String>>(
-        file_path: &Path,
-        formatter: F,
-    ) -> Result<Option<Self>, Error> {
-        #[cfg(any(windows, unix))]
-        let result = {
-            let file_map = pelite::FileMap::open(file_path)
-                .map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
-
-            get_pe_version_info(file_map.as_ref()).map(formatter)
-        };
-
-        #[cfg(not(any(windows, unix)))]
-        let result = {
-            let bytes =
-                std::fs::read(file_path).map_err(|e| Error::IoError(file_path.to_path_buf(), e))?;
-
-            get_pe_version_info(&bytes).map(formatter)
-        };
-
-        match result {
-            Ok(s) => Ok(s.map(Version::from)),
-            Err(FindError::NotFound) => Ok(None),
-            Err(e) => Err(Error::PeParsingError(file_path.to_path_buf(), Box::new(e))),
-        }
-    }
-}
-
-fn compare_versions(
-    file_path: &Path,
-    version: Option<Version>,
-    pelite_version: Result<Option<Version>, Error>,
-) -> Result<Option<Version>, Error> {
-    match pelite_version {
-        Ok(pv) if pv == version => Ok(version),
-        Ok(pv) => Err(Error::PeParsingError(
-            file_path.to_path_buf(),
-            format!("Versions parsed by object and pelite don't match: {version:?} != {pv:?}")
-                .into(),
-        )),
-        Err(e) => Err(Error::PeParsingError(
-            file_path.to_path_buf(),
-            format!("pelite errored when parsing version but built-in parser did not: {e}").into(),
-        )),
-    }
-}
-
-fn get_pe_version_info(bytes: &[u8]) -> Result<VersionInfo<'_>, FindError> {
-    get_pe_resources(bytes)?.version_info()
-}
-
-fn get_pe_resources(bytes: &[u8]) -> Result<Resources<'_>, pelite::Error> {
-    use pelite::pe64;
-    match pe64::PeFile::from_bytes(bytes) {
-        Ok(file) => {
-            use pelite::pe64::Pe;
-
-            file.resources()
-        }
-        Err(pelite::Error::PeMagic) => {
-            use pelite::pe32::{Pe, PeFile};
-
-            PeFile::from_bytes(bytes)?.resources()
-        }
-        Err(e) => Err(e),
     }
 }
 
