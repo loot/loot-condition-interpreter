@@ -2,7 +2,6 @@ use std::ffi::{c_char, c_int, CStr, CString};
 use std::path::PathBuf;
 use std::slice;
 
-use libc::size_t;
 use loot_condition_interpreter::{Error, GameType};
 
 use super::ERROR_MESSAGE;
@@ -68,7 +67,7 @@ pub(crate) unsafe fn to_str<'a>(c_string: *const c_char) -> Result<&'a str, c_in
 
 pub(crate) unsafe fn to_vec<U, V, F>(
     array: *const U,
-    array_size: size_t,
+    array_size: usize,
     mapper: F,
 ) -> Result<Vec<V>, c_int>
 where
@@ -86,14 +85,14 @@ where
 
 pub(crate) unsafe fn to_str_vec<'a>(
     array: *const *const c_char,
-    array_size: size_t,
+    array_size: usize,
 ) -> Result<Vec<&'a str>, c_int> {
     to_vec(array, array_size, |c| to_str(*c))
 }
 
 pub(crate) unsafe fn to_path_buf_vec(
     array: *const *const c_char,
-    array_size: size_t,
+    array_size: usize,
 ) -> Result<Vec<PathBuf>, c_int> {
     to_vec(array, array_size, |c| to_str(*c).map(PathBuf::from))
 }
@@ -105,14 +104,14 @@ unsafe fn map_plugin_version(c_object: &plugin_version) -> Result<(String, Strin
 
 pub(crate) unsafe fn map_plugin_versions(
     plugin_versions: *const plugin_version,
-    num_plugins: size_t,
+    num_plugins: usize,
 ) -> Result<Vec<(String, String)>, c_int> {
     to_vec(plugin_versions, num_plugins, |v| map_plugin_version(v))
 }
 
 pub(crate) unsafe fn map_plugin_crcs(
     plugin_crcs: *const plugin_crc,
-    num_entries: size_t,
+    num_entries: usize,
 ) -> Result<Vec<(String, u32)>, c_int> {
     to_vec(plugin_crcs, num_entries, |v| {
         to_str(v.plugin_name).map(|s| (s.into(), v.crc))

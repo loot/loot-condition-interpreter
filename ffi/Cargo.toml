@@ -8,7 +8,6 @@ edition.workspace = true
 
 [dependencies]
 loot-condition-interpreter = { path = ".." }
-libc = "0.2"
 
 [lib]
 name = "loot_condition_interpreter_ffi"

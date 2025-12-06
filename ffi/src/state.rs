@@ -3,7 +3,6 @@ use std::panic::catch_unwind;
 use std::path::PathBuf;
 use std::sync::RwLock;
 
-use libc::size_t;
 use loot_condition_interpreter::State;
 
 use crate::constants::{
@@ -74,7 +73,7 @@ pub unsafe extern "C" fn lci_state_destroy(state: *mut lci_state) {
 pub unsafe extern "C" fn lci_state_set_active_plugins(
     state: *mut lci_state,
     plugin_names: *const *const c_char,
-    num_plugins: size_t,
+    num_plugins: usize,
 ) -> c_int {
     catch_unwind(|| {
         if state.is_null() {
@@ -112,7 +111,7 @@ pub unsafe extern "C" fn lci_state_set_active_plugins(
 pub unsafe extern "C" fn lci_state_set_plugin_versions(
     state: *mut lci_state,
     plugin_versions: *const plugin_version,
-    num_plugins: size_t,
+    num_plugins: usize,
 ) -> c_int {
     catch_unwind(|| {
         if state.is_null() {
@@ -150,7 +149,7 @@ pub unsafe extern "C" fn lci_state_set_plugin_versions(
 pub unsafe extern "C" fn lci_state_set_crc_cache(
     state: *mut lci_state,
     entries: *const plugin_crc,
-    num_entries: size_t,
+    num_entries: usize,
 ) -> c_int {
     catch_unwind(|| {
         if state.is_null() {
@@ -213,7 +212,7 @@ pub unsafe extern "C" fn lci_state_clear_condition_cache(state: *mut lci_state) 
 pub unsafe extern "C" fn lci_state_set_additional_data_paths(
     state: *mut lci_state,
     paths: *const *const c_char,
-    num_paths: size_t,
+    num_paths: usize,
 ) -> c_int {
     catch_unwind(|| {
         if state.is_null() || (paths.is_null() && num_paths != 0) {
