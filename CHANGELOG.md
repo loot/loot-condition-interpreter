@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.4.0] - 2026-01-01
+
+### Changed
+
+- Removed the pelite dependency in favour of a new built-in PE version parsing
+  implementation.
+- Removed the FFI wrapper's direct dependency on libc: `usize` is now used in
+  place of the `libc::size_t` type alias (which is `usize` on all supported
+  platforms).
+- Updated dependency versions in Cargo.lock:
+
+  - Updated esplugin to v6.1.4.
+  - Updated regex to v1.12.2.
+
 ## [5.3.3] - 2025-09-29
 
 ### Fixed

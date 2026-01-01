@@ -29,7 +29,7 @@ harness = false
 members = ["ffi"]
 
 [workspace.package]
-version = "5.3.3"
+version = "5.4.0"
 authors = ["Oliver Hamlet <oliver@ortham.net>"]
 repository = "https://github.com/loot/loot-condition-interpreter.git"
 license = "MIT"
