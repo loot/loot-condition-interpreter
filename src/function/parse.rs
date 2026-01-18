@@ -83,31 +83,59 @@ fn parse_version(input: &str) -> IResult<&str, String> {
 }
 
 fn parse_version_args(input: &str) -> ParsingResult<'_, (PathBuf, String, ComparisonOperator)> {
-    let parser = (
-        parse_path,
-        whitespace(tag(",")),
-        parse_version,
-        whitespace(tag(",")),
-        ComparisonOperator::parse,
-    );
+    let parser = alt((
+        map(
+            (
+                parse_path,
+                whitespace(tag(",")),
+                parse_version,
+                whitespace(tag(",")),
+                ComparisonOperator::parse,
+            ),
+            |(path, _, version, _, comparator)| (path, version, comparator),
+        ),
+        map(
+            (
+                parse_path,
+                whitespace(tag(",")),
+                ComparisonOperator::parse,
+                whitespace(tag(",")),
+                parse_version,
+            ),
+            |(path, _, comparator, _, version)| (path, version, comparator),
+        ),
+    ));
 
-    let (remaining_input, (path, _, version, _, comparator)) = map_err(parser).parse(input)?;
-
-    Ok((remaining_input, (path, version, comparator)))
+    map_err(parser).parse(input)
 }
 
 fn parse_filename_version_args(
     input: &str,
 ) -> ParsingResult<'_, (PathBuf, Regex, String, ComparisonOperator)> {
-    let mut parser = (
-        delimited(map_err(tag("\"")), parse_regex_path, map_err(tag("\""))),
-        map_err(whitespace(tag(","))),
-        map_err(parse_version),
-        map_err(whitespace(tag(","))),
-        map_err(ComparisonOperator::parse),
-    );
+    let mut parser = alt((
+        map(
+            (
+                delimited(map_err(tag("\"")), parse_regex_path, map_err(tag("\""))),
+                map_err(whitespace(tag(","))),
+                map_err(parse_version),
+                map_err(whitespace(tag(","))),
+                map_err(ComparisonOperator::parse),
+            ),
+            |((path, regex), _, version, _, comparator)| (path, regex, version, comparator),
+        ),
+        map(
+            (
+                delimited(map_err(tag("\"")), parse_regex_path, map_err(tag("\""))),
+                map_err(whitespace(tag(","))),
+                map_err(ComparisonOperator::parse),
+                map_err(whitespace(tag(","))),
+                map_err(parse_version),
+            ),
+            |((path, regex), _, comparator, _, version)| (path, regex, version, comparator),
+        ),
+    ));
 
-    let (remaining_input, ((path, regex), _, version, _, comparator)) = parser.parse(input)?;
+    let (remaining_input, (path, regex, version, comparator)) = parser.parse(input)?;
 
     if regex.captures_len() != 2 {
         return Err(Err::Failure(
@@ -631,8 +659,38 @@ mod tests {
     }
 
     #[test]
+    fn function_parse_should_parse_version_with_comparator_as_the_second_param() {
+        let output = Function::parse("version(\"..\\Cargo.toml\", ==, \"1.2\")").unwrap();
+
+        assert!(output.0.is_empty());
+        match output.1 {
+            Function::Version(path, version, comparator) => {
+                assert_eq!(Path::new("..\\Cargo.toml"), path);
+                assert_eq!("1.2", version);
+                assert_eq!(ComparisonOperator::Equal, comparator);
+            }
+            _ => panic!("Expected a version function"),
+        }
+    }
+
+    #[test]
     fn function_parse_should_parse_a_product_version_equals_function() {
         let output = Function::parse("product_version(\"Cargo.toml\", \"1.2\", ==)").unwrap();
+
+        assert!(output.0.is_empty());
+        match output.1 {
+            Function::ProductVersion(path, version, comparator) => {
+                assert_eq!(Path::new("Cargo.toml"), path);
+                assert_eq!("1.2", version);
+                assert_eq!(ComparisonOperator::Equal, comparator);
+            }
+            _ => panic!("Expected a product version function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_product_version_with_comparator_as_the_second_param() {
+        let output = Function::parse("product_version(\"Cargo.toml\", ==, \"1.2\")").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
@@ -649,6 +707,26 @@ mod tests {
     fn function_parse_should_parse_a_filename_version_equals_function() {
         let output =
             Function::parse("filename_version(\"subdir/Cargo (.+).toml\", \"1.2\", ==)").unwrap();
+
+        assert!(output.0.is_empty());
+        match output.1 {
+            Function::FilenameVersion(path, regex, version, comparator) => {
+                assert_eq!(PathBuf::from("subdir"), path);
+                assert_eq!(
+                    Regex::new("^Cargo (.+).toml$").unwrap().as_str(),
+                    regex.as_str()
+                );
+                assert_eq!("1.2", version);
+                assert_eq!(ComparisonOperator::Equal, comparator);
+            }
+            _ => panic!("Expected a filename version function"),
+        }
+    }
+
+    #[test]
+    fn function_parse_should_parse_a_filename_version_with_comparator_as_the_second_param() {
+        let output =
+            Function::parse("filename_version(\"subdir/Cargo (.+).toml\", ==, \"1.2\")").unwrap();
 
         assert!(output.0.is_empty());
         match output.1 {
