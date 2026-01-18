@@ -71,18 +71,18 @@ impl fmt::Display for Function {
             Self::Many(p, r) => write!(f, "many(\"{}/{}\")", p.display(), r),
             Self::ManyActive(r) => write!(f, "many_active(\"{r}\")"),
             Self::Checksum(p, c) => write!(f, "checksum(\"{}\", {:02X})", p.display(), c),
-            Self::Version(p, v, c) => write!(f, "version(\"{}\", \"{}\", {})", p.display(), v, c),
+            Self::Version(p, v, c) => write!(f, "version(\"{}\", {}, \"{}\")", p.display(), c, v),
             Self::ProductVersion(p, v, c) => {
-                write!(f, "product_version(\"{}\", \"{}\", {})", p.display(), v, c)
+                write!(f, "product_version(\"{}\", {}, \"{}\")", p.display(), c, v)
             }
             Self::FilenameVersion(path, regex, version, comparator) => {
                 write!(
                     f,
-                    "filename_version(\"{}/{}\", \"{}\", {})",
+                    "filename_version(\"{}/{}\", {}, \"{}\")",
                     path.display(),
                     regex,
-                    version,
-                    comparator
+                    comparator,
+                    version
                 )
             }
             Self::DescriptionContains(p, r) => {
@@ -283,7 +283,7 @@ mod tests {
             );
 
             assert_eq!(
-                "version(\"subdir/Blank.esm\", \"1.2a\", ==)",
+                "version(\"subdir/Blank.esm\", ==, \"1.2a\")",
                 &format!("{function}")
             );
         }
@@ -297,7 +297,7 @@ mod tests {
             );
 
             assert_eq!(
-                "product_version(\"../TESV.exe\", \"1.2a\", ==)",
+                "product_version(\"../TESV.exe\", ==, \"1.2a\")",
                 &format!("{function}")
             );
         }
@@ -312,7 +312,7 @@ mod tests {
             );
 
             assert_eq!(
-                "filename_version(\"subdir/filename (\\d+(?:[_.-]?\\d+)*[a-z]?)\\.esp\", \"1.2a\", ==)",
+                "filename_version(\"subdir/filename (\\d+(?:[_.-]?\\d+)*[a-z]?)\\.esp\", ==, \"1.2a\")",
                 &format!("{function}")
             );
         }
