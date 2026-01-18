@@ -279,9 +279,7 @@ where
 {
     let file_path = resolve_path(state, file_path);
     let Some(actual_version) = read_version(state, &file_path)? else {
-        return Ok(comparator == ComparisonOperator::NotEqual
-            || comparator == ComparisonOperator::LessThan
-            || comparator == ComparisonOperator::LessThanOrEqual);
+        return Ok(false);
     };
 
     Ok(compare_versions(&actual_version, comparator, given_version))
@@ -1209,25 +1207,25 @@ mod tests {
     }
 
     #[test]
-    fn function_version_eval_should_be_true_if_the_path_does_not_exist_and_comparator_is_ne() {
+    fn function_version_eval_should_be_false_if_the_path_does_not_exist_and_comparator_is_ne() {
         let function =
             Function::Version("missing".into(), "1.0".into(), ComparisonOperator::NotEqual);
         let state = state(".");
 
-        assert!(function.eval(&state).unwrap());
+        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]
-    fn function_version_eval_should_be_true_if_the_path_does_not_exist_and_comparator_is_lt() {
+    fn function_version_eval_should_be_false_if_the_path_does_not_exist_and_comparator_is_lt() {
         let function =
             Function::Version("missing".into(), "1.0".into(), ComparisonOperator::LessThan);
         let state = state(".");
 
-        assert!(function.eval(&state).unwrap());
+        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]
-    fn function_version_eval_should_be_true_if_the_path_does_not_exist_and_comparator_is_lteq() {
+    fn function_version_eval_should_be_false_if_the_path_does_not_exist_and_comparator_is_lteq() {
         let function = Function::Version(
             "missing".into(),
             "1.0".into(),
@@ -1235,7 +1233,7 @@ mod tests {
         );
         let state = state(".");
 
-        assert!(function.eval(&state).unwrap());
+        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]
@@ -1271,25 +1269,25 @@ mod tests {
     }
 
     #[test]
-    fn function_version_eval_should_be_true_if_the_path_is_not_a_file_and_comparator_is_ne() {
+    fn function_version_eval_should_be_false_if_the_path_is_not_a_file_and_comparator_is_ne() {
         let function =
             Function::Version("tests".into(), "1.0".into(), ComparisonOperator::NotEqual);
         let state = state(".");
 
-        assert!(function.eval(&state).unwrap());
+        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]
-    fn function_version_eval_should_be_true_if_the_path_is_not_a_file_and_comparator_is_lt() {
+    fn function_version_eval_should_be_false_if_the_path_is_not_a_file_and_comparator_is_lt() {
         let function =
             Function::Version("tests".into(), "1.0".into(), ComparisonOperator::LessThan);
         let state = state(".");
 
-        assert!(function.eval(&state).unwrap());
+        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]
-    fn function_version_eval_should_be_true_if_the_path_is_not_a_file_and_comparator_is_lteq() {
+    fn function_version_eval_should_be_false_if_the_path_is_not_a_file_and_comparator_is_lteq() {
         let function = Function::Version(
             "tests".into(),
             "1.0".into(),
@@ -1297,7 +1295,7 @@ mod tests {
         );
         let state = state(".");
 
-        assert!(function.eval(&state).unwrap());
+        assert!(!function.eval(&state).unwrap());
     }
 
     #[test]
@@ -1341,11 +1339,11 @@ mod tests {
         let state = state("tests/testing-plugins/Oblivion/Data");
 
         let function = Function::Version(plugin.clone(), version.clone(), NotEqual);
-        assert!(function.eval(&state).unwrap());
+        assert!(!function.eval(&state).unwrap());
         let function = Function::Version(plugin.clone(), version.clone(), LessThan);
-        assert!(function.eval(&state).unwrap());
+        assert!(!function.eval(&state).unwrap());
         let function = Function::Version(plugin.clone(), version.clone(), LessThanOrEqual);
-        assert!(function.eval(&state).unwrap());
+        assert!(!function.eval(&state).unwrap());
         let function = Function::Version(plugin.clone(), version.clone(), Equal);
         assert!(!function.eval(&state).unwrap());
         let function = Function::Version(plugin.clone(), version.clone(), GreaterThan);
