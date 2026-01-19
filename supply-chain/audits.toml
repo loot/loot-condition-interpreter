@@ -1,12 +1,6 @@
 
 # cargo-vet audits file
 
-[[audits.esplugin]]
-who = "Oliver Hamlet <git@ortham.net>"
-criteria = "safe-to-deploy"
-version = "6.1.4"
-notes = "This is my own crate published using Trusted Publishing, but I can't mark it as trusted by cargo-vet because it doesn't support Trusted Publishing and just sees that the publisher is unknown."
-
 [[audits.regex]]
 who = "Oliver Hamlet <git@ortham.net>"
 criteria = "safe-to-deploy"
@@ -31,10 +25,10 @@ delta = "0.4.11 -> 0.4.13"
 
 [[trusted.esplugin]]
 criteria = "safe-to-deploy"
-user-id = 9999
-start = "2019-04-24"
-end = "2026-09-16"
-notes = "I'm the author."
+trusted-publisher = "github:Ortham/esplugin"
+start = "2025-09-29"
+end = "2027-01-19"
+notes = "This is my own crate, published from my own Git repo using Trusted Publishing."
 
 [[trusted.libc]]
 criteria = "safe-to-deploy"
