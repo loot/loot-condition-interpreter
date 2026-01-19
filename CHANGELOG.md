@@ -1,5 +1,27 @@
 # Changelog
 
+## [6.0.0] - 2026-01-21
+
+### Added
+
+- Support for version condition parameters with the comparator and version
+  string swapped, e.g. `version("example.esp", ==, "1.0.0")`,
+  `product_version("example.exe", ==, "1.0.0")` and
+  `filename_version("example (.+).esp", ==, "1.0.0")`.
+
+### Changed
+
+- When evaluating `version()` and `product_version()` conditions and no version
+  could be read from the given file path (e.g. because the file does not exist),
+  the function now always evaluates to false. Previously it would evaluate to
+  true when the comparator was `<`, `<=` or `!=` and false otherwise.
+- When writing `version()`, `product_version()` and `filename_version()`
+  condition strings, the comparator is now positioned between the file path and
+  version strings.
+- Updated dependency versions in Cargo.lock:
+
+  - Updated unicase to v2.9.0.
+
 ## [5.4.0] - 2026-01-01
 
 ### Changed
