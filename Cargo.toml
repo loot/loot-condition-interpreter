@@ -6,6 +6,7 @@ authors.workspace = true
 repository.workspace = true
 license.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 crc32fast = "1"
@@ -34,6 +35,7 @@ authors = ["Oliver Hamlet <oliver@ortham.net>"]
 repository = "https://github.com/loot/loot-condition-interpreter.git"
 license = "MIT"
 edition = "2021"
+rust-version = "1.89"
 
 # Deny some rustc lints that are allow-by-default.
 [workspace.lints.rust]
