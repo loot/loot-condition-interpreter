@@ -612,9 +612,7 @@ fn read_struct_size(buffer: &[u8]) -> Result<usize, String> {
     buffer
         .first_chunk::<2>()
         .map(|c| usize::from(u16::from_le_bytes(*c)))
-        .ok_or_else(
-            || format!("The buffer was too small to hold a struct size field: {buffer:X?}",),
-        )
+        .ok_or_else(|| format!("The buffer was too small to hold a struct size field: {buffer:X?}"))
 }
 
 // <https://learn.microsoft.com/en-us/windows/win32/menurc/stringtable>

@@ -412,7 +412,7 @@ mod tests {
 
         match result.0.as_slice() {
             [CompoundCondition(_), CompoundCondition(_)] => {}
-            v => panic!("Expected an expression with two compound conditions, got {v:?}",),
+            v => panic!("Expected an expression with two compound conditions, got {v:?}"),
         }
     }
 
@@ -463,10 +463,10 @@ mod tests {
                         [Condition::Function(_)],
                         [Condition::Function(_), Condition::Function(_)],
                     ) => {}
-                    v => panic!("Expected an expression with two compound conditions, got {v:?}",),
+                    v => panic!("Expected an expression with two compound conditions, got {v:?}"),
                 }
             }
-            v => panic!("Expected an expression with two compound conditions, got {v:?}",),
+            v => panic!("Expected an expression with two compound conditions, got {v:?}"),
         }
     }
 
@@ -478,7 +478,7 @@ mod tests {
             [Condition::Function(Function::FilePath(f))] => {
                 assert_eq!(&PathBuf::from("Cargo.toml"), f);
             }
-            v => panic!("Expected an expression with two compound conditions, got {v:?}",),
+            v => panic!("Expected an expression with two compound conditions, got {v:?}"),
         }
     }
 
@@ -494,7 +494,7 @@ mod tests {
                 assert_eq!(&PathBuf::from("Cargo.toml"), f1);
                 assert_eq!(&PathBuf::from("README.md"), f2);
             }
-            v => panic!("Expected an expression with two compound conditions, got {v:?}",),
+            v => panic!("Expected an expression with two compound conditions, got {v:?}"),
         }
     }
 
@@ -506,7 +506,7 @@ mod tests {
             Condition::Function(Function::FilePath(f)) => {
                 assert_eq!(PathBuf::from("Cargo.toml"), f);
             }
-            v => panic!("Expected an expression with two compound conditions, got {v:?}",),
+            v => panic!("Expected an expression with two compound conditions, got {v:?}"),
         }
     }
 
@@ -518,7 +518,7 @@ mod tests {
             Condition::InvertedFunction(Function::FilePath(f)) => {
                 assert_eq!(PathBuf::from("Cargo.toml"), f);
             }
-            v => panic!("Expected an expression with two compound conditions, got {v:?}",),
+            v => panic!("Expected an expression with two compound conditions, got {v:?}"),
         }
     }
 
@@ -528,7 +528,7 @@ mod tests {
 
         match result {
             Condition::Expression(_) => {}
-            v => panic!("Expected an expression with two compound conditions, got {v:?}",),
+            v => panic!("Expected an expression with two compound conditions, got {v:?}"),
         }
     }
 
@@ -538,7 +538,7 @@ mod tests {
 
         match result {
             Condition::Expression(_) => {}
-            v => panic!("Expected an expression with two compound conditions, got {v:?}",),
+            v => panic!("Expected an expression with two compound conditions, got {v:?}"),
         }
     }
 
@@ -548,7 +548,7 @@ mod tests {
 
         match result {
             Condition::InvertedExpression(_) => {}
-            v => panic!("Expected an expression with two compound conditions, got {v:?}",),
+            v => panic!("Expected an expression with two compound conditions, got {v:?}"),
         }
     }
 
@@ -560,7 +560,7 @@ mod tests {
 
         match result {
             Condition::InvertedExpression(_) => {}
-            v => panic!("Expected an expression with two compound conditions, got {v:?}",),
+            v => panic!("Expected an expression with two compound conditions, got {v:?}"),
         }
     }
 
