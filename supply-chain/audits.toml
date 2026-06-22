@@ -12,6 +12,11 @@ who = "Oliver Hamlet <git@ortham.net>"
 criteria = "safe-to-deploy"
 delta = "1.11.3 -> 1.12.2"
 
+[[audits.regex]]
+who = "Oliver Hamlet <git@ortham.net>"
+criteria = "safe-to-deploy"
+delta = "1.12.2 -> 1.12.4"
+
 [[audits.regex-automata]]
 who = "Oliver Hamlet <git@ortham.net>"
 criteria = "safe-to-deploy"
@@ -22,6 +27,11 @@ notes = "It's a combination of format!() syntax tweaks and added calls to .shrin
 who = "Oliver Hamlet <git@ortham.net>"
 criteria = "safe-to-deploy"
 delta = "0.4.11 -> 0.4.13"
+
+[[audits.regex-syntax]]
+who = "Oliver Hamlet <git@ortham.net>"
+criteria = "safe-to-deploy"
+delta = "0.8.5 -> 0.8.11"
 
 [[trusted.esplugin]]
 criteria = "safe-to-deploy"
