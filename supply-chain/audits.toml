@@ -17,6 +17,11 @@ who = "Oliver Hamlet <git@ortham.net>"
 criteria = "safe-to-deploy"
 delta = "1.12.2 -> 1.12.4"
 
+[[audits.regex]]
+who = "Oliver Hamlet <git@ortham.net>"
+criteria = "safe-to-deploy"
+delta = "1.12.4 -> 1.13.0"
+
 [[audits.regex-automata]]
 who = "Oliver Hamlet <git@ortham.net>"
 criteria = "safe-to-deploy"
