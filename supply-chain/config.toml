@@ -44,7 +44,7 @@ suggest = false
 notes = "At time of review this was only built if targeting WASM, which is not an intended target."
 
 [[exemptions.linux-raw-sys]]
-version = "0.11.0"
+version = "0.12.1"
 criteria = "safe-to-run"
 suggest = false
 notes = "At time of review this was only built if targeting WASM, which is not an intended target."
@@ -84,7 +84,7 @@ version = "0.4.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.rustix]]
-version = "1.1.2"
+version = "1.1.5"
 criteria = "safe-to-run"
 suggest = false
 notes = "At time of review this was only built if targeting WASM, which is not an intended target."
