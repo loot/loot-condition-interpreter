@@ -346,7 +346,7 @@ mod tests {
                     ReleaseId::Numeric(0),
                 ]
             );
-            assert!(version.pre_release_ids.is_empty());
+            assert_eq!(version.pre_release_ids, []);
         }
 
         #[test]
@@ -364,7 +364,7 @@ mod tests {
                     ReleaseId::Numeric(0),
                 ]
             );
-            assert!(version.pre_release_ids.is_empty());
+            assert_eq!(version.pre_release_ids, []);
         }
 
         #[test]
@@ -407,7 +407,7 @@ mod tests {
                     ReleaseId::Numeric(2)
                 ]
             );
-            assert!(version.pre_release_ids.is_empty());
+            assert_eq!(version.pre_release_ids, []);
         }
 
         #[test]
@@ -425,7 +425,7 @@ mod tests {
                     ReleaseId::Numeric(2),
                 ]
             );
-            assert!(version.pre_release_ids.is_empty());
+            assert_eq!(version.pre_release_ids, []);
         }
 
         #[test]
@@ -451,7 +451,7 @@ mod tests {
                     ReleaseId::Numeric(2)
                 ]
             );
-            assert!(version.pre_release_ids.is_empty());
+            assert_eq!(version.pre_release_ids, []);
         }
 
         #[test]
@@ -719,7 +719,7 @@ mod tests {
                     ReleaseId::Numeric(12),
                 ]
             );
-            assert!(version.pre_release_ids.is_empty());
+            assert_eq!(version.pre_release_ids, []);
         }
 
         #[test]

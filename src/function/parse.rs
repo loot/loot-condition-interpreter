@@ -382,7 +382,7 @@ mod tests {
     fn function_parse_should_parse_a_file_path_function() {
         let output = Function::parse("file(\"Cargo.toml\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::FilePath(f) => assert_eq!(Path::new("Cargo.toml"), f),
             _ => panic!("Expected a file path function"),
@@ -393,7 +393,7 @@ mod tests {
     fn function_parse_should_parse_a_file_regex_function_with_no_parent_path() {
         let output = Function::parse("file(\"Cargo.*\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::FileRegex(p, r) => {
                 assert_eq!(PathBuf::from("."), p);
@@ -407,7 +407,7 @@ mod tests {
     fn function_parse_should_parse_a_file_regex_function_with_a_parent_path() {
         let output = Function::parse("file(\"subdir/Cargo.*\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::FileRegex(p, r) => {
                 assert_eq!(PathBuf::from("subdir"), p);
@@ -426,7 +426,7 @@ mod tests {
     fn function_parse_should_parse_a_file_size_function() {
         let output = Function::parse("file_size(\"Cargo.toml\", 1234)").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::FileSize(f, s) => {
                 assert_eq!(Path::new("Cargo.toml"), f);
@@ -440,7 +440,7 @@ mod tests {
     fn function_parse_should_parse_a_readable_function() {
         let output = Function::parse("readable(\"Cargo.toml\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::Readable(f) => assert_eq!(Path::new("Cargo.toml"), f),
             _ => panic!("Expected a readable function"),
@@ -451,7 +451,7 @@ mod tests {
     fn function_parse_should_parse_an_is_executable_function() {
         let output = Function::parse("is_executable(\"Cargo.toml\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::IsExecutable(f) => assert_eq!(Path::new("Cargo.toml"), f),
             _ => panic!("Expected an is_executable function"),
@@ -462,7 +462,7 @@ mod tests {
     fn function_parse_should_parse_an_active_path_function() {
         let output = Function::parse("active(\"Cargo.toml\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::ActivePath(f) => assert_eq!(Path::new("Cargo.toml"), f),
             _ => panic!("Expected an active path function"),
@@ -473,7 +473,7 @@ mod tests {
     fn function_parse_should_parse_an_active_regex_function() {
         let output = Function::parse("active(\"Cargo.*\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::ActiveRegex(r) => {
                 assert_eq!(Regex::new("^Cargo.*$").unwrap().as_str(), r.as_str());
@@ -486,7 +486,7 @@ mod tests {
     fn function_parse_should_parse_an_is_master_function() {
         let output = Function::parse("is_master(\"Blank.esm\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::IsMaster(f) => assert_eq!(Path::new("Blank.esm"), f),
             _ => panic!("Expected an is master function"),
@@ -497,7 +497,7 @@ mod tests {
     fn function_parse_should_parse_a_many_function_with_no_parent_path() {
         let output = Function::parse("many(\"Cargo.*\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::Many(p, r) => {
                 assert_eq!(PathBuf::from("."), p);
@@ -511,7 +511,7 @@ mod tests {
     fn function_parse_should_parse_a_many_function_with_a_parent_path() {
         let output = Function::parse("many(\"subdir/Cargo.*\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::Many(p, r) => {
                 assert_eq!(PathBuf::from("subdir"), p);
@@ -530,7 +530,7 @@ mod tests {
     fn function_parse_should_parse_a_many_active_function() {
         let output = Function::parse("many_active(\"Cargo.*\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::ManyActive(r) => {
                 assert_eq!(Regex::new("^Cargo.*$").unwrap().as_str(), r.as_str());
@@ -543,7 +543,7 @@ mod tests {
     fn function_parse_should_parse_a_checksum_function() {
         let output = Function::parse("checksum(\"Cargo.toml\", DEADBEEF)").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::Checksum(path, crc) => {
                 assert_eq!(Path::new("Cargo.toml"), path);
@@ -557,7 +557,7 @@ mod tests {
     fn function_parse_should_parse_a_version_equals_function() {
         let output = Function::parse("version(\"Cargo.toml\", \"1.2\", ==)").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::Version(path, version, comparator) => {
                 assert_eq!(Path::new("Cargo.toml"), path);
@@ -572,7 +572,7 @@ mod tests {
     fn function_parse_should_parse_a_version_not_equals_function() {
         let output = Function::parse("version(\"Cargo.toml\", \"1.2\", !=)").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::Version(path, version, comparator) => {
                 assert_eq!(Path::new("Cargo.toml"), path);
@@ -587,7 +587,7 @@ mod tests {
     fn function_parse_should_parse_a_version_less_than_function() {
         let output = Function::parse("version(\"Cargo.toml\", \"1.2\", <)").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::Version(path, version, comparator) => {
                 assert_eq!(Path::new("Cargo.toml"), path);
@@ -602,7 +602,7 @@ mod tests {
     fn function_parse_should_parse_a_version_greater_than_function() {
         let output = Function::parse("version(\"Cargo.toml\", \"1.2\", >)").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::Version(path, version, comparator) => {
                 assert_eq!(Path::new("Cargo.toml"), path);
@@ -617,7 +617,7 @@ mod tests {
     fn function_parse_should_parse_a_version_less_than_or_equal_to_function() {
         let output = Function::parse("version(\"Cargo.toml\", \"1.2\", <=)").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::Version(path, version, comparator) => {
                 assert_eq!(Path::new("Cargo.toml"), path);
@@ -632,7 +632,7 @@ mod tests {
     fn function_parse_should_parse_a_version_greater_than_or_equal_to_function() {
         let output = Function::parse("version(\"Cargo.toml\", \"1.2\", >=)").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::Version(path, version, comparator) => {
                 assert_eq!(Path::new("Cargo.toml"), path);
@@ -647,7 +647,7 @@ mod tests {
     fn function_parse_should_parse_a_version_with_a_path_containing_backslashes() {
         let output = Function::parse("version(\"..\\Cargo.toml\", \"1.2\", ==)").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::Version(path, version, comparator) => {
                 assert_eq!(Path::new("..\\Cargo.toml"), path);
@@ -662,7 +662,7 @@ mod tests {
     fn function_parse_should_parse_version_with_comparator_as_the_second_param() {
         let output = Function::parse("version(\"..\\Cargo.toml\", ==, \"1.2\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::Version(path, version, comparator) => {
                 assert_eq!(Path::new("..\\Cargo.toml"), path);
@@ -677,7 +677,7 @@ mod tests {
     fn function_parse_should_parse_a_product_version_equals_function() {
         let output = Function::parse("product_version(\"Cargo.toml\", \"1.2\", ==)").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::ProductVersion(path, version, comparator) => {
                 assert_eq!(Path::new("Cargo.toml"), path);
@@ -692,7 +692,7 @@ mod tests {
     fn function_parse_should_parse_a_product_version_with_comparator_as_the_second_param() {
         let output = Function::parse("product_version(\"Cargo.toml\", ==, \"1.2\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::ProductVersion(path, version, comparator) => {
                 assert_eq!(Path::new("Cargo.toml"), path);
@@ -708,7 +708,7 @@ mod tests {
         let output =
             Function::parse("filename_version(\"subdir/Cargo (.+).toml\", \"1.2\", ==)").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::FilenameVersion(path, regex, version, comparator) => {
                 assert_eq!(PathBuf::from("subdir"), path);
@@ -728,7 +728,7 @@ mod tests {
         let output =
             Function::parse("filename_version(\"subdir/Cargo (.+).toml\", ==, \"1.2\")").unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::FilenameVersion(path, regex, version, comparator) => {
                 assert_eq!(PathBuf::from("subdir"), path);
@@ -757,7 +757,7 @@ mod tests {
         let function = format!("description_contains(\"Blank.esp\", \"{lowercase_non_ascii}\")");
         let output = Function::parse(&function).unwrap();
 
-        assert!(output.0.is_empty());
+        assert_eq!(output.0, "");
         match output.1 {
             Function::DescriptionContains(p, r) => {
                 assert_eq!(PathBuf::from("Blank.esp"), p);
