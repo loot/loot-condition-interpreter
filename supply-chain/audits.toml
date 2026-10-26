@@ -6,6 +6,11 @@ who = "Oliver Hamlet <git@ortham.net>"
 criteria = "safe-to-deploy"
 delta = "1.5.0 -> 1.5.2"
 
+[[audits.crc32fast]]
+who = "Oliver Hamlet <git@ortham.net>"
+criteria = "safe-to-deploy"
+delta = "1.5.2 -> 1.5.3"
+
 [[audits.regex]]
 who = "Oliver Hamlet <git@ortham.net>"
 criteria = "safe-to-deploy"
